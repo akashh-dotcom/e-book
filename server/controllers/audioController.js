@@ -24,12 +24,12 @@ exports.uploadChapterAudio = async (req, res) => {
     // Get duration via ffprobe
     const duration = await getAudioDuration(audioPath);
 
-    if (!book.audioFiles) book.audioFiles = {};
-    book.audioFiles[chapterIndex] = {
+    if (!book.audioFiles) book.audioFiles = new Map();
+    book.audioFiles.set(String(chapterIndex), {
       filename,
       duration,
       uploadedAt: new Date(),
-    };
+    });
     book.markModified('audioFiles');
     await book.save();
 
@@ -53,7 +53,7 @@ exports.streamAudio = async (req, res) => {
   try {
     const { bookId, chapterIndex } = req.params;
     const book = await Book.findById(bookId);
-    const audioInfo = book?.audioFiles?.[chapterIndex];
+    const audioInfo = book?.audioFiles?.get(String(chapterIndex));
     if (!audioInfo) return res.status(404).end();
 
     const audioPath = path.join(
@@ -88,7 +88,7 @@ exports.streamAudio = async (req, res) => {
 exports.getChapterAudio = async (req, res) => {
   try {
     const book = await Book.findById(req.params.bookId);
-    const audioInfo = book?.audioFiles?.[req.params.chapterIndex];
+    const audioInfo = book?.audioFiles?.get(String(req.params.chapterIndex));
     if (!audioInfo) return res.status(404).json({ error: 'No audio' });
     res.json({
       ...audioInfo,
@@ -102,12 +102,13 @@ exports.getChapterAudio = async (req, res) => {
 exports.deleteChapterAudio = async (req, res) => {
   try {
     const book = await Book.findById(req.params.bookId);
-    const info = book?.audioFiles?.[req.params.chapterIndex];
+    const chapterKey = String(req.params.chapterIndex);
+    const info = book?.audioFiles?.get(chapterKey);
     if (!info) return res.status(404).json({ error: 'Not found' });
 
     const filePath = path.join(book.storagePath, 'audio', info.filename);
     await fs.unlink(filePath).catch(() => {});
-    delete book.audioFiles[req.params.chapterIndex];
+    book.audioFiles.delete(chapterKey);
     book.markModified('audioFiles');
     await book.save();
 

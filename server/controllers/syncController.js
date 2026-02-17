@@ -19,7 +19,7 @@ exports.autoAlign = async (req, res) => {
     const book = await Book.findById(bookId);
     if (!book) return res.status(404).json({ error: 'Book not found' });
 
-    const audioInfo = book.audioFiles?.[chapterIndex];
+    const audioInfo = book.audioFiles?.get(String(chapterIndex));
     if (!audioInfo) {
       return res.status(400).json({
         error: 'Upload audio for this chapter first',
@@ -114,7 +114,7 @@ exports.saveManualSync = async (req, res) => {
     }
 
     const book = await Book.findById(bookId);
-    const audioInfo = book?.audioFiles?.[chapterIndex];
+    const audioInfo = book?.audioFiles?.get(String(chapterIndex));
     if (audioInfo) {
       const smilXml = smilGenerator.generate(
         syncData,
