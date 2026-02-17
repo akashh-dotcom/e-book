@@ -263,6 +263,11 @@ export default function EditorTimeline({
     const dragType = `word${edge}:${entry.id}`;
     setDragging(dragType);
 
+    // Auto-seek to the word so the user hears the boundary they're adjusting
+    overlay?.seek(edge === 'Left' ? entry.clipBegin : entry.clipEnd);
+    // Auto-play so changes are audible immediately
+    if (!overlay?.isPlaying) overlay?.play();
+
     const onMove = (ev) => {
       const t = timeFromEvent(ev);
       const currentSync = syncDataRef.current;
@@ -303,7 +308,7 @@ export default function EditorTimeline({
 
     window.addEventListener('mousemove', onMove);
     window.addEventListener('mouseup', onUp);
-  }, [timeFromEvent, duration, onSyncDataChange, saveWordTimings]);
+  }, [timeFromEvent, duration, onSyncDataChange, saveWordTimings, overlay]);
 
   // --- Trim actions ---
 

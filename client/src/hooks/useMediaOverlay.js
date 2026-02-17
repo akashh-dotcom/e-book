@@ -9,6 +9,10 @@ export function useMediaOverlay(syncData, audioUrl) {
   const [activeWordId, setActiveWordId] = useState(null);
   const [playbackRate, setPlaybackRate] = useState(1);
 
+  // Keep a ref to the latest syncData so the timer always reads fresh data
+  const syncDataRef = useRef(syncData);
+  syncDataRef.current = syncData;
+
   useEffect(() => {
     const audio = new Audio();
     audioRef.current = audio;
@@ -43,10 +47,12 @@ export function useMediaOverlay(syncData, audioUrl) {
     }
   }, [syncData]);
 
+  // Reads from syncDataRef so it always uses the latest timings
   const updateHighlights = useCallback((t) => {
-    if (!syncData?.length) return;
+    const data = syncDataRef.current;
+    if (!data?.length) return;
     let newActive = null;
-    for (const entry of syncData) {
+    for (const entry of data) {
       const el = document.getElementById(entry.id);
       if (!el || entry.clipBegin === null) continue;
       if (t >= entry.clipBegin && t < entry.clipEnd) {
@@ -62,7 +68,7 @@ export function useMediaOverlay(syncData, audioUrl) {
       }
     }
     setActiveWordId(newActive);
-  }, [syncData]);
+  }, []); // no syncData dep — reads from ref
 
   const clearHighlights = () => {
     document.querySelectorAll('.-epub-media-overlay-active, .mo-spoken')
@@ -104,12 +110,13 @@ export function useMediaOverlay(syncData, audioUrl) {
   }, [updateHighlights]);
 
   const seekToWord = useCallback((wordId) => {
-    const entry = syncData?.find(d => d.id === wordId);
+    const data = syncDataRef.current;
+    const entry = data?.find(d => d.id === wordId);
     if (entry?.clipBegin !== null && entry?.clipBegin !== undefined) {
       seek(entry.clipBegin);
       if (!isPlaying) play();
     }
-  }, [syncData, seek, isPlaying, play]);
+  }, [seek, isPlaying, play]);
 
   const setSpeed = useCallback((r) => {
     if (audioRef.current) audioRef.current.playbackRate = r;
