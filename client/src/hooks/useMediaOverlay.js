@@ -98,6 +98,7 @@ export function useMediaOverlay(syncData, audioUrl) {
   const seek = useCallback((t) => {
     if (audioRef.current) {
       audioRef.current.currentTime = t;
+      setCurrentTime(t);
       updateHighlights(t);
     }
   }, [updateHighlights]);

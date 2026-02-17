@@ -2581,6 +2581,7 @@ body {
   left: 0;
   right: 0;
   bottom: 10px;
+  pointer-events: none;
 }
 
 /* Dimmed regions (will be trimmed away) */
@@ -2611,6 +2612,7 @@ body {
   border-bottom: 2px solid rgba(124, 58, 237, 0.5);
   z-index: 4;
   overflow: visible;
+  pointer-events: none;
 }
 
 /* Word blocks (inside clip) */
@@ -2627,6 +2629,7 @@ body {
   overflow: hidden;
   cursor: pointer;
   transition: background 0.1s;
+  pointer-events: auto;
 }
 
 .ed-word-block:hover {
@@ -2665,6 +2668,7 @@ body {
   transition: background 0.15s, box-shadow 0.15s;
   border-radius: 6px;
   background: rgba(124, 58, 237, 0.7);
+  pointer-events: auto;
 }
 
 .ed-clip-edge:hover {
