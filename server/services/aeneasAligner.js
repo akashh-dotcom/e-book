@@ -1,6 +1,10 @@
 const { execSync } = require('child_process');
 const fs = require('fs').promises;
 const path = require('path');
+const os = require('os');
+
+// Use 'python' on Windows, 'python3' elsewhere
+const PYTHON = process.platform === 'win32' ? 'python' : 'python3';
 
 class AeneasAligner {
 
@@ -16,7 +20,7 @@ class AeneasAligner {
   async alignWords(audioPath, words, options = {}) {
     const { language = 'en' } = options;
 
-    const tmpDir = path.join('/tmp', 'aeneas_' + Date.now());
+    const tmpDir = path.join(os.tmpdir(), 'aeneas_' + Date.now());
     await fs.mkdir(tmpDir, { recursive: true });
 
     // Aeneas expects one word per line for word-level alignment
@@ -31,7 +35,7 @@ class AeneasAligner {
 
     try {
       const stdout = execSync(
-        `python3 "${scriptPath}" "${audioPath}" "${textPath}" "${outputPath}" "${language}"`,
+        `${PYTHON} "${scriptPath}" "${audioPath}" "${textPath}" "${outputPath}" "${language}"`,
         { timeout: 600000, maxBuffer: 50 * 1024 * 1024 }
       ).toString();
 
@@ -55,7 +59,7 @@ class AeneasAligner {
    */
   async alignWordsCLI(audioPath, textPath, outputPath, language = 'eng') {
     const cmd = [
-      'python3 -m aeneas.tools.execute_task',
+      `${PYTHON} -m aeneas.tools.execute_task`,
       `"${audioPath}"`,
       `"${textPath}"`,
       `"task_language=${language}|is_text_type=plain|os_task_file_format=json|task_adjust_boundary_no_zero=True"`,
@@ -89,7 +93,7 @@ class AeneasAligner {
     );
 
     execSync(
-      `python3 "${scriptPath}" "${audioPath}" "${textPath}" "${outputPath}" "${language}" "${audioRef}" "${pageRef}"`,
+      `${PYTHON} "${scriptPath}" "${audioPath}" "${textPath}" "${outputPath}" "${language}" "${audioRef}" "${pageRef}"`,
       { timeout: 600000 }
     );
 
@@ -115,7 +119,7 @@ class AeneasAligner {
   async alignSentencesThenDistribute(audioPath, plainText, wordIds, options = {}) {
     const { language = 'en' } = options;
 
-    const tmpDir = path.join('/tmp', 'aeneas_sent_' + Date.now());
+    const tmpDir = path.join(os.tmpdir(), 'aeneas_sent_' + Date.now());
     await fs.mkdir(tmpDir, { recursive: true });
 
     const sentences = plainText
@@ -132,7 +136,7 @@ class AeneasAligner {
     );
 
     execSync(
-      `python3 "${scriptPath}" "${audioPath}" "${textPath}" "${outputPath}" "${language}"`,
+      `${PYTHON} "${scriptPath}" "${audioPath}" "${textPath}" "${outputPath}" "${language}"`,
       { timeout: 600000 }
     );
 
