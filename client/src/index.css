@@ -979,10 +979,12 @@ body {
 .-epub-media-overlay-active {
   color: #c0392b !important;
   background: rgba(192, 57, 43, 0.12) !important;
-  font-weight: 600;
+  font-weight: 700;
+  font-size: 1.35em;
   border-radius: 3px;
   padding: 1px 2px;
-  transition: color 0.08s ease, background 0.08s ease;
+  display: inline-block;
+  transition: color 0.15s ease, background 0.15s ease, font-size 0.15s ease;
 }
 
 .mo-spoken {
@@ -991,7 +993,7 @@ body {
 
 .audio-playing .chapter-content span[id^="w"] {
   color: var(--text-dim);
-  transition: color 0.1s ease;
+  transition: color 0.1s ease, font-size 0.15s ease, font-weight 0.15s ease;
   cursor: pointer;
 }
 
