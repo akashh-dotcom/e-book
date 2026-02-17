@@ -40,7 +40,7 @@ export default function ReaderPage() {
   const hasSync = audio.hasSyncData;
 
   return (
-    <div className={`reader-root theme-${reader.theme} ${overlay.isPlaying ? 'audio-playing' : ''}`}>
+    <div className={`reader-root theme-${reader.theme} ${hasSync ? 'audio-synced' : ''} ${overlay.isPlaying ? 'audio-playing' : ''}`}>
       <TopBar
         title={reader.book.title}
         onToggleSidebar={() => reader.setSidebarOpen(!reader.sidebarOpen)}

@@ -991,10 +991,21 @@ body {
   color: var(--text) !important;
 }
 
+/* Words are always clickable when sync data is available */
+.audio-synced .chapter-content span[id^="w"] {
+  cursor: pointer;
+  transition: color 0.15s ease, font-size 0.15s ease, font-weight 0.15s ease, background 0.15s ease;
+  border-radius: 3px;
+}
+
+.audio-synced .chapter-content span[id^="w"]:hover {
+  background: rgba(37, 99, 235, 0.10);
+  color: var(--accent);
+}
+
+/* During playback, un-spoken words are dimmed */
 .audio-playing .chapter-content span[id^="w"] {
   color: var(--text-dim);
-  transition: color 0.1s ease, font-size 0.15s ease, font-weight 0.15s ease;
-  cursor: pointer;
 }
 
 .theme-sepia .-epub-media-overlay-active {
@@ -1002,9 +1013,19 @@ body {
   background: rgba(139,94,52,0.12) !important;
 }
 
+.theme-sepia.audio-synced .chapter-content span[id^="w"]:hover {
+  background: rgba(139, 94, 52, 0.10);
+  color: #8b5e34;
+}
+
 .theme-dark .-epub-media-overlay-active {
   color: #f7c948 !important;
   background: rgba(247,201,72,0.15) !important;
+}
+
+.theme-dark.audio-synced .chapter-content span[id^="w"]:hover {
+  background: rgba(78, 168, 222, 0.12);
+  color: #4ea8de;
 }
 
 /* === AUDIO UPLOAD BAR === */
