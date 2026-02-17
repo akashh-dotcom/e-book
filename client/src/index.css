@@ -980,11 +980,12 @@ body {
   color: #c0392b !important;
   background: rgba(192, 57, 43, 0.12) !important;
   font-weight: 700;
-  font-size: 1.35em;
   border-radius: 3px;
   padding: 1px 2px;
   display: inline-block;
-  transition: color 0.15s ease, background 0.15s ease, font-size 0.15s ease;
+  transform: scale(1.18);
+  transform-origin: center bottom;
+  transition: color 0.15s ease, background 0.15s ease, transform 0.15s ease;
 }
 
 .mo-spoken {
@@ -994,7 +995,8 @@ body {
 /* Words are always clickable when sync data is available */
 .audio-synced .chapter-content span[id^="w"] {
   cursor: pointer;
-  transition: color 0.15s ease, font-size 0.15s ease, font-weight 0.15s ease, background 0.15s ease;
+  display: inline-block;
+  transition: color 0.15s ease, transform 0.15s ease, font-weight 0.15s ease, background 0.15s ease;
   border-radius: 3px;
 }
 
@@ -2641,6 +2643,46 @@ body {
   background: rgba(124, 58, 237, 0.5);
   border-color: #7c3aed;
   z-index: 3;
+}
+
+.ed-word-block.dragging {
+  background: rgba(124, 58, 237, 0.55);
+  border-color: #a78bfa;
+  z-index: 4;
+}
+
+/* Word edge drag handles */
+.ed-word-edge {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  cursor: ew-resize;
+  z-index: 5;
+  opacity: 0;
+  transition: opacity 0.12s, background 0.12s;
+  pointer-events: auto;
+}
+
+.ed-word-edge-left {
+  left: 0;
+  border-radius: 3px 0 0 3px;
+  background: linear-gradient(90deg, rgba(124, 58, 237, 0.8), transparent);
+}
+
+.ed-word-edge-right {
+  right: 0;
+  border-radius: 0 3px 3px 0;
+  background: linear-gradient(270deg, rgba(124, 58, 237, 0.8), transparent);
+}
+
+.ed-word-block:hover .ed-word-edge,
+.ed-word-block.dragging .ed-word-edge {
+  opacity: 1;
+}
+
+.ed-word-edge:hover {
+  background: rgba(167, 139, 250, 0.9) !important;
 }
 
 .ed-word-text {

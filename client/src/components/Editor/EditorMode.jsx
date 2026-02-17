@@ -93,6 +93,7 @@ export default function EditorMode({
           onTrimDone={onTrimDone}
           onReSync={onReSync}
           reSyncing={reSyncing}
+          onSyncDataChange={audio.updateSyncData}
         />
       )}
     </div>

@@ -35,6 +35,7 @@ export default function EditorTimeline({
   onTrimDone,
   onReSync,
   reSyncing,
+  onSyncDataChange,
 }) {
   // Clip edges: the "keep" region (Canva-style drag from edges)
   const [clipLeft, setClipLeft] = useState(0);
@@ -45,13 +46,15 @@ export default function EditorTimeline({
   const [trimming, setTrimming] = useState(false);
   const [restoring, setRestoring] = useState(false);
   const [message, setMessage] = useState(null);
-  const [dragging, setDragging] = useState(null); // 'playhead' | 'clipLeft' | 'clipRight'
+  const [dragging, setDragging] = useState(null); // 'playhead' | 'clipLeft' | 'clipRight' | 'wordLeft:id' | 'wordRight:id'
   const [zoom, setZoom] = useState(1);
   const trackRef = useRef(null);
   const scrollRef = useRef(null);
   // Ref to store the desired scroll position during zoom — applied in useLayoutEffect
   const pendingScrollRef = useRef(null);
   const prevZoomRef = useRef(1);
+  // Debounce timer for persisting word-edge drags
+  const wordDragSaveRef = useRef(null);
 
   const duration = overlay?.duration || 0;
   const currentTime = overlay?.currentTime || 0;
@@ -239,6 +242,68 @@ export default function EditorTimeline({
     window.addEventListener('mousemove', onMove);
     window.addEventListener('mouseup', onUp);
   }, [timeFromEvent, duration, clipLeft]);
+
+  // ---- Word-edge drag: resize a single word's clipBegin or clipEnd ----
+
+  const saveWordTimings = useCallback((updatedSyncData) => {
+    // Debounce server save to avoid spamming during drag
+    if (wordDragSaveRef.current) clearTimeout(wordDragSaveRef.current);
+    wordDragSaveRef.current = setTimeout(() => {
+      api.post(`/sync/${bookId}/${chapterIndex}/manual`, { syncData: updatedSyncData })
+        .catch(() => {});
+    }, 400);
+  }, [bookId, chapterIndex]);
+
+  // Keep a ref to latest syncData for the drag move/up handlers
+  const syncDataRef = useRef(syncData);
+  syncDataRef.current = syncData;
+
+  const handleWordEdgeMouseDown = useCallback((e, entry, edge) => {
+    e.stopPropagation();
+    const dragType = `word${edge}:${entry.id}`;
+    setDragging(dragType);
+
+    const onMove = (ev) => {
+      const t = timeFromEvent(ev);
+      const currentSync = syncDataRef.current;
+      if (!currentSync) return;
+      const idx = currentSync.findIndex(w => w.id === entry.id);
+      if (idx < 0) return;
+
+      const updated = currentSync.map(w => ({ ...w }));
+      const word = updated[idx];
+
+      if (edge === 'Left') {
+        // Clamp: can't go before previous word's clipBegin, can't pass own clipEnd
+        const minT = idx > 0 ? (updated[idx - 1].clipBegin + 0.01) : 0;
+        const maxT = word.clipEnd - 0.01;
+        const clamped = +Math.max(minT, Math.min(t, maxT)).toFixed(3);
+        if (idx > 0) updated[idx - 1].clipEnd = clamped;
+        word.clipBegin = clamped;
+      } else {
+        // Clamp: can't go past next word's clipEnd, can't go before own clipBegin
+        const minT = word.clipBegin + 0.01;
+        const maxT = idx < updated.length - 1 ? (updated[idx + 1].clipEnd - 0.01) : duration;
+        const clamped = +Math.max(minT, Math.min(t, maxT)).toFixed(3);
+        if (idx < updated.length - 1) updated[idx + 1].clipBegin = clamped;
+        word.clipEnd = clamped;
+      }
+
+      if (onSyncDataChange) onSyncDataChange(updated);
+    };
+
+    const onUp = () => {
+      setDragging(null);
+      // Save the latest state from the ref
+      const finalSync = syncDataRef.current;
+      if (finalSync) saveWordTimings(finalSync);
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  }, [timeFromEvent, duration, onSyncDataChange, saveWordTimings]);
 
   // --- Trim actions ---
 
@@ -456,10 +521,11 @@ export default function EditorTimeline({
                 const blockLeft = ((entry.clipBegin - clipLeft) / clipSpan) * 100;
                 const blockWidth = ((entry.clipEnd - entry.clipBegin) / clipSpan) * 100;
                 const isActive = overlay?.activeWordId === entry.id;
+                const isDraggingThis = dragging?.startsWith('word') && dragging.endsWith(entry.id);
                 return (
                   <div
                     key={entry.id}
-                    className={`ed-word-block ${isActive ? 'active' : ''}`}
+                    className={`ed-word-block ${isActive ? 'active' : ''} ${isDraggingThis ? 'dragging' : ''}`}
                     style={{
                       left: `${Math.max(0, blockLeft)}%`,
                       width: `${Math.max(blockWidth, 0.3)}%`,
@@ -470,7 +536,17 @@ export default function EditorTimeline({
                       overlay?.seek(entry.clipBegin);
                     }}
                   >
+                    {/* Left edge drag handle */}
+                    <div
+                      className="ed-word-edge ed-word-edge-left"
+                      onMouseDown={(e) => handleWordEdgeMouseDown(e, entry, 'Left')}
+                    />
                     <span className="ed-word-text">{entry.word}</span>
+                    {/* Right edge drag handle */}
+                    <div
+                      className="ed-word-edge ed-word-edge-right"
+                      onMouseDown={(e) => handleWordEdgeMouseDown(e, entry, 'Right')}
+                    />
                   </div>
                 );
               })}
