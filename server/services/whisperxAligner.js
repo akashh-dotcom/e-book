@@ -3,8 +3,9 @@ const fs = require('fs').promises;
 const path = require('path');
 const os = require('os');
 
-// Use 'python' on Windows, 'python3' elsewhere
-const PYTHON = process.platform === 'win32' ? 'python' : 'python3';
+// Use PYTHON_PATH from .env, or fall back to platform default
+const PYTHON = process.env.PYTHON_PATH
+  || (process.platform === 'win32' ? 'python' : 'python3');
 
 class WhisperXAligner {
 
