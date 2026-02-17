@@ -2,7 +2,9 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const path = require('path');
+// Try .env from repo root first, then from server/ directory
 require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
+require('dotenv').config(); // fallback: .env in cwd
 
 const bookRoutes = require('./routes/bookRoutes');
 
