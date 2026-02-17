@@ -1,7 +1,8 @@
-import { Menu, Search, Settings, Bookmark, BookOpen } from 'lucide-react';
+import { Menu, Search, Settings, Bookmark, BookOpen, PenTool } from 'lucide-react';
 
 export default function TopBar({
   title,
+  onToggleEditor,
   onToggleSidebar,
   onToggleSearch,
   onToggleSettings,
@@ -18,6 +19,12 @@ export default function TopBar({
       </div>
 
       <div className="top-bar-right">
+        {onToggleEditor && (
+          <button className="edit-mode-btn" onClick={onToggleEditor} title="Open Editor">
+            <PenTool size={15} />
+            <span>Edit</span>
+          </button>
+        )}
         <button className="icon-btn" onClick={onToggleSearch} title="Search">
           <Search size={18} />
         </button>

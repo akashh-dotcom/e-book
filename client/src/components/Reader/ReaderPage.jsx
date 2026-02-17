@@ -13,6 +13,7 @@ import BookmarksPanel from './BookmarksPanel';
 import AudioBar from './AudioBar';
 import TrimEditorPanel from './TrimEditorPanel';
 import ChapterAudioUpload from '../AudioUpload/ChapterAudioUpload';
+import EditorMode from '../Editor/EditorMode';
 
 export default function ReaderPage() {
   const { bookId } = useParams();
@@ -23,6 +24,7 @@ export default function ReaderPage() {
   const overlay = useMediaOverlay(audio.syncData, audio.audioUrl);
   const [trimEditorOpen, setTrimEditorOpen] = useState(false);
   const [reSyncing, setReSyncing] = useState(false);
+  const [editorMode, setEditorMode] = useState(false);
 
   const handleReSync = useCallback(async () => {
     setReSyncing(true);
@@ -67,10 +69,28 @@ export default function ReaderPage() {
 
   const hasSync = audio.hasSyncData;
 
+  // === EDITOR MODE ===
+  if (editorMode) {
+    return (
+      <EditorMode
+        reader={reader}
+        audio={audio}
+        overlay={overlay}
+        bookId={bookId}
+        onExitEditor={() => setEditorMode(false)}
+        onTrimDone={handleTrimDone}
+        onReSync={handleReSync}
+        reSyncing={reSyncing}
+      />
+    );
+  }
+
+  // === READER MODE ===
   return (
     <div className={`reader-root theme-${reader.theme} ${hasSync ? 'audio-synced' : ''} ${overlay.isPlaying ? 'audio-playing' : ''}`}>
       <TopBar
         title={reader.book.title}
+        onToggleEditor={() => setEditorMode(true)}
         onToggleSidebar={() => reader.setSidebarOpen(!reader.sidebarOpen)}
         onToggleSearch={() => {
           reader.setSearchOpen(!reader.searchOpen);
