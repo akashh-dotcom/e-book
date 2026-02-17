@@ -66,7 +66,16 @@ export function useAudioPlayer(bookId, chapterIndex) {
         setSyncData(res.data.syncData);
         setHasSyncData(true);
       })
-      .catch(() => {});
+      .catch(() => {
+        setSyncData(null);
+        setHasSyncData(false);
+      });
+  }, [bookId, chapterIndex]);
+
+  const reloadAudio = useCallback(() => {
+    // Force audio element to reload by appending cache-buster
+    const ts = Date.now();
+    setAudioUrl(`/api/audio/${bookId}/${chapterIndex}/stream?t=${ts}`);
   }, [bookId, chapterIndex]);
 
   return {
@@ -78,5 +87,6 @@ export function useAudioPlayer(bookId, chapterIndex) {
     runAutoSync,
     updateSyncData,
     reloadSync,
+    reloadAudio,
   };
 }

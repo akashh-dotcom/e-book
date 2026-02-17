@@ -125,17 +125,17 @@ exports.deleteChapterAudio = async (req, res) => {
 };
 
 /**
- * Trim audio by removing segments corresponding to skipped words.
+ * Trim audio by removing a time range directly.
  * POST /api/audio/:bookId/:chapterIndex/trim
- * Body: { skipWordIds: ["w00005", "w00006", ...] }
+ * Body: { trimStart: seconds, trimEnd: seconds }
  */
 exports.trimAudio = async (req, res) => {
   try {
     const { bookId, chapterIndex } = req.params;
-    const { skipWordIds } = req.body;
+    const { trimStart, trimEnd } = req.body;
 
-    if (!skipWordIds?.length) {
-      return res.status(400).json({ error: 'No words selected to skip' });
+    if (trimStart === undefined || trimEnd === undefined) {
+      return res.status(400).json({ error: 'Provide trimStart and trimEnd' });
     }
 
     const book = await Book.findById(bookId);
@@ -144,11 +144,12 @@ exports.trimAudio = async (req, res) => {
     const audioInfo = book.audioFiles?.get(String(chapterIndex));
     if (!audioInfo) return res.status(400).json({ error: 'No audio for this chapter' });
 
-    const SyncData = require('../models/SyncData');
-    const sync = await SyncData.findOne({ bookId, chapterIndex: parseInt(chapterIndex) });
-    if (!sync) return res.status(400).json({ error: 'No sync data' });
-
     const audioPath = path.join(book.storagePath, 'audio', audioInfo.filename);
+    const totalDuration = audioInfo.duration || await getAudioDuration(audioPath);
+
+    if (trimStart >= trimEnd || trimStart < 0 || trimEnd > totalDuration + 0.1) {
+      return res.status(400).json({ error: 'Invalid trim range' });
+    }
 
     // Backup original audio before first trim
     const backupPath = audioPath.replace(/(\.\w+)$/, '_original$1');
@@ -158,28 +159,11 @@ exports.trimAudio = async (req, res) => {
       await fs.copyFile(audioPath, backupPath);
     }
 
-    // Compute time ranges to remove from skipped words
-    const skipSet = new Set(skipWordIds);
-    const skipRanges = [];
-    for (const entry of sync.syncData) {
-      if (skipSet.has(entry.id) && !entry.skipped && entry.clipBegin !== null && entry.clipEnd !== null) {
-        skipRanges.push({ start: entry.clipBegin, end: entry.clipEnd });
-      }
-    }
-
-    if (skipRanges.length === 0) {
-      return res.status(400).json({ error: 'Selected words have no audio timing data' });
-    }
-
-    // Merge overlapping/adjacent ranges
-    const merged = mergeRanges(skipRanges);
-
-    // Compute keep ranges (inverse of skip ranges)
-    const totalDuration = audioInfo.duration || await getAudioDuration(audioPath);
-    const keepRanges = invertRanges(merged, totalDuration);
+    // Compute keep ranges (everything except the trimmed section)
+    const keepRanges = invertRanges([{ start: trimStart, end: trimEnd }], totalDuration);
 
     if (keepRanges.length === 0) {
-      return res.status(400).json({ error: 'Cannot skip all audio' });
+      return res.status(400).json({ error: 'Cannot remove all audio' });
     }
 
     // Use FFmpeg to create trimmed audio
@@ -192,37 +176,20 @@ exports.trimAudio = async (req, res) => {
 
     const newDuration = await getAudioDuration(audioPath);
 
-    // Recalculate timestamps for remaining words
-    const newSyncData = recalculateTimestamps(sync.syncData, skipSet, merged);
-
-    // Update sync in database
-    sync.syncData = newSyncData;
-    sync.duration = newDuration;
-    sync.updatedAt = new Date();
-    await sync.save();
-
     // Update book audio duration
     const updatedInfo = { filename: audioInfo.filename, duration: newDuration, uploadedAt: audioInfo.uploadedAt };
     book.audioFiles.set(String(chapterIndex), updatedInfo);
     book.markModified('audioFiles');
     await book.save();
 
-    // Regenerate SMIL
-    const smilGenerator = require('../services/smilGenerator');
-    const smilXml = smilGenerator.generate(
-      newSyncData,
-      `${chapterIndex}.html`,
-      `audio/${audioInfo.filename}`
-    );
-    const smilDir = path.join(book.storagePath, 'smil');
-    await fs.mkdir(smilDir, { recursive: true });
-    await fs.writeFile(path.join(smilDir, `chapter_${chapterIndex}.smil`), smilXml);
+    // Delete old sync data — user must re-sync after trimming
+    const SyncData = require('../models/SyncData');
+    await SyncData.deleteOne({ bookId, chapterIndex: parseInt(chapterIndex) });
 
     res.json({
       message: 'Audio trimmed successfully',
-      skippedWords: skipWordIds.length,
+      removedRange: { start: trimStart, end: trimEnd },
       newDuration,
-      syncData: newSyncData,
     });
   } catch (err) {
     console.error('Trim error:', err);

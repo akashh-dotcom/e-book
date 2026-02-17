@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import useReader from '../../hooks/useReader';
 import { useAudioPlayer } from '../../hooks/useAudioPlayer';
@@ -22,6 +22,25 @@ export default function ReaderPage() {
   const audio = useAudioPlayer(bookId, reader.chapterIndex);
   const overlay = useMediaOverlay(audio.syncData, audio.audioUrl);
   const [trimEditorOpen, setTrimEditorOpen] = useState(false);
+  const [reSyncing, setReSyncing] = useState(false);
+
+  const handleReSync = useCallback(async () => {
+    setReSyncing(true);
+    try {
+      await audio.runAutoSync('word');
+      reader.reloadChapter();
+    } catch {
+      // error handled by runAutoSync
+    } finally {
+      setReSyncing(false);
+    }
+  }, [audio, reader]);
+
+  const handleTrimDone = useCallback((newDuration) => {
+    // After trim, sync data is deleted — reload audio and sync state
+    audio.reloadAudio();
+    audio.reloadSync();
+  }, [audio]);
 
   if (reader.loading) {
     return (
@@ -88,7 +107,6 @@ export default function ReaderPage() {
               onUpload={audio.uploadAudio}
               onAutoSync={async (mode) => {
                 const result = await audio.runAutoSync(mode);
-                // Reload chapter HTML to pick up word-wrapped spans for highlighting
                 reader.reloadChapter();
                 return result;
               }}
@@ -149,29 +167,26 @@ export default function ReaderPage() {
           />
         )}
 
-        {trimEditorOpen && hasSync && (
+        {trimEditorOpen && audio.hasAudio && (
           <TrimEditorPanel
             bookId={bookId}
             chapterIndex={reader.chapterIndex}
-            syncData={audio.syncData}
+            overlay={overlay}
             onClose={() => setTrimEditorOpen(false)}
-            onTrimComplete={(newSyncData) => {
-              audio.updateSyncData(newSyncData);
-              reader.reloadChapter();
-            }}
-            onSyncReload={() => {
-              audio.reloadSync();
-              reader.reloadChapter();
-            }}
+            onTrimDone={handleTrimDone}
           />
         )}
       </div>
 
-      {hasSync && (
+      {audio.hasAudio && (
         <AudioBar
           overlay={overlay}
+          bookId={bookId}
+          hasSyncData={hasSync}
           onToggleTrimEditor={() => setTrimEditorOpen(!trimEditorOpen)}
           trimEditorOpen={trimEditorOpen}
+          onReSync={handleReSync}
+          reSyncing={reSyncing}
         />
       )}
 

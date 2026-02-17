@@ -1,11 +1,42 @@
-import { Play, Pause, SkipBack, SkipForward, Scissors } from 'lucide-react';
+import { useState } from 'react';
+import { Play, Pause, SkipBack, SkipForward, Scissors, RefreshCw, Download, Loader } from 'lucide-react';
 import { formatTime } from '../../utils/timeFormatter';
+import api from '../../services/api';
 
-export default function AudioBar({ overlay, onToggleTrimEditor, trimEditorOpen }) {
+export default function AudioBar({
+  overlay,
+  bookId,
+  hasSyncData,
+  onToggleTrimEditor,
+  trimEditorOpen,
+  onReSync,
+  reSyncing,
+}) {
   if (!overlay) return null;
+
+  const [exporting, setExporting] = useState(false);
 
   const { isPlaying, currentTime, duration, playbackRate, togglePlay, seek, setSpeed } = overlay;
   const progress = duration ? (currentTime / duration) * 100 : 0;
+
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      const res = await api.get(`/books/${bookId}/export-epub`, { responseType: 'blob' });
+      const url = window.URL.createObjectURL(new Blob([res.data]));
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'book.epub';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch {
+      // silent
+    } finally {
+      setExporting(false);
+    }
+  };
 
   return (
     <div className="audio-bar">
@@ -49,11 +80,31 @@ export default function AudioBar({ overlay, onToggleTrimEditor, trimEditorOpen }
         <button
           className={`icon-btn trim-editor-toggle ${trimEditorOpen ? 'active' : ''}`}
           onClick={onToggleTrimEditor}
-          title="Audio Editor & Export"
+          title="Trim Audio"
         >
           <Scissors size={16} />
         </button>
       )}
+
+      {onReSync && (
+        <button
+          className="icon-btn resync-btn"
+          onClick={onReSync}
+          disabled={reSyncing}
+          title={hasSyncData ? 'Re-Sync Audio' : 'Sync Audio'}
+        >
+          {reSyncing ? <Loader size={16} className="spin" /> : <RefreshCw size={16} />}
+        </button>
+      )}
+
+      <button
+        className="icon-btn export-btn"
+        onClick={handleExport}
+        disabled={exporting || !hasSyncData}
+        title="Export EPUB 3"
+      >
+        {exporting ? <Loader size={16} className="spin" /> : <Download size={16} />}
+      </button>
     </div>
   );
 }
