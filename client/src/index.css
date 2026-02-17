@@ -2751,26 +2751,24 @@ body {
   transform: scale(1.3);
 }
 
-/* Playhead timestamp tooltip */
+/* Playhead timestamp tooltip — inside the track, over the ruler */
 .ed-playhead-tooltip {
   position: absolute;
-  bottom: 100%;
+  top: 2px;
   left: 50%;
   transform: translateX(-50%);
-  background: #1e1e2e;
-  color: #e0d4ff;
-  font-size: 0.65rem;
+  background: rgba(124, 58, 237, 0.92);
+  color: #fff;
+  font-size: 0.62rem;
   font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
   font-variant-numeric: tabular-nums;
-  padding: 3px 7px;
-  border-radius: 4px;
-  border: 1px solid rgba(124, 58, 237, 0.5);
+  padding: 2px 6px;
+  border-radius: 3px;
   white-space: nowrap;
   pointer-events: none;
   opacity: 0;
   transition: opacity 0.15s;
-  margin-bottom: 2px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.4);
   z-index: 20;
 }
 
