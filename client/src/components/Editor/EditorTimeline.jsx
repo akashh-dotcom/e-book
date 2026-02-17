@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
+import { useState, useRef, useCallback, useEffect, useLayoutEffect, useMemo } from 'react';
 import {
   Scissors, Play, RotateCcw, Loader, RefreshCw, ZoomIn, ZoomOut,
 } from 'lucide-react';
@@ -49,6 +49,9 @@ export default function EditorTimeline({
   const [zoom, setZoom] = useState(1);
   const trackRef = useRef(null);
   const scrollRef = useRef(null);
+  // Ref to store the desired scroll position during zoom — applied in useLayoutEffect
+  const pendingScrollRef = useRef(null);
+  const prevZoomRef = useRef(1);
 
   const duration = overlay?.duration || 0;
   const currentTime = overlay?.currentTime || 0;
@@ -70,9 +73,22 @@ export default function EditorTimeline({
     setClipRight(null);
   }, [duration]);
 
-  // Auto-scroll timeline to keep playhead in view during playback
+  // Apply pending scroll position synchronously after DOM update (before paint).
+  // This runs BEFORE useEffect, so it wins over auto-scroll.
+  useLayoutEffect(() => {
+    if (pendingScrollRef.current !== null && scrollRef.current) {
+      scrollRef.current.scrollLeft = pendingScrollRef.current;
+      pendingScrollRef.current = null;
+    }
+    prevZoomRef.current = zoom;
+  }, [zoom]);
+
+  // Auto-scroll timeline to keep playhead in view during playback.
+  // Skip when zoom just changed (prevZoomRef handles that via useLayoutEffect above).
   useEffect(() => {
     if (!scrollRef.current || !duration) return;
+    // Don't fight zoom scroll — only auto-scroll on time changes
+    if (prevZoomRef.current !== zoom) return;
     const container = scrollRef.current;
     const containerWidth = container.clientWidth;
     const totalWidth = containerWidth * zoom;
@@ -110,22 +126,18 @@ export default function EditorTimeline({
       e.preventDefault();
 
       const rect = container.getBoundingClientRect();
-      const cursorX = e.clientX - rect.left;                 // px from left edge of container
+      const cursorX = e.clientX - rect.left;
       const scrollBefore = container.scrollLeft;
-      const cursorWorldX = cursorX + scrollBefore;            // px in scrolled content
+      const cursorWorldX = cursorX + scrollBefore;
       const oldZoom = zoom;
 
-      // Zoom in / out
       const factor = e.deltaY < 0 ? WHEEL_ZOOM_FACTOR : 1 / WHEEL_ZOOM_FACTOR;
       const newZoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, oldZoom * factor));
 
+      // Store desired scroll — useLayoutEffect applies it before paint
+      const scale = newZoom / oldZoom;
+      pendingScrollRef.current = cursorWorldX * scale - cursorX;
       setZoom(newZoom);
-
-      // Adjust scroll so the point under the cursor stays put
-      requestAnimationFrame(() => {
-        const scale = newZoom / oldZoom;
-        container.scrollLeft = cursorWorldX * scale - cursorX;
-      });
     };
     container.addEventListener('wheel', onWheel, { passive: false });
     return () => container.removeEventListener('wheel', onWheel);
@@ -140,11 +152,9 @@ export default function EditorTimeline({
     const containerWidth = container.clientWidth;
     const centerX = container.scrollLeft + containerWidth / 2;
 
+    const scale = newZoom / oldZoom;
+    pendingScrollRef.current = centerX * scale - containerWidth / 2;
     setZoom(newZoom);
-    requestAnimationFrame(() => {
-      const scale = newZoom / oldZoom;
-      container.scrollLeft = centerX * scale - containerWidth / 2;
-    });
   }, [zoom]);
 
   // ---- Zoom-aware ruler ticks ----
