@@ -352,11 +352,11 @@ export default function EditorTimeline({
             {clipRight !== null && clipRight < duration - 0.01 && (
               <div
                 className="ed-clip-dimmed"
-                style={{ left: `${pct(clipRight)}%`, right: 0, width: `${100 - pct(clipRight)}%` }}
+                style={{ left: `${pct(clipRight)}%`, width: `${100 - pct(clipRight)}%` }}
               />
             )}
 
-            {/* Active clip region */}
+            {/* Active clip region (just visual, word blocks inside) */}
             <div
               className="ed-clip-active"
               style={{
@@ -364,12 +364,12 @@ export default function EditorTimeline({
                 width: `${pct(effectiveRight) - pct(clipLeft)}%`,
               }}
             >
-              {/* Word blocks inside active region */}
               {wordMarkers.map((entry) => {
-                const blockLeft = duration ? ((entry.clipBegin - clipLeft) / (effectiveRight - clipLeft)) * 100 : 0;
-                const blockWidth = duration ? ((entry.clipEnd - entry.clipBegin) / (effectiveRight - clipLeft)) * 100 : 0;
+                const clipSpan = effectiveRight - clipLeft;
+                if (!clipSpan || entry.clipEnd < clipLeft || entry.clipBegin > effectiveRight) return null;
+                const blockLeft = ((entry.clipBegin - clipLeft) / clipSpan) * 100;
+                const blockWidth = ((entry.clipEnd - entry.clipBegin) / clipSpan) * 100;
                 const isActive = overlay?.activeWordId === entry.id;
-                if (entry.clipEnd < clipLeft || entry.clipBegin > effectiveRight) return null;
                 return (
                   <div
                     key={entry.id}
@@ -388,27 +388,29 @@ export default function EditorTimeline({
                   </div>
                 );
               })}
+            </div>
 
-              {/* LEFT edge handle */}
-              <div
-                className="ed-clip-edge ed-clip-edge-left"
-                onMouseDown={handleClipLeftMouseDown}
-                title={`Drag to trim start (${formatTimeMs(clipLeft)})`}
-              >
-                <div className="ed-clip-edge-grip">
-                  <span /><span /><span />
-                </div>
+            {/* LEFT edge handle — positioned in clip-lane, NOT inside clip-active */}
+            <div
+              className="ed-clip-edge ed-clip-edge-left"
+              style={{ left: `${pct(clipLeft)}%` }}
+              onMouseDown={handleClipLeftMouseDown}
+              title={`Drag to trim start (${formatTimeMs(clipLeft)})`}
+            >
+              <div className="ed-clip-edge-grip">
+                <span /><span /><span />
               </div>
+            </div>
 
-              {/* RIGHT edge handle */}
-              <div
-                className="ed-clip-edge ed-clip-edge-right"
-                onMouseDown={handleClipRightMouseDown}
-                title={`Drag to trim end (${formatTimeMs(effectiveRight)})`}
-              >
-                <div className="ed-clip-edge-grip">
-                  <span /><span /><span />
-                </div>
+            {/* RIGHT edge handle — positioned in clip-lane, NOT inside clip-active */}
+            <div
+              className="ed-clip-edge ed-clip-edge-right"
+              style={{ left: `${pct(effectiveRight)}%` }}
+              onMouseDown={handleClipRightMouseDown}
+              title={`Drag to trim end (${formatTimeMs(effectiveRight)})`}
+            >
+              <div className="ed-clip-edge-grip">
+                <span /><span /><span />
               </div>
             </div>
           </div>

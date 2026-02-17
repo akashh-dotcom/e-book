@@ -2610,7 +2610,7 @@ body {
   border-top: 2px solid rgba(124, 58, 237, 0.5);
   border-bottom: 2px solid rgba(124, 58, 237, 0.5);
   z-index: 4;
-  overflow: hidden;
+  overflow: visible;
 }
 
 /* Word blocks (inside clip) */
@@ -2650,50 +2650,55 @@ body {
   pointer-events: none;
 }
 
-/* Clip edge handles (Canva-style drag grips) */
+/* Clip edge handles — in clip-lane, absolutely positioned at clip boundaries */
 .ed-clip-edge {
   position: absolute;
-  top: 0;
-  bottom: 0;
-  width: 14px;
+  top: -4px;
+  bottom: -4px;
+  width: 20px;
+  margin-left: -10px;
   cursor: ew-resize;
-  z-index: 6;
+  z-index: 10;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background 0.15s;
-}
-
-.ed-clip-edge-left {
-  left: -1px;
-  border-radius: 6px 0 0 6px;
-  background: rgba(124, 58, 237, 0.6);
-  border-left: 3px solid #7c3aed;
-}
-
-.ed-clip-edge-right {
-  right: -1px;
-  border-radius: 0 6px 6px 0;
-  background: rgba(124, 58, 237, 0.6);
-  border-right: 3px solid #7c3aed;
+  transition: background 0.15s, box-shadow 0.15s;
+  border-radius: 6px;
+  background: rgba(124, 58, 237, 0.7);
 }
 
 .ed-clip-edge:hover {
-  background: rgba(124, 58, 237, 0.85);
+  background: #7c3aed;
+  box-shadow: 0 0 10px rgba(124, 58, 237, 0.6);
+}
+
+.ed-clip-edge:active {
+  background: #6d28d9;
+  box-shadow: 0 0 14px rgba(124, 58, 237, 0.8);
+}
+
+.ed-clip-edge-left {
+  border-left: 3px solid #a78bfa;
+  border-radius: 6px 2px 2px 6px;
+}
+
+.ed-clip-edge-right {
+  border-right: 3px solid #a78bfa;
+  border-radius: 2px 6px 6px 2px;
 }
 
 .ed-clip-edge-grip {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 4px;
   align-items: center;
 }
 
 .ed-clip-edge-grip span {
   display: block;
-  width: 4px;
-  height: 1px;
-  background: rgba(255, 255, 255, 0.7);
+  width: 6px;
+  height: 2px;
+  background: rgba(255, 255, 255, 0.85);
   border-radius: 1px;
 }
 
