@@ -14,31 +14,39 @@ export default function EditorTimeline({
   onReSync,
   reSyncing,
 }) {
-  const [trimStart, setTrimStart] = useState(null);
-  const [trimEnd, setTrimEnd] = useState(null);
+  // Clip edges: the "keep" region (Canva-style drag from edges)
+  const [clipLeft, setClipLeft] = useState(0);
+  const [clipRight, setClipRight] = useState(null); // null = full duration
+  // Manual S/E inputs (linked to clip edges)
   const [trimStartInput, setTrimStartInput] = useState('');
   const [trimEndInput, setTrimEndInput] = useState('');
   const [trimming, setTrimming] = useState(false);
   const [restoring, setRestoring] = useState(false);
   const [message, setMessage] = useState(null);
-  const [dragging, setDragging] = useState(null);
+  const [dragging, setDragging] = useState(null); // 'playhead' | 'clipLeft' | 'clipRight'
   const [zoom, setZoom] = useState(1);
-  const [scrollLeft, setScrollLeft] = useState(0);
   const trackRef = useRef(null);
   const scrollRef = useRef(null);
 
   const duration = overlay?.duration || 0;
   const currentTime = overlay?.currentTime || 0;
+  const effectiveRight = clipRight !== null ? clipRight : duration;
 
-  // Sync text inputs with trim values
+  // Sync inputs with clip edges
   useEffect(() => {
-    if (trimStart !== null) setTrimStartInput(formatTimeMs(trimStart));
+    if (clipLeft > 0) setTrimStartInput(formatTimeMs(clipLeft));
     else setTrimStartInput('');
-  }, [trimStart]);
+  }, [clipLeft]);
   useEffect(() => {
-    if (trimEnd !== null) setTrimEndInput(formatTimeMs(trimEnd));
+    if (clipRight !== null && clipRight < duration) setTrimEndInput(formatTimeMs(clipRight));
     else setTrimEndInput('');
-  }, [trimEnd]);
+  }, [clipRight, duration]);
+
+  // Reset clip edges when duration changes (new audio loaded)
+  useEffect(() => {
+    setClipLeft(0);
+    setClipRight(null);
+  }, [duration]);
 
   // Auto-scroll timeline to keep playhead in view
   useEffect(() => {
@@ -63,16 +71,26 @@ export default function EditorTimeline({
     return (x / rect.width) * duration;
   }, [duration]);
 
-  // Click on track → seek, or start drag-to-scrub
+  // Has the user moved the edges? i.e. something to trim
+  const hasTrim = clipLeft > 0.01 || (clipRight !== null && clipRight < duration - 0.01);
+
+  // Compute what to cut:
+  // If left edge moved right → trim 0..clipLeft
+  // If right edge moved left → trim clipRight..duration
+  // We send the LARGER removed section, or both
+  const trimRanges = [];
+  if (clipLeft > 0.01) trimRanges.push({ start: 0, end: clipLeft });
+  if (clipRight !== null && clipRight < duration - 0.01) trimRanges.push({ start: clipRight, end: duration });
+
+  // --- Drag handlers ---
+
+  // Click on track = seek + drag-to-scrub
   const handleTrackMouseDown = useCallback((e) => {
     if (dragging) return;
     const t = timeFromEvent(e);
     overlay?.seek(t);
     setDragging('playhead');
-    const onMove = (ev) => {
-      const t2 = timeFromEvent(ev);
-      overlay?.seek(t2);
-    };
+    const onMove = (ev) => overlay?.seek(timeFromEvent(ev));
     const onUp = () => {
       setDragging(null);
       window.removeEventListener('mousemove', onMove);
@@ -82,14 +100,11 @@ export default function EditorTimeline({
     window.addEventListener('mouseup', onUp);
   }, [dragging, timeFromEvent, overlay]);
 
-  // Drag playhead head directly
+  // Drag playhead
   const handlePlayheadMouseDown = useCallback((e) => {
     e.stopPropagation();
     setDragging('playhead');
-    const onMove = (ev) => {
-      const t = timeFromEvent(ev);
-      overlay?.seek(t);
-    };
+    const onMove = (ev) => overlay?.seek(timeFromEvent(ev));
     const onUp = () => {
       setDragging(null);
       window.removeEventListener('mousemove', onMove);
@@ -99,14 +114,13 @@ export default function EditorTimeline({
     window.addEventListener('mouseup', onUp);
   }, [timeFromEvent, overlay]);
 
-  // Drag trim handles
-  const handleTrimHandleMouseDown = useCallback((which, e) => {
+  // Drag clip LEFT edge (trim from beginning)
+  const handleClipLeftMouseDown = useCallback((e) => {
     e.stopPropagation();
-    setDragging(which);
+    setDragging('clipLeft');
     const onMove = (ev) => {
-      const t = +timeFromEvent(ev).toFixed(3);
-      if (which === 'start') setTrimStart(t);
-      else setTrimEnd(t);
+      const t = Math.max(0, Math.min(timeFromEvent(ev), effectiveRight - 0.1));
+      setClipLeft(+t.toFixed(3));
     };
     const onUp = () => {
       setDragging(null);
@@ -115,20 +129,52 @@ export default function EditorTimeline({
     };
     window.addEventListener('mousemove', onMove);
     window.addEventListener('mouseup', onUp);
-  }, [timeFromEvent]);
+  }, [timeFromEvent, effectiveRight]);
 
-  const canTrim = trimStart !== null && trimEnd !== null && trimEnd > trimStart;
+  // Drag clip RIGHT edge (trim from end)
+  const handleClipRightMouseDown = useCallback((e) => {
+    e.stopPropagation();
+    setDragging('clipRight');
+    const onMove = (ev) => {
+      const t = Math.min(duration, Math.max(timeFromEvent(ev), clipLeft + 0.1));
+      setClipRight(+t.toFixed(3));
+    };
+    const onUp = () => {
+      setDragging(null);
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  }, [timeFromEvent, duration, clipLeft]);
+
+  // --- Trim actions ---
 
   const handleTrim = async () => {
-    if (!canTrim) return;
+    if (!hasTrim) return;
     setTrimming(true);
     setMessage(null);
     try {
-      const res = await api.post(`/audio/${bookId}/${chapterIndex}/trim`, { trimStart, trimEnd });
-      setMessage({ type: 'success', text: `Cut ${(trimEnd - trimStart).toFixed(3)}s` });
-      setTrimStart(null);
-      setTrimEnd(null);
-      if (onTrimDone) onTrimDone(res.data);
+      // Trim the larger removed section first (or the only one)
+      // If trimming from both ends, do them one at a time (end first to preserve offsets)
+      if (clipRight !== null && clipRight < duration - 0.01) {
+        const res = await api.post(`/audio/${bookId}/${chapterIndex}/trim`, {
+          trimStart: clipRight,
+          trimEnd: duration,
+        });
+        if (onTrimDone) onTrimDone(res.data);
+      }
+      if (clipLeft > 0.01) {
+        const res = await api.post(`/audio/${bookId}/${chapterIndex}/trim`, {
+          trimStart: 0,
+          trimEnd: clipLeft,
+        });
+        if (onTrimDone) onTrimDone(res.data);
+      }
+      const removedTotal = clipLeft + (duration - effectiveRight);
+      setMessage({ type: 'success', text: `Trimmed ${removedTotal.toFixed(3)}s` });
+      setClipLeft(0);
+      setClipRight(null);
     } catch (err) {
       setMessage({ type: 'error', text: err.response?.data?.error || 'Trim failed' });
     } finally { setTrimming(false); }
@@ -139,8 +185,8 @@ export default function EditorTimeline({
     setMessage(null);
     try {
       await api.post(`/audio/${bookId}/${chapterIndex}/restore`);
-      setTrimStart(null);
-      setTrimEnd(null);
+      setClipLeft(0);
+      setClipRight(null);
       setMessage({ type: 'success', text: 'Restored original' });
       if (onTrimDone) onTrimDone(null);
     } catch (err) {
@@ -166,7 +212,7 @@ export default function EditorTimeline({
       <div className="ed-timeline-controls">
         <div className="ed-timeline-left-controls">
           <div className="ed-trim-input-group">
-            <label>Start</label>
+            <label>Keep from</label>
             <input
               type="text"
               className="ed-trim-time-input"
@@ -175,45 +221,37 @@ export default function EditorTimeline({
               onChange={(e) => setTrimStartInput(e.target.value)}
               onBlur={() => {
                 const t = parseTimeMs(trimStartInput);
-                if (!isNaN(t) && t >= 0 && t <= duration) {
-                  setTrimStart(+t.toFixed(3));
-                } else if (trimStart !== null) {
-                  setTrimStartInput(formatTimeMs(trimStart));
+                if (!isNaN(t) && t >= 0 && t < effectiveRight) {
+                  setClipLeft(+t.toFixed(3));
+                } else {
+                  setTrimStartInput(clipLeft > 0 ? formatTimeMs(clipLeft) : '');
                 }
               }}
               onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
             />
-            <button className="ed-use-current-btn" onClick={() => {
-              const t = +currentTime.toFixed(3);
-              setTrimStart(t);
-            }} title="Set start to current time">S</button>
           </div>
           <div className="ed-trim-input-group">
-            <label>End</label>
+            <label>to</label>
             <input
               type="text"
               className="ed-trim-time-input"
-              placeholder="0:00.000"
+              placeholder={formatTimeMs(duration)}
               value={trimEndInput}
               onChange={(e) => setTrimEndInput(e.target.value)}
               onBlur={() => {
                 const t = parseTimeMs(trimEndInput);
-                if (!isNaN(t) && t >= 0 && t <= duration) {
-                  setTrimEnd(+t.toFixed(3));
-                } else if (trimEnd !== null) {
-                  setTrimEndInput(formatTimeMs(trimEnd));
+                if (!isNaN(t) && t > clipLeft && t <= duration) {
+                  setClipRight(+t.toFixed(3));
+                } else {
+                  setTrimEndInput(clipRight !== null && clipRight < duration ? formatTimeMs(clipRight) : '');
                 }
               }}
               onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
             />
-            <button className="ed-use-current-btn" onClick={() => {
-              const t = +currentTime.toFixed(3);
-              setTrimEnd(t);
-            }} title="Set end to current time">E</button>
           </div>
-          {canTrim && (
+          {hasTrim && (
             <span className="ed-trim-duration">
-              {(trimEnd - trimStart).toFixed(3)}s selected
+              Removing {(clipLeft + (duration - effectiveRight)).toFixed(3)}s
             </span>
           )}
         </div>
@@ -225,29 +263,29 @@ export default function EditorTimeline({
           <button
             className="ed-timeline-btn ed-trim-btn"
             onClick={handleTrim}
-            disabled={trimming || !canTrim}
-            title="Cut selected range"
+            disabled={trimming || !hasTrim}
+            title="Apply trim"
           >
             {trimming ? <Loader size={14} className="spin" /> : <Scissors size={14} />}
-            <span>Cut</span>
+            <span>Apply Trim</span>
           </button>
-          {canTrim && (
-            <button
-              className="ed-timeline-btn ed-preview-btn"
-              onClick={() => { overlay?.seek(trimStart); if (!overlay?.isPlaying) overlay?.play(); }}
-              title="Preview from start point"
-            >
-              <Play size={14} />
-            </button>
-          )}
-          {(trimStart !== null || trimEnd !== null) && (
-            <button
-              className="ed-timeline-btn"
-              onClick={() => { setTrimStart(null); setTrimEnd(null); setMessage(null); }}
-              title="Clear selection"
-            >
-              Clear
-            </button>
+          {hasTrim && (
+            <>
+              <button
+                className="ed-timeline-btn ed-preview-btn"
+                onClick={() => { overlay?.seek(clipLeft); if (!overlay?.isPlaying) overlay?.play(); }}
+                title="Preview from clip start"
+              >
+                <Play size={14} />
+              </button>
+              <button
+                className="ed-timeline-btn"
+                onClick={() => { setClipLeft(0); setClipRight(null); setMessage(null); }}
+                title="Reset clip edges"
+              >
+                Reset
+              </button>
+            </>
           )}
           <div className="ed-timeline-sep" />
           <button
@@ -300,59 +338,80 @@ export default function EditorTimeline({
             ))}
           </div>
 
-          {/* Word blocks */}
-          <div className="ed-word-lane">
-            {wordMarkers.map((entry) => {
-              const left = pct(entry.clipBegin);
-              const width = pct(entry.clipEnd) - left;
-              const isActive = overlay?.activeWordId === entry.id;
-              return (
-                <div
-                  key={entry.id}
-                  className={`ed-word-block ${isActive ? 'active' : ''}`}
-                  style={{ left: `${left}%`, width: `${Math.max(width, 0.15)}%` }}
-                  title={`${entry.word} (${formatTimeMs(entry.clipBegin)} - ${formatTimeMs(entry.clipEnd)})`}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    overlay?.seek(entry.clipBegin);
-                  }}
-                >
-                  <span className="ed-word-text">{entry.word}</span>
-                </div>
-              );
-            })}
-          </div>
+          {/* === AUDIO CLIP BAR (Canva-style) === */}
+          <div className="ed-clip-lane">
+            {/* Dimmed-out left region (will be trimmed) */}
+            {clipLeft > 0.01 && (
+              <div
+                className="ed-clip-dimmed"
+                style={{ left: 0, width: `${pct(clipLeft)}%` }}
+              />
+            )}
 
-          {/* Trim selection highlight */}
-          {canTrim && (
+            {/* Dimmed-out right region (will be trimmed) */}
+            {clipRight !== null && clipRight < duration - 0.01 && (
+              <div
+                className="ed-clip-dimmed"
+                style={{ left: `${pct(clipRight)}%`, right: 0, width: `${100 - pct(clipRight)}%` }}
+              />
+            )}
+
+            {/* Active clip region */}
             <div
-              className="ed-trim-highlight"
+              className="ed-clip-active"
               style={{
-                left: `${pct(trimStart)}%`,
-                width: `${pct(trimEnd) - pct(trimStart)}%`,
+                left: `${pct(clipLeft)}%`,
+                width: `${pct(effectiveRight) - pct(clipLeft)}%`,
               }}
-            />
-          )}
+            >
+              {/* Word blocks inside active region */}
+              {wordMarkers.map((entry) => {
+                const blockLeft = duration ? ((entry.clipBegin - clipLeft) / (effectiveRight - clipLeft)) * 100 : 0;
+                const blockWidth = duration ? ((entry.clipEnd - entry.clipBegin) / (effectiveRight - clipLeft)) * 100 : 0;
+                const isActive = overlay?.activeWordId === entry.id;
+                if (entry.clipEnd < clipLeft || entry.clipBegin > effectiveRight) return null;
+                return (
+                  <div
+                    key={entry.id}
+                    className={`ed-word-block ${isActive ? 'active' : ''}`}
+                    style={{
+                      left: `${Math.max(0, blockLeft)}%`,
+                      width: `${Math.max(blockWidth, 0.3)}%`,
+                    }}
+                    title={`${entry.word} (${formatTimeMs(entry.clipBegin)} - ${formatTimeMs(entry.clipEnd)})`}
+                    onMouseDown={(e) => {
+                      e.stopPropagation();
+                      overlay?.seek(entry.clipBegin);
+                    }}
+                  >
+                    <span className="ed-word-text">{entry.word}</span>
+                  </div>
+                );
+              })}
 
-          {/* Trim handles */}
-          {trimStart !== null && (
-            <div
-              className="ed-trim-handle ed-handle-start"
-              style={{ left: `${pct(trimStart)}%` }}
-              onMouseDown={(e) => handleTrimHandleMouseDown('start', e)}
-            >
-              <div className="ed-handle-flag">S</div>
+              {/* LEFT edge handle */}
+              <div
+                className="ed-clip-edge ed-clip-edge-left"
+                onMouseDown={handleClipLeftMouseDown}
+                title={`Drag to trim start (${formatTimeMs(clipLeft)})`}
+              >
+                <div className="ed-clip-edge-grip">
+                  <span /><span /><span />
+                </div>
+              </div>
+
+              {/* RIGHT edge handle */}
+              <div
+                className="ed-clip-edge ed-clip-edge-right"
+                onMouseDown={handleClipRightMouseDown}
+                title={`Drag to trim end (${formatTimeMs(effectiveRight)})`}
+              >
+                <div className="ed-clip-edge-grip">
+                  <span /><span /><span />
+                </div>
+              </div>
             </div>
-          )}
-          {trimEnd !== null && (
-            <div
-              className="ed-trim-handle ed-handle-end"
-              style={{ left: `${pct(trimEnd)}%` }}
-              onMouseDown={(e) => handleTrimHandleMouseDown('end', e)}
-            >
-              <div className="ed-handle-flag">E</div>
-            </div>
-          )}
+          </div>
 
           {/* Playhead */}
           <div

@@ -2531,7 +2531,7 @@ body {
 .ed-timeline-scroll {
   overflow-x: auto;
   overflow-y: hidden;
-  height: 110px;
+  height: 130px;
   scrollbar-width: thin;
   scrollbar-color: #333 #111;
 }
@@ -2573,20 +2573,51 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
-/* Word blocks lane */
+/* === Canva-style audio clip bar === */
 
-.ed-word-lane {
+.ed-clip-lane {
   position: absolute;
   top: 24px;
   left: 0;
   right: 0;
-  height: 40px;
+  bottom: 10px;
 }
 
+/* Dimmed regions (will be trimmed away) */
+.ed-clip-dimmed {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: repeating-linear-gradient(
+    -45deg,
+    rgba(220, 38, 38, 0.08),
+    rgba(220, 38, 38, 0.08) 4px,
+    rgba(220, 38, 38, 0.02) 4px,
+    rgba(220, 38, 38, 0.02) 8px
+  );
+  border-top: 2px solid rgba(220, 38, 38, 0.4);
+  border-bottom: 2px solid rgba(220, 38, 38, 0.4);
+  z-index: 3;
+  pointer-events: none;
+}
+
+/* Active (kept) clip region */
+.ed-clip-active {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: rgba(124, 58, 237, 0.06);
+  border-top: 2px solid rgba(124, 58, 237, 0.5);
+  border-bottom: 2px solid rgba(124, 58, 237, 0.5);
+  z-index: 4;
+  overflow: hidden;
+}
+
+/* Word blocks (inside clip) */
 .ed-word-block {
   position: absolute;
-  top: 2px;
-  height: 36px;
+  top: 4px;
+  bottom: 4px;
   background: rgba(124, 58, 237, 0.18);
   border: 1px solid rgba(124, 58, 237, 0.3);
   border-radius: 3px;
@@ -2619,52 +2650,51 @@ body {
   pointer-events: none;
 }
 
-/* Trim selection */
-
-.ed-trim-highlight {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  background: rgba(220, 38, 38, 0.12);
-  border-top: 2px solid rgba(220, 38, 38, 0.6);
-  border-bottom: 2px solid rgba(220, 38, 38, 0.6);
-  pointer-events: none;
-  z-index: 4;
-}
-
-.ed-trim-handle {
+/* Clip edge handles (Canva-style drag grips) */
+.ed-clip-edge {
   position: absolute;
   top: 0;
   bottom: 0;
   width: 14px;
-  margin-left: -7px;
   cursor: ew-resize;
   z-index: 6;
   display: flex;
-  align-items: flex-start;
-  justify-content: center;
-}
-
-.ed-handle-start {
-  border-left: 2px solid #dc2626;
-}
-
-.ed-handle-end {
-  border-right: 2px solid #dc2626;
-}
-
-.ed-handle-flag {
-  margin-top: 2px;
-  width: 16px;
-  height: 16px;
-  border-radius: 3px;
-  background: #dc2626;
-  color: #fff;
-  font-size: 0.6rem;
-  font-weight: 800;
-  display: flex;
   align-items: center;
   justify-content: center;
+  transition: background 0.15s;
+}
+
+.ed-clip-edge-left {
+  left: -1px;
+  border-radius: 6px 0 0 6px;
+  background: rgba(124, 58, 237, 0.6);
+  border-left: 3px solid #7c3aed;
+}
+
+.ed-clip-edge-right {
+  right: -1px;
+  border-radius: 0 6px 6px 0;
+  background: rgba(124, 58, 237, 0.6);
+  border-right: 3px solid #7c3aed;
+}
+
+.ed-clip-edge:hover {
+  background: rgba(124, 58, 237, 0.85);
+}
+
+.ed-clip-edge-grip {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  align-items: center;
+}
+
+.ed-clip-edge-grip span {
+  display: block;
+  width: 4px;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.7);
+  border-radius: 1px;
 }
 
 /* Playhead */
