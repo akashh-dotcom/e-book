@@ -1,0 +1,163 @@
+const cheerio = require('cheerio');
+const path = require('path');
+const fs = require('fs').promises;
+
+class EpubToWeb {
+
+  /**
+   * Convert parsed EPUB to web-ready file structure.
+   *
+   * For each chapter:
+   * - Extract <body> content from XHTML
+   * - Fix relative paths for images/CSS
+   * - Sanitize (remove scripts)
+   * - Save clean HTML
+   *
+   * Also extracts all assets (CSS, images, fonts).
+   */
+  async convert(parsedEpub, outputDir) {
+    const { chapters, manifest, toc, metadata, coverHref, zip, opfDir }
+      = parsedEpub;
+
+    await fs.mkdir(outputDir, { recursive: true });
+    await fs.mkdir(path.join(outputDir, 'chapters'), { recursive: true });
+    await fs.mkdir(path.join(outputDir, 'assets'), { recursive: true });
+
+    // Process chapters
+    const processedChapters = [];
+
+    for (const ch of chapters) {
+      const processed = this.processChapter(ch.content, ch.href, opfDir);
+
+      await fs.writeFile(
+        path.join(outputDir, 'chapters', `${ch.index}.html`),
+        processed.html
+      );
+
+      processedChapters.push({
+        index: ch.index,
+        title: processed.title || `Chapter ${ch.index + 1}`,
+        wordCount: processed.wordCount,
+        filename: `${ch.index}.html`,
+      });
+    }
+
+    // Extract assets
+    for (const [id, item] of Object.entries(manifest)) {
+      const isAsset = item.mediaType.startsWith('image/') ||
+        item.mediaType === 'text/css' ||
+        item.mediaType.includes('font');
+      if (!isAsset) continue;
+
+      const zipFile = zip.file(item.href);
+      if (!zipFile) continue;
+
+      const relPath = opfDir && opfDir !== '.'
+        ? item.href.replace(opfDir + '/', '')
+        : item.href;
+      const destPath = path.join(outputDir, 'assets', relPath);
+      await fs.mkdir(path.dirname(destPath), { recursive: true });
+      await fs.writeFile(destPath, await zipFile.async('nodebuffer'));
+    }
+
+    // Extract cover
+    let coverPath = null;
+    if (coverHref) {
+      const coverFile = zip.file(coverHref);
+      if (coverFile) {
+        const ext = path.extname(coverHref);
+        coverPath = `cover${ext}`;
+        await fs.writeFile(
+          path.join(outputDir, 'assets', coverPath),
+          await coverFile.async('nodebuffer')
+        );
+      }
+    }
+
+    // Save metadata
+    const bookData = {
+      metadata,
+      chapters: processedChapters,
+      toc,
+      cover: coverPath,
+      totalChapters: processedChapters.length,
+    };
+
+    await fs.writeFile(
+      path.join(outputDir, 'metadata.json'),
+      JSON.stringify(bookData, null, 2)
+    );
+
+    return bookData;
+  }
+
+  processChapter(xhtml, chapterHref, opfDir) {
+    const $ = cheerio.load(xhtml, { xmlMode: false });
+
+    // Remove scripts
+    $('script').remove();
+
+    // Fix image paths -> /storage/books/{id}/assets/...
+    $('img').each((_, el) => {
+      const src = $(el).attr('src');
+      if (src && !src.startsWith('http') && !src.startsWith('data:')) {
+        const resolved = path.posix.join(
+          path.posix.dirname(chapterHref),
+          src
+        );
+        const clean = opfDir && opfDir !== '.'
+          ? resolved.replace(opfDir + '/', '')
+          : resolved;
+        $(el).attr('src', `__ASSET__/${clean}`);
+      }
+    });
+
+    // Fix SVG image hrefs
+    $('image').each((_, el) => {
+      const href = $(el).attr('xlink:href') || $(el).attr('href');
+      if (href && !href.startsWith('http') && !href.startsWith('data:')) {
+        const resolved = path.posix.join(
+          path.posix.dirname(chapterHref),
+          href
+        );
+        const clean = opfDir && opfDir !== '.'
+          ? resolved.replace(opfDir + '/', '')
+          : resolved;
+        if ($(el).attr('xlink:href')) {
+          $(el).attr('xlink:href', `__ASSET__/${clean}`);
+        }
+        if ($(el).attr('href')) {
+          $(el).attr('href', `__ASSET__/${clean}`);
+        }
+      }
+    });
+
+    // Fix CSS link paths
+    $('link[rel="stylesheet"]').each((_, el) => {
+      const href = $(el).attr('href');
+      if (href && !href.startsWith('http')) {
+        const resolved = path.posix.join(
+          path.posix.dirname(chapterHref), href
+        );
+        const clean = opfDir && opfDir !== '.'
+          ? resolved.replace(opfDir + '/', '')
+          : resolved;
+        $(el).attr('href', `__ASSET__/${clean}`);
+      }
+    });
+
+    // Extract title
+    const title = $('h1, h2, h3, title').first().text().trim();
+
+    // Count words
+    const text = $('body').text() || '';
+    const wordCount = text.split(/\s+/).filter(Boolean).length;
+
+    // Get body content only
+    const bodyHtml = $('body').html() || $.html();
+
+    return { html: bodyHtml, title, wordCount };
+  }
+}
+
+module.exports = new EpubToWeb();
