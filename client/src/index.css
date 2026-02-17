@@ -1435,10 +1435,12 @@ body {
 }
 
 .trim-time-label {
-  font-size: 0.78rem;
-  color: var(--text-dim);
+  font-size: 0.82rem;
+  font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+  color: var(--text);
   margin-bottom: 8px;
   font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
 }
 
 .trim-timeline {
@@ -1510,19 +1512,57 @@ body {
   top: -16px;
 }
 
-/* Set buttons */
+/* Time inputs */
 
-.trim-set-buttons {
+.trim-time-inputs {
+  padding: 8px 16px 12px;
   display: flex;
-  gap: 6px;
-  padding: 0 16px 12px;
+  flex-direction: column;
+  gap: 8px;
   flex-shrink: 0;
 }
 
-.trim-set-btn {
-  flex: 1;
-  padding: 7px 8px;
+.trim-time-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.trim-time-field label {
   font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-dim);
+  width: 36px;
+  flex-shrink: 0;
+}
+
+.trim-time-input {
+  flex: 1;
+  padding: 6px 10px;
+  font-size: 0.84rem;
+  font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+  font-variant-numeric: tabular-nums;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.trim-time-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
+}
+
+.trim-time-input::placeholder {
+  color: var(--text-dim);
+  opacity: 0.5;
+}
+
+.trim-set-btn {
+  padding: 6px 10px;
+  font-size: 0.75rem;
   font-family: inherit;
   font-weight: 500;
   border: 1px solid var(--border);
@@ -1532,16 +1572,27 @@ body {
   cursor: pointer;
   transition: background 0.15s;
   white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .trim-set-btn:hover {
   background: var(--border);
 }
 
-.trim-set-btn.clear {
-  flex: 0;
-  color: var(--text-dim);
+.trim-clear-btn {
+  align-self: flex-end;
+  padding: 4px 12px;
+  font-size: 0.75rem;
+  font-family: inherit;
+  border: none;
+  border-radius: 4px;
   background: transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+}
+
+.trim-clear-btn:hover {
+  color: #dc2626;
 }
 
 /* Range info */

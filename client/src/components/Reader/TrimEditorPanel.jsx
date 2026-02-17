@@ -1,6 +1,6 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { X, Scissors, RotateCcw, Loader, Play, RefreshCw, Type, Clock } from 'lucide-react';
-import { formatTime } from '../../utils/timeFormatter';
+import { formatTime, formatTimeMs, parseTimeMs } from '../../utils/timeFormatter';
 import api from '../../services/api';
 
 export default function TrimEditorPanel({
@@ -17,6 +17,8 @@ export default function TrimEditorPanel({
   // Direct trim state
   const [trimStart, setTrimStart] = useState(null);
   const [trimEnd, setTrimEnd] = useState(null);
+  const [trimStartInput, setTrimStartInput] = useState('');
+  const [trimEndInput, setTrimEndInput] = useState('');
   // Word trim state
   const [skipSet, setSkipSet] = useState(() => {
     const set = new Set();
@@ -30,6 +32,16 @@ export default function TrimEditorPanel({
   const [message, setMessage] = useState(null);
   const [dragging, setDragging] = useState(null);
   const barRef = useRef(null);
+
+  // Keep text inputs in sync when values change from drag handles
+  useEffect(() => {
+    if (trimStart !== null) setTrimStartInput(formatTimeMs(trimStart));
+    else setTrimStartInput('');
+  }, [trimStart]);
+  useEffect(() => {
+    if (trimEnd !== null) setTrimEndInput(formatTimeMs(trimEnd));
+    else setTrimEndInput('');
+  }, [trimEnd]);
 
   const duration = overlay?.duration || 0;
   const currentTime = overlay?.currentTime || 0;
@@ -73,9 +85,11 @@ export default function TrimEditorPanel({
     setMessage(null);
     try {
       const res = await api.post(`/audio/${bookId}/${chapterIndex}/trim`, { trimStart, trimEnd });
-      setMessage({ type: 'success', text: `Removed ${(trimEnd - trimStart).toFixed(1)}s — click Re-Sync` });
+      setMessage({ type: 'success', text: `Removed ${(trimEnd - trimStart).toFixed(3)}s — click Re-Sync` });
       setTrimStart(null);
       setTrimEnd(null);
+      setTrimStartInput('');
+      setTrimEndInput('');
       if (onTrimDone) onTrimDone(res.data);
     } catch (err) {
       setMessage({ type: 'error', text: err.response?.data?.error || 'Trim failed' });
@@ -171,11 +185,11 @@ export default function TrimEditorPanel({
       {mode === 'direct' && (
         <>
           <div className="trim-editor-hint">
-            Set start & end points on the timeline, then cut that range.
+            Set start & end points on the timeline or type exact times, then cut.
           </div>
 
           <div className="trim-timeline-section">
-            <div className="trim-time-label">{formatTime(currentTime)} / {formatTime(duration)}</div>
+            <div className="trim-time-label">{formatTimeMs(currentTime)} / {formatTimeMs(duration)}</div>
             <div className="trim-timeline" ref={barRef} onClick={handleBarClick}>
               <div className="trim-playhead" style={{ left: `${pct(currentTime)}%` }} />
               {canDirectTrim && (
@@ -186,28 +200,80 @@ export default function TrimEditorPanel({
               )}
               {trimStart !== null && (
                 <div className="trim-handle trim-handle-start" style={{ left: `${pct(trimStart)}%` }}
-                  onMouseDown={(e) => handleMouseDown('start', e)} title={`Start: ${formatTime(trimStart)}`}>
+                  onMouseDown={(e) => handleMouseDown('start', e)} title={`Start: ${formatTimeMs(trimStart)}`}>
                   <div className="trim-handle-label">S</div>
                 </div>
               )}
               {trimEnd !== null && (
                 <div className="trim-handle trim-handle-end" style={{ left: `${pct(trimEnd)}%` }}
-                  onMouseDown={(e) => handleMouseDown('end', e)} title={`End: ${formatTime(trimEnd)}`}>
+                  onMouseDown={(e) => handleMouseDown('end', e)} title={`End: ${formatTimeMs(trimEnd)}`}>
                   <div className="trim-handle-label">E</div>
                 </div>
               )}
             </div>
           </div>
 
-          <div className="trim-set-buttons">
-            <button className="trim-set-btn" onClick={() => setTrimStart(+currentTime.toFixed(2))}>
-              Set Start ({formatTime(currentTime)})
-            </button>
-            <button className="trim-set-btn" onClick={() => setTrimEnd(+currentTime.toFixed(2))}>
-              Set End ({formatTime(currentTime)})
-            </button>
+          <div className="trim-time-inputs">
+            <div className="trim-time-field">
+              <label>Start</label>
+              <input
+                type="text"
+                className="trim-time-input"
+                placeholder="0:00.000"
+                value={trimStartInput}
+                onChange={(e) => setTrimStartInput(e.target.value)}
+                onBlur={() => {
+                  const t = parseTimeMs(trimStartInput);
+                  if (!isNaN(t) && t >= 0 && t <= duration) {
+                    setTrimStart(+t.toFixed(3));
+                    setTrimStartInput(formatTimeMs(t));
+                  } else if (trimStart !== null) {
+                    setTrimStartInput(formatTimeMs(trimStart));
+                  }
+                }}
+                onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
+              />
+              <button className="trim-set-btn" onClick={() => {
+                const t = +currentTime.toFixed(3);
+                setTrimStart(t);
+                setTrimStartInput(formatTimeMs(t));
+              }}>
+                Use Current
+              </button>
+            </div>
+            <div className="trim-time-field">
+              <label>End</label>
+              <input
+                type="text"
+                className="trim-time-input"
+                placeholder="0:00.000"
+                value={trimEndInput}
+                onChange={(e) => setTrimEndInput(e.target.value)}
+                onBlur={() => {
+                  const t = parseTimeMs(trimEndInput);
+                  if (!isNaN(t) && t >= 0 && t <= duration) {
+                    setTrimEnd(+t.toFixed(3));
+                    setTrimEndInput(formatTimeMs(t));
+                  } else if (trimEnd !== null) {
+                    setTrimEndInput(formatTimeMs(trimEnd));
+                  }
+                }}
+                onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
+              />
+              <button className="trim-set-btn" onClick={() => {
+                const t = +currentTime.toFixed(3);
+                setTrimEnd(t);
+                setTrimEndInput(formatTimeMs(t));
+              }}>
+                Use Current
+              </button>
+            </div>
             {(trimStart !== null || trimEnd !== null) && (
-              <button className="trim-set-btn clear" onClick={() => { setTrimStart(null); setTrimEnd(null); setMessage(null); }}>
+              <button className="trim-clear-btn" onClick={() => {
+                setTrimStart(null); setTrimEnd(null);
+                setTrimStartInput(''); setTrimEndInput('');
+                setMessage(null);
+              }}>
                 Clear
               </button>
             )}
@@ -215,7 +281,7 @@ export default function TrimEditorPanel({
 
           {canDirectTrim && (
             <div className="trim-range-info">
-              <span>Removing: {formatTime(trimStart)} — {formatTime(trimEnd)} ({(trimEnd - trimStart).toFixed(1)}s)</span>
+              <span>Removing: {formatTimeMs(trimStart)} — {formatTimeMs(trimEnd)} ({(trimEnd - trimStart).toFixed(3)}s)</span>
               <button className="trim-preview-btn" onClick={() => { overlay?.seek(trimStart); if (!overlay?.isPlaying) overlay?.play(); }}>
                 <Play size={14} /> Preview
               </button>
@@ -258,7 +324,7 @@ export default function TrimEditorPanel({
                   disabled={isAlreadySkipped}
                   title={
                     isAlreadySkipped ? 'Already trimmed'
-                    : entry.clipBegin !== null ? `${formatTime(entry.clipBegin)} - ${formatTime(entry.clipEnd)}`
+                    : entry.clipBegin !== null ? `${formatTimeMs(entry.clipBegin)} - ${formatTimeMs(entry.clipEnd)}`
                     : 'No timing'
                   }
                 >
