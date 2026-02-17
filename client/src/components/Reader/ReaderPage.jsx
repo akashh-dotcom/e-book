@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import useReader from '../../hooks/useReader';
 import { useAudioPlayer } from '../../hooks/useAudioPlayer';
@@ -10,6 +11,7 @@ import SearchPanel from './SearchPanel';
 import SettingsPanel from './SettingsPanel';
 import BookmarksPanel from './BookmarksPanel';
 import AudioBar from './AudioBar';
+import TrimEditorPanel from './TrimEditorPanel';
 import ChapterAudioUpload from '../AudioUpload/ChapterAudioUpload';
 
 export default function ReaderPage() {
@@ -19,6 +21,7 @@ export default function ReaderPage() {
   // Audio & sync data
   const audio = useAudioPlayer(bookId, reader.chapterIndex);
   const overlay = useMediaOverlay(audio.syncData, audio.audioUrl);
+  const [trimEditorOpen, setTrimEditorOpen] = useState(false);
 
   if (reader.loading) {
     return (
@@ -145,9 +148,32 @@ export default function ReaderPage() {
             onClose={() => reader.setBookmarksOpen(false)}
           />
         )}
+
+        {trimEditorOpen && hasSync && (
+          <TrimEditorPanel
+            bookId={bookId}
+            chapterIndex={reader.chapterIndex}
+            syncData={audio.syncData}
+            onClose={() => setTrimEditorOpen(false)}
+            onTrimComplete={(newSyncData) => {
+              audio.updateSyncData(newSyncData);
+              reader.reloadChapter();
+            }}
+            onSyncReload={() => {
+              audio.reloadSync();
+              reader.reloadChapter();
+            }}
+          />
+        )}
       </div>
 
-      {hasSync && <AudioBar overlay={overlay} />}
+      {hasSync && (
+        <AudioBar
+          overlay={overlay}
+          onToggleTrimEditor={() => setTrimEditorOpen(!trimEditorOpen)}
+          trimEditorOpen={trimEditorOpen}
+        />
+      )}
 
       <BottomBar
         current={reader.chapterIndex}

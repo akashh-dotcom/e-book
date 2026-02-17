@@ -29,6 +29,20 @@ export function useMediaOverlay(syncData, audioUrl) {
     if (timerRef.current) clearInterval(timerRef.current);
   };
 
+  // Mark skipped words in the DOM when sync data changes
+  useEffect(() => {
+    if (!syncData?.length) return;
+    for (const entry of syncData) {
+      const el = document.getElementById(entry.id);
+      if (!el) continue;
+      if (entry.skipped) {
+        el.classList.add('word-skipped');
+      } else {
+        el.classList.remove('word-skipped');
+      }
+    }
+  }, [syncData]);
+
   const updateHighlights = useCallback((t) => {
     if (!syncData?.length) return;
     let newActive = null;

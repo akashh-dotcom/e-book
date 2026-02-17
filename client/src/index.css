@@ -1275,6 +1275,186 @@ body {
   color: #16a34a;
 }
 
+/* === SKIPPED WORDS IN READER === */
+
+.word-skipped {
+  text-decoration: line-through;
+  opacity: 0.35;
+  cursor: default !important;
+}
+
+/* === TRIM EDITOR PANEL === */
+
+.trim-editor-panel {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 360px;
+  height: 100%;
+  background: var(--bg);
+  border-left: 1px solid var(--border);
+  box-shadow: -4px 0 20px rgba(0,0,0,0.08);
+  display: flex;
+  flex-direction: column;
+  z-index: 60;
+  overflow: hidden;
+}
+
+.trim-editor-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  font-weight: 600;
+  font-size: 0.9rem;
+  flex-shrink: 0;
+}
+
+.trim-editor-header span {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.trim-editor-hint {
+  padding: 10px 16px;
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  background: var(--bg-alt);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.trim-editor-empty {
+  padding: 40px 20px;
+  text-align: center;
+  color: var(--text-dim);
+  font-size: 0.88rem;
+}
+
+.trim-word-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-content: flex-start;
+}
+
+.trim-word-chip {
+  display: inline-block;
+  padding: 3px 7px;
+  font-size: 0.8rem;
+  border-radius: 4px;
+  border: 1px solid transparent;
+  background: var(--bg-alt);
+  color: var(--text);
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+  font-family: inherit;
+  line-height: 1.4;
+}
+
+.trim-word-chip:hover:not(:disabled) {
+  border-color: var(--accent);
+  background: rgba(37, 99, 235, 0.06);
+}
+
+.trim-word-chip.will-skip {
+  background: #fef2f2;
+  color: #dc2626;
+  border-color: #fca5a5;
+  text-decoration: line-through;
+}
+
+.trim-word-chip.skipped {
+  background: var(--bg-alt);
+  color: var(--text-dim);
+  text-decoration: line-through;
+  opacity: 0.4;
+  cursor: default;
+}
+
+.trim-word-chip.no-timing {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.trim-message {
+  padding: 8px 16px;
+  font-size: 0.82rem;
+  flex-shrink: 0;
+}
+
+.trim-message.success {
+  color: #16a34a;
+  background: #f0fdf4;
+}
+
+.trim-message.error {
+  color: #dc2626;
+  background: #fef2f2;
+}
+
+.trim-editor-actions {
+  padding: 12px 16px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.trim-action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 9px 16px;
+  border-radius: 8px;
+  font-size: 0.84rem;
+  font-family: inherit;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s, opacity 0.15s;
+  border: 1px solid var(--border);
+  background: var(--bg-alt);
+  color: var(--text);
+}
+
+.trim-action-btn:hover:not(:disabled) {
+  opacity: 0.85;
+}
+
+.trim-action-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.trim-action-btn.primary {
+  background: #dc2626;
+  color: white;
+  border-color: #dc2626;
+}
+
+.trim-action-btn.secondary {
+  background: transparent;
+  color: var(--text-dim);
+}
+
+.trim-action-btn.export {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
+}
+
+.trim-editor-toggle.active {
+  color: var(--accent) !important;
+  background: rgba(37, 99, 235, 0.1);
+}
+
 /* === RESPONSIVE === */
 
 @media (max-width: 768px) {
@@ -1293,7 +1473,8 @@ body {
 
   .search-panel,
   .settings-panel,
-  .bookmarks-panel {
+  .bookmarks-panel,
+  .trim-editor-panel {
     width: 100%;
     right: 0;
   }

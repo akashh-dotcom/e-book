@@ -5,6 +5,7 @@ const syncEntrySchema = new mongoose.Schema({
   word: String,         // "The"
   clipBegin: Number,    // 0.000 (seconds)
   clipEnd: Number,      // 0.320 (seconds)
+  skipped: { type: Boolean, default: false },
 }, { _id: false });
 
 const syncDataSchema = new mongoose.Schema({

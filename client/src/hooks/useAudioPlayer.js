@@ -56,6 +56,19 @@ export function useAudioPlayer(bookId, chapterIndex) {
     return res.data;
   }, [bookId, chapterIndex]);
 
+  const updateSyncData = useCallback((newSyncData) => {
+    setSyncData(newSyncData);
+  }, []);
+
+  const reloadSync = useCallback(() => {
+    api.get(`/sync/${bookId}/${chapterIndex}`)
+      .then(res => {
+        setSyncData(res.data.syncData);
+        setHasSyncData(true);
+      })
+      .catch(() => {});
+  }, [bookId, chapterIndex]);
+
   return {
     audioUrl,
     syncData,
@@ -63,5 +76,7 @@ export function useAudioPlayer(bookId, chapterIndex) {
     hasSyncData,
     uploadAudio,
     runAutoSync,
+    updateSyncData,
+    reloadSync,
   };
 }

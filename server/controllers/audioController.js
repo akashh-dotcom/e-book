@@ -124,6 +124,236 @@ exports.deleteChapterAudio = async (req, res) => {
   }
 };
 
+/**
+ * Trim audio by removing segments corresponding to skipped words.
+ * POST /api/audio/:bookId/:chapterIndex/trim
+ * Body: { skipWordIds: ["w00005", "w00006", ...] }
+ */
+exports.trimAudio = async (req, res) => {
+  try {
+    const { bookId, chapterIndex } = req.params;
+    const { skipWordIds } = req.body;
+
+    if (!skipWordIds?.length) {
+      return res.status(400).json({ error: 'No words selected to skip' });
+    }
+
+    const book = await Book.findById(bookId);
+    if (!book) return res.status(404).json({ error: 'Book not found' });
+
+    const audioInfo = book.audioFiles?.get(String(chapterIndex));
+    if (!audioInfo) return res.status(400).json({ error: 'No audio for this chapter' });
+
+    const SyncData = require('../models/SyncData');
+    const sync = await SyncData.findOne({ bookId, chapterIndex: parseInt(chapterIndex) });
+    if (!sync) return res.status(400).json({ error: 'No sync data' });
+
+    const audioPath = path.join(book.storagePath, 'audio', audioInfo.filename);
+
+    // Backup original audio before first trim
+    const backupPath = audioPath.replace(/(\.\w+)$/, '_original$1');
+    try {
+      await fs.access(backupPath);
+    } catch {
+      await fs.copyFile(audioPath, backupPath);
+    }
+
+    // Compute time ranges to remove from skipped words
+    const skipSet = new Set(skipWordIds);
+    const skipRanges = [];
+    for (const entry of sync.syncData) {
+      if (skipSet.has(entry.id) && !entry.skipped && entry.clipBegin !== null && entry.clipEnd !== null) {
+        skipRanges.push({ start: entry.clipBegin, end: entry.clipEnd });
+      }
+    }
+
+    if (skipRanges.length === 0) {
+      return res.status(400).json({ error: 'Selected words have no audio timing data' });
+    }
+
+    // Merge overlapping/adjacent ranges
+    const merged = mergeRanges(skipRanges);
+
+    // Compute keep ranges (inverse of skip ranges)
+    const totalDuration = audioInfo.duration || await getAudioDuration(audioPath);
+    const keepRanges = invertRanges(merged, totalDuration);
+
+    if (keepRanges.length === 0) {
+      return res.status(400).json({ error: 'Cannot skip all audio' });
+    }
+
+    // Use FFmpeg to create trimmed audio
+    const trimmedPath = audioPath.replace(/(\.\w+)$/, '_trimmed$1');
+    await trimWithFfmpeg(audioPath, keepRanges, trimmedPath);
+
+    // Replace current with trimmed
+    await fs.unlink(audioPath);
+    await fs.rename(trimmedPath, audioPath);
+
+    const newDuration = await getAudioDuration(audioPath);
+
+    // Recalculate timestamps for remaining words
+    const newSyncData = recalculateTimestamps(sync.syncData, skipSet, merged);
+
+    // Update sync in database
+    sync.syncData = newSyncData;
+    sync.duration = newDuration;
+    sync.updatedAt = new Date();
+    await sync.save();
+
+    // Update book audio duration
+    const updatedInfo = { filename: audioInfo.filename, duration: newDuration, uploadedAt: audioInfo.uploadedAt };
+    book.audioFiles.set(String(chapterIndex), updatedInfo);
+    book.markModified('audioFiles');
+    await book.save();
+
+    // Regenerate SMIL
+    const smilGenerator = require('../services/smilGenerator');
+    const smilXml = smilGenerator.generate(
+      newSyncData,
+      `${chapterIndex}.html`,
+      `audio/${audioInfo.filename}`
+    );
+    const smilDir = path.join(book.storagePath, 'smil');
+    await fs.mkdir(smilDir, { recursive: true });
+    await fs.writeFile(path.join(smilDir, `chapter_${chapterIndex}.smil`), smilXml);
+
+    res.json({
+      message: 'Audio trimmed successfully',
+      skippedWords: skipWordIds.length,
+      newDuration,
+      syncData: newSyncData,
+    });
+  } catch (err) {
+    console.error('Trim error:', err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+/**
+ * Restore original audio (undo all trims).
+ * POST /api/audio/:bookId/:chapterIndex/restore
+ */
+exports.restoreAudio = async (req, res) => {
+  try {
+    const { bookId, chapterIndex } = req.params;
+    const book = await Book.findById(bookId);
+    if (!book) return res.status(404).json({ error: 'Book not found' });
+
+    const audioInfo = book.audioFiles?.get(String(chapterIndex));
+    if (!audioInfo) return res.status(400).json({ error: 'No audio' });
+
+    const audioPath = path.join(book.storagePath, 'audio', audioInfo.filename);
+    const backupPath = audioPath.replace(/(\.\w+)$/, '_original$1');
+
+    try {
+      await fs.access(backupPath);
+    } catch {
+      return res.status(400).json({ error: 'No backup found — audio was never trimmed' });
+    }
+
+    await fs.copyFile(backupPath, audioPath);
+    const newDuration = await getAudioDuration(audioPath);
+
+    const updatedInfo = { filename: audioInfo.filename, duration: newDuration, uploadedAt: audioInfo.uploadedAt };
+    book.audioFiles.set(String(chapterIndex), updatedInfo);
+    book.markModified('audioFiles');
+    await book.save();
+
+    res.json({ message: 'Audio restored to original', newDuration });
+  } catch (err) {
+    console.error('Restore error:', err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// --- Helper functions ---
+
+function mergeRanges(ranges) {
+  if (ranges.length === 0) return [];
+  const sorted = [...ranges].sort((a, b) => a.start - b.start);
+  const merged = [{ ...sorted[0] }];
+  for (let i = 1; i < sorted.length; i++) {
+    const last = merged[merged.length - 1];
+    if (sorted[i].start <= last.end + 0.001) {
+      last.end = Math.max(last.end, sorted[i].end);
+    } else {
+      merged.push({ ...sorted[i] });
+    }
+  }
+  return merged;
+}
+
+function invertRanges(skipRanges, totalDuration) {
+  const keep = [];
+  let cursor = 0;
+  for (const range of skipRanges) {
+    if (cursor < range.start) {
+      keep.push({ start: cursor, end: range.start });
+    }
+    cursor = range.end;
+  }
+  if (cursor < totalDuration) {
+    keep.push({ start: cursor, end: totalDuration });
+  }
+  return keep;
+}
+
+function recalculateTimestamps(syncData, skipSet, mergedSkipRanges) {
+  return syncData.map(entry => {
+    if (skipSet.has(entry.id)) {
+      return { id: entry.id, word: entry.word, clipBegin: null, clipEnd: null, skipped: true };
+    }
+    if (entry.clipBegin === null || entry.skipped) {
+      return { ...entry.toObject ? entry.toObject() : entry };
+    }
+
+    let removedTime = 0;
+    for (const range of mergedSkipRanges) {
+      if (range.end <= entry.clipBegin) {
+        removedTime += range.end - range.start;
+      }
+    }
+
+    return {
+      id: entry.id,
+      word: entry.word,
+      clipBegin: Math.max(0, +(entry.clipBegin - removedTime).toFixed(3)),
+      clipEnd: Math.max(0, +(entry.clipEnd - removedTime).toFixed(3)),
+      skipped: false,
+    };
+  });
+}
+
+async function trimWithFfmpeg(inputPath, keepRanges, outputPath) {
+  const { execSync } = require('child_process');
+
+  if (keepRanges.length === 1) {
+    const r = keepRanges[0];
+    execSync(
+      `ffmpeg -y -i "${inputPath}" -ss ${r.start} -to ${r.end} -c:a libmp3lame -q:a 2 "${outputPath}"`,
+      { timeout: 300000 }
+    );
+    return;
+  }
+
+  const filters = [];
+  const labels = [];
+  keepRanges.forEach((r, i) => {
+    const label = `a${i}`;
+    filters.push(`[0:a]atrim=start=${r.start}:end=${r.end},asetpts=PTS-STARTPTS[${label}]`);
+    labels.push(`[${label}]`);
+  });
+
+  const filterComplex = filters.join(';') +
+    `;${labels.join('')}concat=n=${keepRanges.length}:v=0:a=1[out]`;
+
+  execSync(
+    `ffmpeg -y -i "${inputPath}" -filter_complex "${filterComplex}" -map "[out]" -c:a libmp3lame -q:a 2 "${outputPath}"`,
+    { timeout: 300000 }
+  );
+}
+
 async function getAudioDuration(filePath) {
   const { execSync } = require('child_process');
   try {
