@@ -503,10 +503,11 @@ export default function EditorTimeline({
 
           {/* Playhead */}
           <div
-            className="ed-playhead"
+            className={`ed-playhead ${dragging === 'playhead' ? 'dragging' : ''}`}
             style={{ left: `${pct(currentTime)}%` }}
             onMouseDown={handlePlayheadMouseDown}
           >
+            <div className="ed-playhead-tooltip">{formatTimeMs(currentTime)}</div>
             <div className="ed-playhead-head" />
           </div>
         </div>
