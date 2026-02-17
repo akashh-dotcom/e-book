@@ -36,11 +36,17 @@ export default function ReaderPage() {
     }
   }, [audio, reader]);
 
-  const handleTrimDone = useCallback((newDuration) => {
-    // After trim, sync data is deleted — reload audio and sync state
-    audio.reloadAudio();
-    audio.reloadSync();
-  }, [audio]);
+  const handleTrimDone = useCallback((result) => {
+    if (result?.syncData) {
+      // Word-based trim — update sync data in place
+      audio.updateSyncData(result.syncData);
+      reader.reloadChapter();
+    } else {
+      // Direct trim or restore — reload everything
+      audio.reloadAudio();
+      audio.reloadSync();
+    }
+  }, [audio, reader]);
 
   if (reader.loading) {
     return (
@@ -110,6 +116,9 @@ export default function ReaderPage() {
                 reader.reloadChapter();
                 return result;
               }}
+              onGenerate={async (voice) => {
+                await audio.generateAudio(voice);
+              }}
               bookId={bookId}
               chapterIndex={reader.chapterIndex}
             />
@@ -172,8 +181,11 @@ export default function ReaderPage() {
             bookId={bookId}
             chapterIndex={reader.chapterIndex}
             overlay={overlay}
+            syncData={audio.syncData}
             onClose={() => setTrimEditorOpen(false)}
             onTrimDone={handleTrimDone}
+            onReSync={handleReSync}
+            reSyncing={reSyncing}
           />
         )}
       </div>
@@ -185,8 +197,6 @@ export default function ReaderPage() {
           hasSyncData={hasSync}
           onToggleTrimEditor={() => setTrimEditorOpen(!trimEditorOpen)}
           trimEditorOpen={trimEditorOpen}
-          onReSync={handleReSync}
-          reSyncing={reSyncing}
         />
       )}
 

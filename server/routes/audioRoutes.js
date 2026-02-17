@@ -14,6 +14,7 @@ const ctrl = require('../controllers/audioController');
 router.post('/:bookId/:chapterIndex', upload.single('audio'), ctrl.uploadChapterAudio);
 router.get('/:bookId/:chapterIndex', ctrl.getChapterAudio);
 router.get('/:bookId/:chapterIndex/stream', ctrl.streamAudio);
+router.post('/:bookId/:chapterIndex/generate', ctrl.generateAudio);
 router.post('/:bookId/:chapterIndex/trim', ctrl.trimAudio);
 router.post('/:bookId/:chapterIndex/restore', ctrl.restoreAudio);
 router.delete('/:bookId/:chapterIndex', ctrl.deleteChapterAudio);

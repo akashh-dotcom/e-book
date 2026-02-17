@@ -125,18 +125,15 @@ exports.deleteChapterAudio = async (req, res) => {
 };
 
 /**
- * Trim audio by removing a time range directly.
+ * Trim audio — supports both direct time-range and word-based trim.
  * POST /api/audio/:bookId/:chapterIndex/trim
- * Body: { trimStart: seconds, trimEnd: seconds }
+ * Body: { trimStart, trimEnd } for direct trim
+ *    OR { skipWordIds: [...] } for word-based trim
  */
 exports.trimAudio = async (req, res) => {
   try {
     const { bookId, chapterIndex } = req.params;
-    const { trimStart, trimEnd } = req.body;
-
-    if (trimStart === undefined || trimEnd === undefined) {
-      return res.status(400).json({ error: 'Provide trimStart and trimEnd' });
-    }
+    const { trimStart, trimEnd, skipWordIds } = req.body;
 
     const book = await Book.findById(bookId);
     if (!book) return res.status(404).json({ error: 'Book not found' });
@@ -147,50 +144,85 @@ exports.trimAudio = async (req, res) => {
     const audioPath = path.join(book.storagePath, 'audio', audioInfo.filename);
     const totalDuration = audioInfo.duration || await getAudioDuration(audioPath);
 
-    if (trimStart >= trimEnd || trimStart < 0 || trimEnd > totalDuration + 0.1) {
-      return res.status(400).json({ error: 'Invalid trim range' });
-    }
-
     // Backup original audio before first trim
     const backupPath = audioPath.replace(/(\.\w+)$/, '_original$1');
-    try {
-      await fs.access(backupPath);
-    } catch {
-      await fs.copyFile(audioPath, backupPath);
+    try { await fs.access(backupPath); } catch { await fs.copyFile(audioPath, backupPath); }
+
+    let keepRanges;
+    let isWordBased = false;
+    const SyncData = require('../models/SyncData');
+
+    if (skipWordIds?.length) {
+      // Word-based trim
+      isWordBased = true;
+      const sync = await SyncData.findOne({ bookId, chapterIndex: parseInt(chapterIndex) });
+      if (!sync) return res.status(400).json({ error: 'No sync data' });
+
+      const skipSet = new Set(skipWordIds);
+      const skipRanges = [];
+      for (const entry of sync.syncData) {
+        if (skipSet.has(entry.id) && !entry.skipped && entry.clipBegin !== null && entry.clipEnd !== null) {
+          skipRanges.push({ start: entry.clipBegin, end: entry.clipEnd });
+        }
+      }
+      if (skipRanges.length === 0) return res.status(400).json({ error: 'Selected words have no audio timing' });
+
+      const merged = mergeRanges(skipRanges);
+      keepRanges = invertRanges(merged, totalDuration);
+
+      // Recalculate sync timestamps
+      const newSyncData = recalculateTimestamps(sync.syncData, skipSet, merged);
+      sync.syncData = newSyncData;
+      sync.updatedAt = new Date();
+      // duration will be updated below after trim
+      await sync.save();
+    } else if (trimStart !== undefined && trimEnd !== undefined) {
+      // Direct time-range trim
+      if (trimStart >= trimEnd || trimStart < 0 || trimEnd > totalDuration + 0.1) {
+        return res.status(400).json({ error: 'Invalid trim range' });
+      }
+      keepRanges = invertRanges([{ start: trimStart, end: trimEnd }], totalDuration);
+    } else {
+      return res.status(400).json({ error: 'Provide trimStart/trimEnd or skipWordIds' });
     }
 
-    // Compute keep ranges (everything except the trimmed section)
-    const keepRanges = invertRanges([{ start: trimStart, end: trimEnd }], totalDuration);
+    if (keepRanges.length === 0) return res.status(400).json({ error: 'Cannot remove all audio' });
 
-    if (keepRanges.length === 0) {
-      return res.status(400).json({ error: 'Cannot remove all audio' });
-    }
-
-    // Use FFmpeg to create trimmed audio
     const trimmedPath = audioPath.replace(/(\.\w+)$/, '_trimmed$1');
     await trimWithFfmpeg(audioPath, keepRanges, trimmedPath);
-
-    // Replace current with trimmed
     await fs.unlink(audioPath);
     await fs.rename(trimmedPath, audioPath);
 
     const newDuration = await getAudioDuration(audioPath);
 
     // Update book audio duration
-    const updatedInfo = { filename: audioInfo.filename, duration: newDuration, uploadedAt: audioInfo.uploadedAt };
-    book.audioFiles.set(String(chapterIndex), updatedInfo);
+    book.audioFiles.set(String(chapterIndex), { filename: audioInfo.filename, duration: newDuration, uploadedAt: audioInfo.uploadedAt });
     book.markModified('audioFiles');
     await book.save();
 
-    // Delete old sync data — user must re-sync after trimming
-    const SyncData = require('../models/SyncData');
-    await SyncData.deleteOne({ bookId, chapterIndex: parseInt(chapterIndex) });
+    if (isWordBased) {
+      // Update sync duration and regenerate SMIL
+      const sync = await SyncData.findOne({ bookId, chapterIndex: parseInt(chapterIndex) });
+      if (sync) {
+        sync.duration = newDuration;
+        await sync.save();
+        const smilGenerator = require('../services/smilGenerator');
+        const smilXml = smilGenerator.generate(sync.syncData, `${chapterIndex}.html`, `audio/${audioInfo.filename}`);
+        const smilDir = path.join(book.storagePath, 'smil');
+        await fs.mkdir(smilDir, { recursive: true });
+        await fs.writeFile(path.join(smilDir, `chapter_${chapterIndex}.smil`), smilXml);
+      }
+    } else {
+      // Direct trim — delete old sync data, user must re-sync
+      await SyncData.deleteOne({ bookId, chapterIndex: parseInt(chapterIndex) });
+    }
 
-    res.json({
-      message: 'Audio trimmed successfully',
-      removedRange: { start: trimStart, end: trimEnd },
-      newDuration,
-    });
+    const result = { message: 'Audio trimmed successfully', newDuration };
+    if (isWordBased) {
+      const sync = await SyncData.findOne({ bookId, chapterIndex: parseInt(chapterIndex) });
+      result.syncData = sync?.syncData;
+    }
+    res.json(result);
   } catch (err) {
     console.error('Trim error:', err);
     res.status(500).json({ error: err.message });
@@ -230,6 +262,70 @@ exports.restoreAudio = async (req, res) => {
     res.json({ message: 'Audio restored to original', newDuration });
   } catch (err) {
     console.error('Restore error:', err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+/**
+ * Auto-generate audio from chapter text using edge-tts.
+ * POST /api/audio/:bookId/:chapterIndex/generate
+ * Body: { voice?: string }
+ */
+exports.generateAudio = async (req, res) => {
+  try {
+    const { bookId, chapterIndex } = req.params;
+    const { voice = 'en-US-AriaNeural' } = req.body;
+
+    const book = await Book.findById(bookId);
+    if (!book) return res.status(404).json({ error: 'Book not found' });
+
+    // Read chapter text
+    const chapterPath = path.join(book.storagePath, 'chapters', `${chapterIndex}.html`);
+    const html = await fs.readFile(chapterPath, 'utf-8');
+
+    // Strip HTML tags to get plain text
+    const plainText = html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+    if (!plainText) return res.status(400).json({ error: 'Chapter has no text content' });
+
+    const audioDir = path.join(book.storagePath, 'audio');
+    await fs.mkdir(audioDir, { recursive: true });
+
+    const filename = `chapter_${chapterIndex}.mp3`;
+    const audioPath = path.join(audioDir, filename);
+
+    // Write text to a temp file for edge-tts (avoids shell escaping issues)
+    const tmpTextPath = path.join(audioDir, `_tmp_text_${chapterIndex}.txt`);
+    await fs.writeFile(tmpTextPath, plainText, 'utf-8');
+
+    const { execSync } = require('child_process');
+    execSync(
+      `edge-tts --voice "${voice}" --file "${tmpTextPath}" --write-media "${audioPath}"`,
+      { timeout: 600000 }
+    );
+
+    // Clean up temp file
+    await fs.unlink(tmpTextPath).catch(() => {});
+
+    const duration = await getAudioDuration(audioPath);
+
+    if (!book.audioFiles) book.audioFiles = new Map();
+    book.audioFiles.set(String(chapterIndex), {
+      filename,
+      duration,
+      uploadedAt: new Date(),
+    });
+    book.markModified('audioFiles');
+    await book.save();
+
+    res.json({
+      message: 'Audio generated successfully',
+      filename,
+      duration,
+      voice,
+      chapterIndex: parseInt(chapterIndex),
+    });
+  } catch (err) {
+    console.error('Audio generate error:', err);
     res.status(500).json({ error: err.message });
   }
 };

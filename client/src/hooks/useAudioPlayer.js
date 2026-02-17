@@ -78,6 +78,13 @@ export function useAudioPlayer(bookId, chapterIndex) {
     setAudioUrl(`/api/audio/${bookId}/${chapterIndex}/stream?t=${ts}`);
   }, [bookId, chapterIndex]);
 
+  const generateAudio = useCallback(async (voice = 'en-US-AriaNeural') => {
+    const res = await api.post(`/audio/${bookId}/${chapterIndex}/generate`, { voice });
+    setAudioUrl(`/api/audio/${bookId}/${chapterIndex}/stream`);
+    setHasAudio(true);
+    return res.data;
+  }, [bookId, chapterIndex]);
+
   return {
     audioUrl,
     syncData,
@@ -88,5 +95,6 @@ export function useAudioPlayer(bookId, chapterIndex) {
     updateSyncData,
     reloadSync,
     reloadAudio,
+    generateAudio,
   };
 }

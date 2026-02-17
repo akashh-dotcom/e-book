@@ -1,16 +1,18 @@
 import { useState, useRef } from 'react';
-import { Upload, Mic, Loader, Wand2 } from 'lucide-react';
+import { Upload, Mic, Loader, Wand2, Volume2 } from 'lucide-react';
 
 export default function ChapterAudioUpload({
   hasAudio,
   hasSyncData,
   onUpload,
   onAutoSync,
+  onGenerate,
   bookId,
   chapterIndex,
 }) {
   const [uploading, setUploading] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [generating, setGenerating] = useState(false);
   const [error, setError] = useState('');
   const fileRef = useRef(null);
 
@@ -37,6 +39,17 @@ export default function ChapterAudioUpload({
     setSyncing(false);
   };
 
+  const handleGenerate = async () => {
+    setGenerating(true);
+    setError('');
+    try {
+      await onGenerate();
+    } catch (err) {
+      setError(err.response?.data?.error || 'Audio generation failed');
+    }
+    setGenerating(false);
+  };
+
   return (
     <div className="audio-upload-bar">
       {!hasAudio && (
@@ -56,6 +69,17 @@ export default function ChapterAudioUpload({
             style={{ display: 'none' }}
             onChange={e => handleUpload(e.target.files[0])}
           />
+
+          {onGenerate && (
+            <button
+              className="audio-upload-btn generate"
+              onClick={handleGenerate}
+              disabled={generating}
+            >
+              {generating ? <Loader size={14} className="spin" /> : <Volume2 size={14} />}
+              {generating ? 'Generating...' : 'Auto-Generate (TTS)'}
+            </button>
+          )}
         </>
       )}
 
