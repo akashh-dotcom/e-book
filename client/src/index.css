@@ -2673,23 +2673,43 @@ body {
   position: absolute;
   top: 0;
   bottom: 0;
-  width: 2px;
-  margin-left: -1px;
-  background: #7c3aed;
+  width: 14px;
+  margin-left: -7px;
   z-index: 8;
-  pointer-events: none;
+  cursor: grab;
   transition: left 0.04s linear;
+}
+
+.ed-playhead:active {
+  cursor: grabbing;
+}
+
+.ed-playhead::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 6px;
+  width: 2px;
+  background: #7c3aed;
+  pointer-events: none;
 }
 
 .ed-playhead-head {
   position: absolute;
   top: -2px;
-  left: -5px;
+  left: 1px;
   width: 12px;
   height: 12px;
   background: #7c3aed;
   border-radius: 50%;
   box-shadow: 0 0 6px rgba(124, 58, 237, 0.5);
+  pointer-events: none;
+  transition: transform 0.1s;
+}
+
+.ed-playhead:hover .ed-playhead-head {
+  transform: scale(1.3);
 }
 
 /* === RESPONSIVE === */

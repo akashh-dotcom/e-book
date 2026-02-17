@@ -63,12 +63,44 @@ export default function EditorTimeline({
     return (x / rect.width) * duration;
   }, [duration]);
 
-  const handleTrackClick = useCallback((e) => {
+  // Click on track → seek, or start drag-to-scrub
+  const handleTrackMouseDown = useCallback((e) => {
     if (dragging) return;
-    overlay?.seek(timeFromEvent(e));
+    const t = timeFromEvent(e);
+    overlay?.seek(t);
+    setDragging('playhead');
+    const onMove = (ev) => {
+      const t2 = timeFromEvent(ev);
+      overlay?.seek(t2);
+    };
+    const onUp = () => {
+      setDragging(null);
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
   }, [dragging, timeFromEvent, overlay]);
 
-  const handleMouseDown = useCallback((which, e) => {
+  // Drag playhead head directly
+  const handlePlayheadMouseDown = useCallback((e) => {
+    e.stopPropagation();
+    setDragging('playhead');
+    const onMove = (ev) => {
+      const t = timeFromEvent(ev);
+      overlay?.seek(t);
+    };
+    const onUp = () => {
+      setDragging(null);
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  }, [timeFromEvent, overlay]);
+
+  // Drag trim handles
+  const handleTrimHandleMouseDown = useCallback((which, e) => {
     e.stopPropagation();
     setDragging(which);
     const onMove = (ev) => {
@@ -253,7 +285,7 @@ export default function EditorTimeline({
           className="ed-timeline-track"
           ref={trackRef}
           style={{ width: `${100 * zoom}%` }}
-          onClick={handleTrackClick}
+          onMouseDown={handleTrackMouseDown}
         >
           {/* Time ruler */}
           <div className="ed-ruler">
@@ -307,7 +339,7 @@ export default function EditorTimeline({
             <div
               className="ed-trim-handle ed-handle-start"
               style={{ left: `${pct(trimStart)}%` }}
-              onMouseDown={(e) => handleMouseDown('start', e)}
+              onMouseDown={(e) => handleTrimHandleMouseDown('start', e)}
             >
               <div className="ed-handle-flag">S</div>
             </div>
@@ -316,14 +348,18 @@ export default function EditorTimeline({
             <div
               className="ed-trim-handle ed-handle-end"
               style={{ left: `${pct(trimEnd)}%` }}
-              onMouseDown={(e) => handleMouseDown('end', e)}
+              onMouseDown={(e) => handleTrimHandleMouseDown('end', e)}
             >
               <div className="ed-handle-flag">E</div>
             </div>
           )}
 
           {/* Playhead */}
-          <div className="ed-playhead" style={{ left: `${pct(currentTime)}%` }}>
+          <div
+            className="ed-playhead"
+            style={{ left: `${pct(currentTime)}%` }}
+            onMouseDown={handlePlayheadMouseDown}
+          >
             <div className="ed-playhead-head" />
           </div>
         </div>
