@@ -1,0 +1,7 @@
+node_modules/
+dist/
+.env
+server/storage/books/*/
+server/uploads/
+*.epub
+.DS_Store
