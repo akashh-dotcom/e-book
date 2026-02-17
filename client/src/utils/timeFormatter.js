@@ -5,11 +5,33 @@ export function formatTime(s) {
 
 export function formatTimeMs(s) {
   if (!s || isNaN(s)) return '0:00.000';
-  const m = Math.floor(s / 60);
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
   const sec = s % 60;
   const whole = Math.floor(sec);
   const ms = Math.round((sec - whole) * 1000);
+  if (h > 0) {
+    return `${h}:${String(m).padStart(2, '0')}:${String(whole).padStart(2, '0')}.${String(ms).padStart(3, '0')}`;
+  }
   return `${m}:${String(whole).padStart(2, '0')}.${String(ms).padStart(3, '0')}`;
+}
+
+// Compact ruler label: adapts precision to the step size
+export function formatRulerLabel(s, step) {
+  if (s == null || isNaN(s)) return '0:00';
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = s % 60;
+  const whole = Math.floor(sec);
+  const ms = Math.round((sec - whole) * 1000);
+  // Sub-second step: show milliseconds
+  if (step < 1) {
+    if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(whole).padStart(2, '0')}.${String(ms).padStart(3, '0')}`;
+    return `${m}:${String(whole).padStart(2, '0')}.${String(ms).padStart(3, '0')}`;
+  }
+  // Whole seconds
+  if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(whole).padStart(2, '0')}`;
+  return `${m}:${String(whole).padStart(2, '0')}`;
 }
 
 export function parseTimeMs(str) {

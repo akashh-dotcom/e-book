@@ -1,9 +1,31 @@
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import {
   Scissors, Play, RotateCcw, Loader, RefreshCw, ZoomIn, ZoomOut,
 } from 'lucide-react';
-import { formatTimeMs, parseTimeMs } from '../../utils/timeFormatter';
+import { formatTimeMs, formatRulerLabel, parseTimeMs } from '../../utils/timeFormatter';
 import api from '../../services/api';
+
+// ---- Zoom constants ----
+const MIN_ZOOM = 1;
+const MAX_ZOOM = 200;       // enough precision for hours-long audio
+const WHEEL_ZOOM_FACTOR = 1.15; // 15% per scroll tick
+const BTN_ZOOM_FACTOR = 1.5;    // 50% per button click
+
+// ---- Ruler step table (seconds) — picks the best step so ticks aren't too dense ----
+const STEP_TABLE = [
+  0.01, 0.02, 0.05, 0.1, 0.2, 0.5,
+  1, 2, 5, 10, 15, 30, 60, 120, 300, 600, 1800, 3600,
+];
+
+/** Pick a ruler step so there are roughly 8–20 ticks visible */
+function pickRulerStep(visibleDuration) {
+  const idealCount = 12;
+  const idealStep = visibleDuration / idealCount;
+  for (const s of STEP_TABLE) {
+    if (s >= idealStep) return s;
+  }
+  return STEP_TABLE[STEP_TABLE.length - 1];
+}
 
 export default function EditorTimeline({
   bookId,
@@ -48,7 +70,7 @@ export default function EditorTimeline({
     setClipRight(null);
   }, [duration]);
 
-  // Auto-scroll timeline to keep playhead in view
+  // Auto-scroll timeline to keep playhead in view during playback
   useEffect(() => {
     if (!scrollRef.current || !duration) return;
     const container = scrollRef.current;
@@ -74,13 +96,73 @@ export default function EditorTimeline({
   // Has the user moved the edges? i.e. something to trim
   const hasTrim = clipLeft > 0.01 || (clipRight !== null && clipRight < duration - 0.01);
 
-  // Compute what to cut:
-  // If left edge moved right → trim 0..clipLeft
-  // If right edge moved left → trim clipRight..duration
-  // We send the LARGER removed section, or both
+  // Compute what to cut
   const trimRanges = [];
   if (clipLeft > 0.01) trimRanges.push({ start: 0, end: clipLeft });
   if (clipRight !== null && clipRight < duration - 0.01) trimRanges.push({ start: clipRight, end: duration });
+
+  // ---- Ctrl/Cmd + Scroll-wheel zoom (centered on cursor) ----
+  useEffect(() => {
+    const container = scrollRef.current;
+    if (!container) return;
+    const onWheel = (e) => {
+      if (!(e.ctrlKey || e.metaKey)) return;
+      e.preventDefault();
+
+      const rect = container.getBoundingClientRect();
+      const cursorX = e.clientX - rect.left;                 // px from left edge of container
+      const scrollBefore = container.scrollLeft;
+      const cursorWorldX = cursorX + scrollBefore;            // px in scrolled content
+      const oldZoom = zoom;
+
+      // Zoom in / out
+      const factor = e.deltaY < 0 ? WHEEL_ZOOM_FACTOR : 1 / WHEEL_ZOOM_FACTOR;
+      const newZoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, oldZoom * factor));
+
+      setZoom(newZoom);
+
+      // Adjust scroll so the point under the cursor stays put
+      requestAnimationFrame(() => {
+        const scale = newZoom / oldZoom;
+        container.scrollLeft = cursorWorldX * scale - cursorX;
+      });
+    };
+    container.addEventListener('wheel', onWheel, { passive: false });
+    return () => container.removeEventListener('wheel', onWheel);
+  }, [zoom]);
+
+  // ---- Zoom button handlers (centered on current scroll center) ----
+  const zoomBy = useCallback((factor) => {
+    const container = scrollRef.current;
+    if (!container) return;
+    const oldZoom = zoom;
+    const newZoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, oldZoom * factor));
+    const containerWidth = container.clientWidth;
+    const centerX = container.scrollLeft + containerWidth / 2;
+
+    setZoom(newZoom);
+    requestAnimationFrame(() => {
+      const scale = newZoom / oldZoom;
+      container.scrollLeft = centerX * scale - containerWidth / 2;
+    });
+  }, [zoom]);
+
+  // ---- Zoom-aware ruler ticks ----
+  const ticks = useMemo(() => {
+    if (!duration || !scrollRef.current) return [];
+    const containerWidth = scrollRef.current?.clientWidth || 800;
+    const visibleDuration = duration / zoom;
+    const step = pickRulerStep(visibleDuration);
+    const result = [];
+    // Generate ticks for the full duration
+    const count = Math.ceil(duration / step);
+    // Cap at 500 ticks to avoid perf issues on extreme zoom
+    const safeStep = count > 500 ? (duration / 500) : step;
+    for (let t = 0; t <= duration + safeStep * 0.01; t += safeStep) {
+      result.push({ time: +t.toFixed(4), step: safeStep });
+    }
+    return result;
+  }, [duration, zoom]);
 
   // --- Drag handlers ---
 
@@ -155,8 +237,6 @@ export default function EditorTimeline({
     setTrimming(true);
     setMessage(null);
     try {
-      // Trim the larger removed section first (or the only one)
-      // If trimming from both ends, do them one at a time (end first to preserve offsets)
       if (clipRight !== null && clipRight < duration - 0.01) {
         const res = await api.post(`/audio/${bookId}/${chapterIndex}/trim`, {
           trimStart: clipRight,
@@ -197,14 +277,10 @@ export default function EditorTimeline({
   // Build word markers for the timeline
   const wordMarkers = syncData?.filter(e => e.clipBegin !== null && !e.skipped) || [];
 
-  // Generate time ruler ticks
-  const ticks = [];
-  if (duration > 0) {
-    const step = duration <= 30 ? 1 : duration <= 120 ? 5 : duration <= 600 ? 10 : 30;
-    for (let t = 0; t <= duration; t += step) {
-      ticks.push(t);
-    }
-  }
+  // Format zoom label nicely
+  const zoomLabel = zoom >= 100 ? `${Math.round(zoom)}x`
+    : zoom >= 10 ? `${zoom.toFixed(1)}x`
+    : `${zoom.toFixed(1)}x`;
 
   return (
     <div className="ed-timeline">
@@ -307,11 +383,11 @@ export default function EditorTimeline({
             <span>Restore</span>
           </button>
           <div className="ed-timeline-sep" />
-          <button className="ed-timeline-btn" onClick={() => setZoom(z => Math.max(1, z - 0.5))} title="Zoom out">
+          <button className="ed-timeline-btn" onClick={() => zoomBy(1 / BTN_ZOOM_FACTOR)} title="Zoom out (or Ctrl+scroll)">
             <ZoomOut size={14} />
           </button>
-          <span className="ed-zoom-label">{zoom.toFixed(1)}x</span>
-          <button className="ed-timeline-btn" onClick={() => setZoom(z => Math.min(10, z + 0.5))} title="Zoom in">
+          <span className="ed-zoom-label">{zoomLabel}</span>
+          <button className="ed-timeline-btn" onClick={() => zoomBy(BTN_ZOOM_FACTOR)} title="Zoom in (or Ctrl+scroll)">
             <ZoomIn size={14} />
           </button>
         </div>
@@ -325,15 +401,15 @@ export default function EditorTimeline({
           style={{ width: `${100 * zoom}%` }}
           onMouseDown={handleTrackMouseDown}
         >
-          {/* Time ruler */}
+          {/* Time ruler — zoom-aware ticks */}
           <div className="ed-ruler">
-            {ticks.map(t => (
+            {ticks.map(({ time, step }) => (
               <div
-                key={t}
+                key={time}
                 className="ed-ruler-tick"
-                style={{ left: `${pct(t)}%` }}
+                style={{ left: `${pct(time)}%` }}
               >
-                <span className="ed-ruler-label">{formatTimeMs(t)}</span>
+                <span className="ed-ruler-label">{formatRulerLabel(time, step)}</span>
               </div>
             ))}
           </div>
@@ -390,7 +466,7 @@ export default function EditorTimeline({
               })}
             </div>
 
-            {/* LEFT edge handle — positioned in clip-lane, NOT inside clip-active */}
+            {/* LEFT edge handle */}
             <div
               className="ed-clip-edge ed-clip-edge-left"
               style={{ left: `${pct(clipLeft)}%` }}
@@ -402,7 +478,7 @@ export default function EditorTimeline({
               </div>
             </div>
 
-            {/* RIGHT edge handle — positioned in clip-lane, NOT inside clip-active */}
+            {/* RIGHT edge handle */}
             <div
               className="ed-clip-edge ed-clip-edge-right"
               style={{ left: `${pct(effectiveRight)}%` }}
