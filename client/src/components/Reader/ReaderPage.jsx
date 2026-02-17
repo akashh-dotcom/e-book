@@ -1,5 +1,7 @@
 import { useParams } from 'react-router-dom';
 import useReader from '../../hooks/useReader';
+import { useAudioPlayer } from '../../hooks/useAudioPlayer';
+import { useMediaOverlay } from '../../hooks/useMediaOverlay';
 import Sidebar from './Sidebar';
 import TopBar from './TopBar';
 import ChapterView from './ChapterView';
@@ -8,10 +10,15 @@ import SearchPanel from './SearchPanel';
 import SettingsPanel from './SettingsPanel';
 import BookmarksPanel from './BookmarksPanel';
 import AudioBar from './AudioBar';
+import ChapterAudioUpload from '../AudioUpload/ChapterAudioUpload';
 
 export default function ReaderPage() {
   const { bookId } = useParams();
   const reader = useReader(bookId);
+
+  // Audio & sync data
+  const audio = useAudioPlayer(bookId, reader.chapterIndex);
+  const overlay = useMediaOverlay(audio.syncData, audio.audioUrl);
 
   if (reader.loading) {
     return (
@@ -30,8 +37,10 @@ export default function ReaderPage() {
     );
   }
 
+  const hasSync = audio.hasSyncData;
+
   return (
-    <div className={`reader-root theme-${reader.theme}`}>
+    <div className={`reader-root theme-${reader.theme} ${overlay.isPlaying ? 'audio-playing' : ''}`}>
       <TopBar
         title={reader.book.title}
         onToggleSidebar={() => reader.setSidebarOpen(!reader.sidebarOpen)}
@@ -70,6 +79,15 @@ export default function ReaderPage() {
 
         <main className="reader-content" ref={reader.chapterRef}>
           <div className="reader-content-inner">
+            <ChapterAudioUpload
+              hasAudio={audio.hasAudio}
+              hasSyncData={audio.hasSyncData}
+              onUpload={audio.uploadAudio}
+              onAutoSync={audio.runAutoSync}
+              bookId={bookId}
+              chapterIndex={reader.chapterIndex}
+            />
+
             <ChapterView
               html={reader.chapterHtml}
               fontSize={reader.fontSize}
@@ -85,6 +103,7 @@ export default function ReaderPage() {
                   highlightColor: color,
                 });
               }}
+              onWordClick={hasSync ? overlay.seekToWord : undefined}
             />
           </div>
         </main>
@@ -122,6 +141,8 @@ export default function ReaderPage() {
           />
         )}
       </div>
+
+      {hasSync && <AudioBar overlay={overlay} />}
 
       <BottomBar
         current={reader.chapterIndex}

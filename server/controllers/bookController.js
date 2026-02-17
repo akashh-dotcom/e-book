@@ -125,6 +125,27 @@ exports.deleteBook = async (req, res) => {
   }
 };
 
+// Export EPUB3 with Media Overlays
+exports.exportEpub = async (req, res) => {
+  try {
+    const book = await Book.findById(req.params.id);
+    if (!book) return res.status(404).json({ error: 'Not found' });
+
+    const epubExporter = require('../services/epubExporter');
+    const epubBuffer = await epubExporter.exportWithMediaOverlays(book);
+
+    const filename = `${book.title.replace(/[^a-zA-Z0-9]/g, '_')}.epub`;
+    res.set({
+      'Content-Type': 'application/epub+zip',
+      'Content-Disposition': `attachment; filename="${filename}"`,
+    });
+    res.send(epubBuffer);
+  } catch (err) {
+    console.error('Export error:', err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
 // --- Bookmark endpoints ---
 
 // Create bookmark or highlight

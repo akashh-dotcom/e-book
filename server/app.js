@@ -7,16 +7,20 @@ require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
 require('dotenv').config(); // fallback: .env in cwd
 
 const bookRoutes = require('./routes/bookRoutes');
+const audioRoutes = require('./routes/audioRoutes');
+const syncRoutes = require('./routes/syncRoutes');
 
 const app = express();
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
 
 // Serve book assets (CSS, images, fonts)
 app.use('/storage', express.static(path.join(__dirname, 'storage')));
 
 // Routes
 app.use('/api/books', bookRoutes);
+app.use('/api/audio', audioRoutes);
+app.use('/api/sync', syncRoutes);
 
 // MongoDB
 mongoose.connect(process.env.MONGO_URI)

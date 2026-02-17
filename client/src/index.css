@@ -892,7 +892,7 @@ body {
   to { transform: rotate(360deg); }
 }
 
-/* === AUDIO BAR === */
+/* === AUDIO BAR (new) === */
 
 .audio-bar {
   display: flex;
@@ -901,40 +901,355 @@ body {
   padding: 8px 16px;
   background: var(--bg-alt);
   border-top: 1px solid var(--border);
+  flex-shrink: 0;
 }
 
-.audio-bar button {
+.audio-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.audio-controls button,
+.audio-bar .play-btn {
   display: flex;
   align-items: center;
   justify-content: center;
   width: 32px;
   height: 32px;
   border: none;
+  background: none;
+  color: var(--text-dim);
+  border-radius: 50%;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.audio-controls button:hover {
+  background: rgba(0,0,0,0.06);
+}
+
+.audio-bar .play-btn {
   background: var(--accent);
   color: white;
-  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+}
+
+.audio-bar .play-btn:hover {
+  opacity: 0.9;
+}
+
+.seek-bar {
+  flex: 1;
+  height: 6px;
+  background: var(--border);
+  border-radius: 3px;
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.seek-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 3px;
+  transition: width 0.1s linear;
+}
+
+.time-display {
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  min-width: 80px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.speed-select {
+  font-size: 0.78rem;
+  background: var(--bg-alt);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 2px 6px;
   cursor: pointer;
 }
 
-.audio-bar input[type="range"] {
-  flex: 1;
-  accent-color: var(--accent);
+/* === MEDIA OVERLAY HIGHLIGHTS === */
+
+.-epub-media-overlay-active {
+  color: #c0392b !important;
+  background: rgba(192, 57, 43, 0.12) !important;
+  font-weight: 600;
+  border-radius: 3px;
+  padding: 1px 2px;
+  transition: color 0.08s ease, background 0.08s ease;
 }
 
-.audio-time {
-  font-size: 0.78rem;
+.mo-spoken {
+  color: var(--text) !important;
+}
+
+.audio-playing .chapter-content span[id^="w"] {
   color: var(--text-dim);
-  min-width: 45px;
+  transition: color 0.1s ease;
+  cursor: pointer;
+}
+
+.theme-sepia .-epub-media-overlay-active {
+  color: #8b5e34 !important;
+  background: rgba(139,94,52,0.12) !important;
+}
+
+.theme-dark .-epub-media-overlay-active {
+  color: #f7c948 !important;
+  background: rgba(247,201,72,0.15) !important;
+}
+
+/* === AUDIO UPLOAD BAR === */
+
+.audio-upload-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 0;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.audio-upload-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-alt);
+  color: var(--text);
+  font-size: 0.84rem;
+  cursor: pointer;
+  transition: background 0.15s;
+  text-decoration: none;
+  font-family: inherit;
+}
+
+.audio-upload-btn:hover {
+  background: var(--border);
+}
+
+.audio-upload-btn.sync {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
+}
+
+.audio-upload-btn.sync:hover {
+  opacity: 0.9;
+}
+
+.audio-upload-btn.manual {
+  background: transparent;
+}
+
+.sync-options {
+  display: flex;
+  gap: 8px;
+}
+
+.sync-ready {
+  font-size: 0.84rem;
+  color: #16a34a;
+  font-weight: 500;
+}
+
+.audio-error {
+  font-size: 0.82rem;
+  color: #ef4444;
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+/* === SYNC EDITOR === */
+
+.sync-editor {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 24px 20px;
+  min-height: 100vh;
+  background: #f8f9fa;
+}
+
+.sync-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.sync-header h1 {
+  font-size: 1.3rem;
+  font-weight: 700;
+}
+
+.sync-header p {
+  font-size: 0.85rem;
+  color: #6b6b6b;
+}
+
+.sync-instructions {
+  text-align: center;
+  padding: 16px;
+  background: #eff6ff;
+  border-radius: 8px;
+  margin-bottom: 24px;
+  font-size: 0.9rem;
+  color: #1e40af;
+}
+
+.sync-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  padding: 20px;
+  margin-bottom: 16px;
+}
+
+.sync-play-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border: none;
+  background: #2563eb;
+  color: white;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.sync-play-btn:hover {
+  background: #1d4ed8;
+}
+
+.sync-play-btn:disabled {
+  background: #94a3b8;
+  cursor: default;
+}
+
+.sync-time {
+  font-size: 0.88rem;
+  color: #6b6b6b;
+  font-variant-numeric: tabular-nums;
+}
+
+.current-word {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1a1a1a;
+  min-width: 120px;
   text-align: center;
 }
 
-.speed-btn {
-  font-size: 0.78rem;
-  background: var(--border) !important;
-  color: var(--text) !important;
-  border-radius: 4px !important;
-  padding: 4px 8px !important;
-  width: auto !important;
+.progress-text {
+  font-size: 0.85rem;
+  color: #6b6b6b;
+}
+
+.sync-progress-bar {
+  width: 100%;
+  height: 6px;
+  background: #e5e7eb;
+  border-radius: 3px;
+  overflow: hidden;
+  margin-bottom: 20px;
+}
+
+.sync-progress-fill {
+  height: 100%;
+  background: #2563eb;
+  border-radius: 3px;
+  transition: width 0.2s;
+}
+
+.sync-actions {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 24px;
+}
+
+.sync-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 20px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #374151;
+  font-size: 0.9rem;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s;
+}
+
+.sync-action-btn:hover:not(:disabled) {
+  background: #f3f4f6;
+}
+
+.sync-action-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.sync-action-btn.primary {
+  background: #2563eb;
+  color: white;
+  border-color: #2563eb;
+}
+
+.sync-action-btn.primary:hover:not(:disabled) {
+  background: #1d4ed8;
+}
+
+.sync-action-btn.secondary {
+  color: #6b6b6b;
+}
+
+.word-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 16px;
+  background: #ffffff;
+  border-radius: 10px;
+  border: 1px solid #e5e7eb;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.chip {
+  display: inline-block;
+  padding: 3px 8px;
+  font-size: 0.82rem;
+  border-radius: 4px;
+  background: #f3f4f6;
+  color: #9ca3af;
+  transition: background 0.15s, color 0.15s;
+}
+
+.chip.active {
+  background: #2563eb;
+  color: white;
+  font-weight: 600;
+}
+
+.chip.done {
+  background: #dcfce7;
+  color: #16a34a;
 }
 
 /* === RESPONSIVE === */
