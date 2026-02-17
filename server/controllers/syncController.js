@@ -3,18 +3,18 @@ const fs = require('fs').promises;
 const Book = require('../models/Book');
 const SyncData = require('../models/SyncData');
 const wordWrapper = require('../services/wordWrapper');
-const aeneasAligner = require('../services/aeneasAligner');
+const whisperxAligner = require('../services/whisperxAligner');
 const smilGenerator = require('../services/smilGenerator');
 
 /**
- * Auto-align audio to chapter text using Aeneas.
+ * Auto-align audio to chapter text using WhisperX.
  * POST /api/sync/:bookId/:chapterIndex/auto
- * Body: { mode: "word" | "sentence" }
+ * Body: { mode: "word" | "sentence", modelSize: "tiny"|"base"|"small"|"medium"|"large-v2" }
  */
 exports.autoAlign = async (req, res) => {
   try {
     const { bookId, chapterIndex } = req.params;
-    const { mode = 'word' } = req.body;
+    const { mode = 'word', modelSize = 'base' } = req.body;
 
     const book = await Book.findById(bookId);
     if (!book) return res.status(404).json({ error: 'Book not found' });
@@ -36,7 +36,7 @@ exports.autoAlign = async (req, res) => {
     // Save word-wrapped HTML back
     await fs.writeFile(chapterPath, wrapped.html);
 
-    // Step 2: Run Aeneas alignment
+    // Step 2: Run WhisperX alignment
     const audioPath = path.join(
       book.storagePath, 'audio', audioInfo.filename
     );
@@ -44,19 +44,19 @@ exports.autoAlign = async (req, res) => {
     let syncData;
 
     if (mode === 'sentence') {
-      syncData = await aeneasAligner.alignSentencesThenDistribute(
+      syncData = await whisperxAligner.alignSentencesThenDistribute(
         audioPath,
         wrapped.plainText,
         wrapped.wordIds,
-        { language: book.language || 'en' }
+        { language: book.language || 'en', modelSize }
       );
     } else {
-      const timestamps = await aeneasAligner.alignWords(
+      const timestamps = await whisperxAligner.alignWords(
         audioPath,
         wrapped.words,
-        { language: book.language || 'en' }
+        { language: book.language || 'en', modelSize }
       );
-      syncData = aeneasAligner.buildSyncData(timestamps, wrapped.wordIds);
+      syncData = whisperxAligner.buildSyncData(timestamps, wrapped.wordIds);
     }
 
     // Step 3: Generate SMIL file
@@ -80,7 +80,7 @@ exports.autoAlign = async (req, res) => {
         bookId,
         chapterIndex: parseInt(chapterIndex),
         syncData,
-        engine: `aeneas-${mode}`,
+        engine: `whisperx-${mode}`,
         wordCount: wrapped.wordCount,
         duration: audioInfo.duration,
         status: 'complete',
@@ -89,7 +89,7 @@ exports.autoAlign = async (req, res) => {
     );
 
     res.json({
-      message: 'Aeneas alignment complete',
+      message: 'WhisperX alignment complete',
       mode,
       wordCount: wrapped.wordCount,
       syncDataCount: syncData.length,

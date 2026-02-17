@@ -13,8 +13,8 @@ const syncDataSchema = new mongoose.Schema({
   syncData: [syncEntrySchema],
   engine: {
     type: String,
-    enum: ['aeneas-word', 'aeneas-sentence', 'manual'],
-    default: 'aeneas-word',
+    enum: ['whisperx-word', 'whisperx-sentence', 'aeneas-word', 'aeneas-sentence', 'manual'],
+    default: 'whisperx-word',
   },
   wordCount: Number,
   duration: Number,

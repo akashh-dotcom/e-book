@@ -67,7 +67,7 @@ export default function ChapterAudioUpload({
             disabled={syncing}
           >
             {syncing ? <Loader size={14} className="spin" /> : <Wand2 size={14} />}
-            {syncing ? 'Syncing...' : 'Auto-Sync (Aeneas)'}
+            {syncing ? 'Syncing...' : 'Auto-Sync (WhisperX)'}
           </button>
           <a
             href={`/sync-editor/${bookId}/${chapterIndex}`}
