@@ -7,9 +7,20 @@ const smilGenerator = require('./smilGenerator');
 class EpubExporter {
 
   /**
+   * Safely read audio info from book.audioFiles (handles both Mongoose Map
+   * and plain Object).
+   */
+  _getAudioInfo(book, chapterIndex) {
+    const key = String(chapterIndex);
+    if (!book.audioFiles) return null;
+    if (book.audioFiles instanceof Map) return book.audioFiles.get(key) || null;
+    return book.audioFiles[key] || null;
+  }
+
+  /**
    * Export book as EPUB3 with Media Overlays.
    * Packages chapters (with word spans), SMIL files, audio files,
-   * and OPF with media-overlay attributes.
+   * a nav document, CSS for highlighting, and OPF with media-overlay attrs.
    */
   async exportWithMediaOverlays(book) {
     const zip = new JSZip();
@@ -27,7 +38,14 @@ class EpubExporter {
 
     const oebps = zip.folder('OEBPS');
 
-    // Gather sync data for all chapters
+    // ---- CSS for media-overlay active highlight ----
+    oebps.file('style.css', `.-epub-media-overlay-active {
+  background-color: #ffe082;
+  color: #000;
+}
+`);
+
+    // ---- Gather sync data for all chapters ----
     const syncs = await SyncData.find({ bookId: book._id, status: 'complete' });
     const syncMap = {};
     for (const s of syncs) {
@@ -38,8 +56,14 @@ class EpubExporter {
     const spineItems = [];
     const durationMetas = [];
     let totalDuration = 0;
+    const navEntries = [];
 
-    // Add chapters
+    // Style sheet manifest item
+    manifestItems.push(
+      `    <item id="css" href="style.css" media-type="text/css"/>`
+    );
+
+    // ---- Add chapters ----
     for (const ch of book.chapters) {
       const chapterPath = path.join(book.storagePath, 'chapters', ch.filename);
       let html;
@@ -49,30 +73,19 @@ class EpubExporter {
         continue;
       }
 
-      // Wrap in valid XHTML
-      const xhtml = `<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE html>
-<html xmlns="http://www.w3.org/1999/xhtml">
-<head><title>${ch.title || ''}</title></head>
-<body>
-${html}
-</body>
-</html>`;
-
       const chId = `ch${ch.index}`;
-      oebps.file(`${ch.index}.xhtml`, xhtml);
-
       const hasOverlay = !!syncMap[ch.index];
+      const audioInfo = this._getAudioInfo(book, ch.index);
       let mediaOverlayAttr = '';
+      let audioFilename = null;
 
-      if (hasOverlay) {
+      if (hasOverlay && audioInfo?.filename) {
         const moId = `mo_${ch.index}`;
         mediaOverlayAttr = ` media-overlay="${moId}"`;
+        audioFilename = `audio/${audioInfo.filename}`;
 
-        // Add SMIL
+        // SMIL
         const sync = syncMap[ch.index];
-        const audioInfo = book.audioFiles?.[ch.index];
-        const audioFilename = audioInfo ? `audio/${audioInfo.filename}` : 'audio.mp3';
         const smilXml = smilGenerator.generate(
           sync.syncData, `${ch.index}.xhtml`, audioFilename
         );
@@ -88,13 +101,34 @@ ${html}
         );
       }
 
+      // Build fallback <audio> element for readers that don't support MO
+      let audioTag = '';
+      if (audioInfo?.filename) {
+        audioTag = `\n<div style="margin:1em 0"><audio controls="controls" src="audio/${audioInfo.filename}">Your reader does not support audio.</audio></div>`;
+      }
+
+      // Wrap in valid XHTML with CSS and epub namespace
+      const xhtml = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops">
+<head>
+  <title>${this._escXml(ch.title || '')}</title>
+  <link rel="stylesheet" type="text/css" href="style.css"/>
+</head>
+<body>
+${html}${audioTag}
+</body>
+</html>`;
+
+      oebps.file(`${ch.index}.xhtml`, xhtml);
       manifestItems.push(
         `    <item id="${chId}" href="${ch.index}.xhtml" media-type="application/xhtml+xml"${mediaOverlayAttr}/>`
       );
       spineItems.push(`    <itemref idref="${chId}"/>`);
+      navEntries.push({ index: ch.index, title: ch.title || `Chapter ${ch.index + 1}` });
     }
 
-    // Add audio files
+    // ---- Add audio files ----
     if (book.audioFiles) {
       const audioEntries = book.audioFiles instanceof Map
         ? [...book.audioFiles.entries()]
@@ -115,14 +149,23 @@ ${html}
       }
     }
 
-    // Build OPF
+    // ---- Navigation document (required by EPUB3) ----
+    const navXhtml = this._buildNav(book.title, navEntries);
+    oebps.file('nav.xhtml', navXhtml);
+    manifestItems.push(
+      `    <item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>`
+    );
+
+    // ---- Build OPF ----
+    const modified = new Date().toISOString().replace(/\.\d+Z$/, 'Z');
     const opf = `<?xml version="1.0" encoding="UTF-8"?>
 <package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="uid">
   <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
     <dc:identifier id="uid">${book._id}</dc:identifier>
-    <dc:title>${book.title || 'Untitled'}</dc:title>
-    <dc:creator>${book.author || ''}</dc:creator>
+    <dc:title>${this._escXml(book.title || 'Untitled')}</dc:title>
+    <dc:creator>${this._escXml(book.author || '')}</dc:creator>
     <dc:language>${book.language || 'en'}</dc:language>
+    <meta property="dcterms:modified">${modified}</meta>
     <meta property="media:active-class">-epub-media-overlay-active</meta>
     <meta property="media:duration">${smilGenerator.formatDuration(totalDuration)}</meta>
 ${durationMetas.join('\n')}
@@ -138,6 +181,33 @@ ${spineItems.join('\n')}
     oebps.file('content.opf', opf);
 
     return zip.generateAsync({ type: 'nodebuffer', mimeType: 'application/epub+zip' });
+  }
+
+  _buildNav(bookTitle, entries) {
+    const items = entries
+      .map(e => `      <li><a href="${e.index}.xhtml">${this._escXml(e.title)}</a></li>`)
+      .join('\n');
+    return `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops">
+<head><title>${this._escXml(bookTitle || 'Table of Contents')}</title></head>
+<body>
+  <nav epub:type="toc" id="toc">
+    <h1>Table of Contents</h1>
+    <ol>
+${items}
+    </ol>
+  </nav>
+</body>
+</html>`;
+  }
+
+  _escXml(str) {
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
   }
 }
 
