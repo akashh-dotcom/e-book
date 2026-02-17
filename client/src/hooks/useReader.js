@@ -102,6 +102,17 @@ export default function useReader(bookId) {
   }, [goNext, goPrev]);
 
   // Paginated mode page turn
+  const reloadChapter = useCallback(() => {
+    if (!book || !bookId) return;
+    setChapterLoading(true);
+    api.get(`/books/${bookId}/chapters/${chapterIndex}`)
+      .then(r => {
+        setChapterHtml(r.data.html);
+        setChapterLoading(false);
+      })
+      .catch(() => setChapterLoading(false));
+  }, [book, bookId, chapterIndex]);
+
   const turnPage = useCallback((direction) => {
     const container = chapterRef.current;
     if (!container) return;
@@ -142,5 +153,6 @@ export default function useReader(bookId) {
     removeBookmark,
     chapterRef,
     turnPage,
+    reloadChapter,
   };
 }

@@ -83,7 +83,12 @@ export default function ReaderPage() {
               hasAudio={audio.hasAudio}
               hasSyncData={audio.hasSyncData}
               onUpload={audio.uploadAudio}
-              onAutoSync={audio.runAutoSync}
+              onAutoSync={async (mode) => {
+                const result = await audio.runAutoSync(mode);
+                // Reload chapter HTML to pick up word-wrapped spans for highlighting
+                reader.reloadChapter();
+                return result;
+              }}
               bookId={bookId}
               chapterIndex={reader.chapterIndex}
             />
