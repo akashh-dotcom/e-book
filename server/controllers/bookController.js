@@ -40,7 +40,7 @@ exports.upload = async (req, res) => {
 
     res.status(201).json(book);
   } catch (err) {
-    console.error('Upload error:', err);
+    console.error('Upload error:', err.stack || err);
     res.status(500).json({ error: err.message });
   }
 };
