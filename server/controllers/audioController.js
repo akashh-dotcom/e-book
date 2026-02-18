@@ -267,6 +267,74 @@ exports.restoreAudio = async (req, res) => {
 };
 
 /**
+ * List available edge-tts voices.
+ * GET /api/audio/voices
+ */
+let voicesCache = null;
+exports.listVoices = async (req, res) => {
+  try {
+    if (voicesCache) return res.json(voicesCache);
+
+    const { execSync } = require('child_process');
+    let voices = [];
+    try {
+      const raw = execSync('edge-tts --list-voices', { timeout: 30000 }).toString();
+      // Parse: "Name: en-US-AriaNeural\nGender: Female\n\n..."
+      const blocks = raw.split(/\n\n+/).filter(Boolean);
+      for (const block of blocks) {
+        const nameMatch = block.match(/Name:\s*(\S+)/);
+        const genderMatch = block.match(/Gender:\s*(\S+)/);
+        if (nameMatch) {
+          const name = nameMatch[1];
+          const gender = genderMatch ? genderMatch[1] : '';
+          const parts = name.split('-');
+          const locale = parts.slice(0, 2).join('-');
+          voices.push({ name, gender, locale });
+        }
+      }
+    } catch {
+      // edge-tts not available — return curated fallback
+    }
+
+    if (voices.length === 0) {
+      voices = [
+        { name: 'en-US-AriaNeural', gender: 'Female', locale: 'en-US' },
+        { name: 'en-US-GuyNeural', gender: 'Male', locale: 'en-US' },
+        { name: 'en-US-JennyNeural', gender: 'Female', locale: 'en-US' },
+        { name: 'en-US-ChristopherNeural', gender: 'Male', locale: 'en-US' },
+        { name: 'en-US-AnaNeural', gender: 'Female', locale: 'en-US' },
+        { name: 'en-GB-SoniaNeural', gender: 'Female', locale: 'en-GB' },
+        { name: 'en-GB-RyanNeural', gender: 'Male', locale: 'en-GB' },
+        { name: 'en-AU-NatashaNeural', gender: 'Female', locale: 'en-AU' },
+        { name: 'en-AU-WilliamNeural', gender: 'Male', locale: 'en-AU' },
+        { name: 'en-IN-NeerjaNeural', gender: 'Female', locale: 'en-IN' },
+        { name: 'en-IN-PrabhatNeural', gender: 'Male', locale: 'en-IN' },
+        { name: 'es-ES-ElviraNeural', gender: 'Female', locale: 'es-ES' },
+        { name: 'es-MX-DaliaNeural', gender: 'Female', locale: 'es-MX' },
+        { name: 'fr-FR-DeniseNeural', gender: 'Female', locale: 'fr-FR' },
+        { name: 'fr-FR-HenriNeural', gender: 'Male', locale: 'fr-FR' },
+        { name: 'de-DE-KatjaNeural', gender: 'Female', locale: 'de-DE' },
+        { name: 'de-DE-ConradNeural', gender: 'Male', locale: 'de-DE' },
+        { name: 'hi-IN-SwaraNeural', gender: 'Female', locale: 'hi-IN' },
+        { name: 'hi-IN-MadhurNeural', gender: 'Male', locale: 'hi-IN' },
+        { name: 'ja-JP-NanamiNeural', gender: 'Female', locale: 'ja-JP' },
+        { name: 'zh-CN-XiaoxiaoNeural', gender: 'Female', locale: 'zh-CN' },
+        { name: 'pt-BR-FranciscaNeural', gender: 'Female', locale: 'pt-BR' },
+        { name: 'it-IT-ElsaNeural', gender: 'Female', locale: 'it-IT' },
+        { name: 'ko-KR-SunHiNeural', gender: 'Female', locale: 'ko-KR' },
+        { name: 'ar-SA-ZariyahNeural', gender: 'Female', locale: 'ar-SA' },
+      ];
+    }
+
+    voicesCache = voices;
+    res.json(voices);
+  } catch (err) {
+    console.error('List voices error:', err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+/**
  * Auto-generate audio from chapter text using edge-tts.
  * POST /api/audio/:bookId/:chapterIndex/generate
  * Body: { voice?: string }

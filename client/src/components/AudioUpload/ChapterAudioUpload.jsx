@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react';
 import { Upload, Mic, Loader, Wand2, Volume2 } from 'lucide-react';
+import VoiceSelector, { DEFAULT_VOICE } from '../VoiceSelector';
 
 export default function ChapterAudioUpload({
   hasAudio,
@@ -13,6 +14,7 @@ export default function ChapterAudioUpload({
   const [uploading, setUploading] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [selectedVoice, setSelectedVoice] = useState(DEFAULT_VOICE);
   const [error, setError] = useState('');
   const fileRef = useRef(null);
 
@@ -43,7 +45,7 @@ export default function ChapterAudioUpload({
     setGenerating(true);
     setError('');
     try {
-      await onGenerate();
+      await onGenerate(selectedVoice);
     } catch (err) {
       setError(err.response?.data?.error || 'Audio generation failed');
     }
@@ -71,14 +73,20 @@ export default function ChapterAudioUpload({
           />
 
           {onGenerate && (
-            <button
-              className="audio-upload-btn generate"
-              onClick={handleGenerate}
-              disabled={generating}
-            >
-              {generating ? <Loader size={14} className="spin" /> : <Volume2 size={14} />}
-              {generating ? 'Generating...' : 'Auto-Generate (TTS)'}
-            </button>
+            <div className="audio-generate-row">
+              <VoiceSelector
+                value={selectedVoice}
+                onChange={setSelectedVoice}
+              />
+              <button
+                className="audio-upload-btn generate"
+                onClick={handleGenerate}
+                disabled={generating}
+              >
+                {generating ? <Loader size={14} className="spin" /> : <Volume2 size={14} />}
+                {generating ? 'Generating...' : 'Generate'}
+              </button>
+            </div>
           )}
         </>
       )}

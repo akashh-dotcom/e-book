@@ -11,6 +11,7 @@ const upload = multer({
 });
 const ctrl = require('../controllers/audioController');
 
+router.get('/voices', ctrl.listVoices);
 router.post('/:bookId/:chapterIndex', upload.single('audio'), ctrl.uploadChapterAudio);
 router.get('/:bookId/:chapterIndex', ctrl.getChapterAudio);
 router.get('/:bookId/:chapterIndex/stream', ctrl.streamAudio);

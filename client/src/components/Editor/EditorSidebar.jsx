@@ -3,6 +3,7 @@ import {
   BookOpen, Upload, Volume2, Wand2, Mic, Loader, ChevronRight, ChevronDown,
   Music, FileAudio,
 } from 'lucide-react';
+import VoiceSelector, { DEFAULT_VOICE } from '../VoiceSelector';
 
 export default function EditorSidebar({
   book,
@@ -19,6 +20,7 @@ export default function EditorSidebar({
   const [uploading, setUploading] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [selectedVoice, setSelectedVoice] = useState(DEFAULT_VOICE);
   const [error, setError] = useState('');
 
   const handleUpload = async (file) => {
@@ -33,7 +35,7 @@ export default function EditorSidebar({
   const handleGenerate = async () => {
     setGenerating(true);
     setError('');
-    try { await onGenerate(); }
+    try { await onGenerate(selectedVoice); }
     catch (err) { setError(err.response?.data?.error || 'Generation failed'); }
     setGenerating(false);
   };
@@ -108,13 +110,18 @@ export default function EditorSidebar({
                     onChange={e => handleUpload(e.target.files[0])}
                   />
                 </label>
+                <VoiceSelector
+                  value={selectedVoice}
+                  onChange={setSelectedVoice}
+                  className="ed-voice-select"
+                />
                 <button
                   className="ed-audio-action-btn ed-generate-btn"
                   onClick={handleGenerate}
                   disabled={generating}
                 >
                   {generating ? <Loader size={14} className="spin" /> : <Volume2 size={14} />}
-                  <span>{generating ? 'Generating...' : 'Auto-Generate (TTS)'}</span>
+                  <span>{generating ? 'Generating...' : 'Generate (TTS)'}</span>
                 </button>
               </div>
             )}

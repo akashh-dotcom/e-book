@@ -1084,6 +1084,28 @@ body {
   opacity: 0.9;
 }
 
+.audio-generate-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.voice-selector {
+  padding: 4px 6px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--fg);
+  font-size: 12px;
+  max-width: 180px;
+  cursor: pointer;
+}
+
+.voice-selector:focus {
+  outline: 1px solid var(--accent);
+}
+
 .sync-options {
   display: flex;
   gap: 8px;
@@ -2111,6 +2133,22 @@ body {
 .ed-audio-action-btn:hover {
   background: rgba(255,255,255,0.08);
   color: #fff;
+}
+
+.ed-voice-select {
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid #333;
+  background: rgba(255,255,255,0.04);
+  color: #ccc;
+  font-size: 0.8rem;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.ed-voice-select:focus {
+  outline: 1px solid var(--accent);
 }
 
 .ed-generate-btn {
