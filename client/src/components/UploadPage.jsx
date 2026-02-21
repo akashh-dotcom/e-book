@@ -384,12 +384,10 @@ export default function UploadPage() {
       </section>
 
       {/* ---- Editor Preview Section ---- */}
-      <section className="py-28 px-6 max-w-6xl mx-auto relative overflow-hidden" id="editor-demo" ref={editorSectionRef}>
+      <section className="py-28 px-6 max-w-5xl mx-auto relative overflow-hidden" id="editor-demo" ref={editorSectionRef}>
         {/* Background glows */}
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[800px] pointer-events-none opacity-40"
           style={{ background: 'radial-gradient(ellipse at 50% 30%, rgba(59,130,246,0.12) 0%, rgba(139,92,246,0.08) 30%, transparent 70%)' }} />
-        <div className="absolute bottom-0 right-0 w-[400px] h-[400px] pointer-events-none opacity-20"
-          style={{ background: 'radial-gradient(circle, rgba(16,185,129,0.15) 0%, transparent 70%)' }} />
 
         <div data-reveal-id="editor-header" className={`text-center mb-16 relative z-10 ${revealCls('editor-header')}`}>
           <p className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full border border-blue-500/20 bg-blue-500/10 text-blue-300 text-xs font-medium mb-5">
@@ -404,52 +402,22 @@ export default function UploadPage() {
             in action
           </h2>
           <p className="text-forest-200/50 text-lg max-w-lg mx-auto">
-            A full-featured reader with sidebar navigation, word-level sync, and audio controls — all in your browser.
+            This is exactly what you get — a real, interactive reader running in your browser.
           </p>
         </div>
 
-        {/* Main layout: Feature highlights + Editor mockup */}
-        <div className="relative z-10 flex flex-col lg:flex-row items-center gap-10 lg:gap-14">
-
-          {/* Left: Feature callout cards */}
-          <div className="flex flex-row lg:flex-col gap-4 lg:w-[220px] flex-shrink-0 order-2 lg:order-1">
-            {[
-              { icon: <Wand2 size={18} />, title: 'Word-Level Sync', desc: 'Each word highlights as it\'s spoken', color: 'from-amber-400 to-orange-500', glow: 'rgba(251,191,36,0.2)', accent: 'text-amber-400' },
-              { icon: <List size={18} />, title: 'Chapter Navigation', desc: 'Jump between chapters instantly', color: 'from-blue-400 to-indigo-500', glow: 'rgba(96,165,250,0.2)', accent: 'text-blue-400' },
-              { icon: <Music size={18} />, title: 'Audio Controls', desc: 'Play, pause, seek, and speed control', color: 'from-emerald-400 to-teal-500', glow: 'rgba(52,211,153,0.2)', accent: 'text-emerald-400' },
-            ].map((c, i) => (
-              <div key={i} data-reveal-id={`callout-${i}`}
-                className={`relative overflow-hidden rounded-xl border border-white/[0.06] p-4 group cursor-default
-                  hover:-translate-y-1 hover:scale-[1.03] transition-all duration-400
-                  ${revealCls(`callout-${i}`, `delay-[${i * 120}ms]`)}`}
-                style={{
-                  background: `radial-gradient(circle at 20% 30%, ${c.glow} 0%, transparent 70%), rgba(255,255,255,0.02)`,
-                }}
-                onMouseEnter={e => e.currentTarget.style.boxShadow = `0 12px 40px -10px ${c.glow}`}
-                onMouseLeave={e => e.currentTarget.style.boxShadow = 'none'}
-              >
-                <div className={`w-9 h-9 rounded-lg bg-gradient-to-br ${c.color} bg-opacity-20 flex items-center justify-center ${c.accent} mb-3
-                  group-hover:scale-110 transition-transform duration-300`}
-                  style={{ background: `linear-gradient(135deg, ${c.glow}, ${c.glow.replace('0.2','0.05')})` }}>
-                  {c.icon}
-                </div>
-                <h4 className="text-sm font-semibold text-forest-50 mb-1">{c.title}</h4>
-                <p className="text-xs text-forest-200/40 leading-relaxed">{c.desc}</p>
-              </div>
-            ))}
-          </div>
-
-          {/* Center: Editor mockup */}
-          <div className="flex-1 flex justify-center order-1 lg:order-2">
-            <div className="relative w-full max-w-[720px] transition-all duration-700 ease-out"
+        {/* Editor mockup - full width center stage */}
+        <div className="relative z-10">
+          <div className="flex justify-center">
+            <div className="relative w-full max-w-[740px] transition-all duration-700 ease-out"
               style={{
                 opacity: editorVisible ? 1 : 0,
                 transform: editorVisible ? 'translateY(0) scale(1)' : 'translateY(40px) scale(0.95)',
               }}>
 
               {/* Glow ring behind the mockup */}
-              <div className="absolute -inset-4 rounded-3xl pointer-events-none opacity-60 animate-pulse-glow"
-                style={{ background: 'radial-gradient(ellipse at 50% 50%, rgba(59,130,246,0.08) 0%, rgba(139,92,246,0.04) 50%, transparent 80%)' }} />
+              <div className="absolute -inset-6 rounded-3xl pointer-events-none opacity-60 animate-pulse-glow"
+                style={{ background: 'radial-gradient(ellipse at 50% 50%, rgba(59,130,246,0.1) 0%, rgba(139,92,246,0.06) 40%, transparent 75%)' }} />
 
               {/* Browser chrome */}
               <div className="relative rounded-t-2xl bg-[#1a1a2e] border border-b-0 border-white/[0.06] px-4 py-2.5 flex items-center gap-3">
@@ -602,45 +570,60 @@ export default function UploadPage() {
                 </div>
               </div>
 
-              {/* Floating annotation badges */}
-              <div className="absolute -top-3 -right-3 sm:right-6 z-20 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 text-white text-[11px] font-semibold shadow-lg shadow-amber-500/30 animate-bounce-in"
-                style={{ animationDelay: '0.8s' }}>
-                <Wand2 size={12} />
-                Word Sync Active
+              {/* Floating annotation pointers — point to specific UI areas */}
+              {/* Left pointer: Sidebar */}
+              <div className="hidden lg:flex absolute -left-[170px] top-[160px] items-center gap-2 animate-bounce-in"
+                style={{ animationDelay: '0.6s' }}>
+                <div className="px-3 py-2 rounded-xl border border-blue-500/20 bg-blue-500/[0.08] backdrop-blur-sm">
+                  <p className="text-[11px] font-semibold text-blue-300 whitespace-nowrap">Smart Sidebar</p>
+                  <p className="text-[10px] text-blue-300/50 whitespace-nowrap">Jump to any chapter</p>
+                </div>
+                <div className="w-8 h-[2px] bg-gradient-to-r from-blue-400/60 to-blue-400/0" />
               </div>
 
-              <div className="absolute -bottom-3 -left-3 sm:left-8 z-20 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-[11px] font-semibold shadow-lg shadow-emerald-500/30 animate-bounce-in"
+              {/* Left pointer: Audio bar */}
+              <div className="hidden lg:flex absolute -left-[180px] bottom-[60px] items-center gap-2 animate-bounce-in"
+                style={{ animationDelay: '1.0s' }}>
+                <div className="px-3 py-2 rounded-xl border border-emerald-500/20 bg-emerald-500/[0.08] backdrop-blur-sm">
+                  <p className="text-[11px] font-semibold text-emerald-300 whitespace-nowrap">Built-in Audio Player</p>
+                  <p className="text-[10px] text-emerald-300/50 whitespace-nowrap">Play, seek, speed control</p>
+                </div>
+                <div className="w-8 h-[2px] bg-gradient-to-r from-emerald-400/60 to-emerald-400/0" />
+              </div>
+
+              {/* Right pointer: Word highlight */}
+              <div className="hidden lg:flex absolute -right-[180px] top-[220px] items-center gap-2 animate-bounce-in"
+                style={{ animationDelay: '0.8s' }}>
+                <div className="w-8 h-[2px] bg-gradient-to-l from-amber-400/60 to-amber-400/0" />
+                <div className="px-3 py-2 rounded-xl border border-amber-500/20 bg-amber-500/[0.08] backdrop-blur-sm">
+                  <p className="text-[11px] font-semibold text-amber-300 whitespace-nowrap">Word Sync</p>
+                  <p className="text-[10px] text-amber-300/50 whitespace-nowrap">Highlights as you listen</p>
+                </div>
+              </div>
+
+              {/* Right pointer: Status badges */}
+              <div className="hidden lg:flex absolute -right-[165px] top-[100px] items-center gap-2 animate-bounce-in"
                 style={{ animationDelay: '1.2s' }}>
-                <Headphones size={12} />
-                AI Narration
+                <div className="w-8 h-[2px] bg-gradient-to-l from-violet-400/60 to-violet-400/0" />
+                <div className="px-3 py-2 rounded-xl border border-violet-500/20 bg-violet-500/[0.08] backdrop-blur-sm">
+                  <p className="text-[11px] font-semibold text-violet-300 whitespace-nowrap">Auto-Sync Engine</p>
+                  <p className="text-[10px] text-violet-300/50 whitespace-nowrap">AI aligns words to audio</p>
+                </div>
               </div>
             </div>
           </div>
 
-          {/* Right: Feature callout cards */}
-          <div className="flex flex-row lg:flex-col gap-4 lg:w-[220px] flex-shrink-0 order-3">
+          {/* Ticker strip below the mockup — social proof / quick stats */}
+          <div data-reveal-id="editor-ticker" className={`mt-14 flex flex-wrap justify-center gap-x-8 gap-y-4 ${revealCls('editor-ticker')}`}>
             {[
-              { icon: <PenTool size={18} />, title: 'Timeline Editor', desc: 'Fine-tune word timing with drag & drop', color: 'from-violet-400 to-purple-500', glow: 'rgba(139,92,246,0.2)', accent: 'text-violet-400' },
-              { icon: <Download size={18} />, title: 'Export EPUB 3', desc: 'Share your audiobook anywhere', color: 'from-rose-400 to-pink-500', glow: 'rgba(251,113,133,0.2)', accent: 'text-rose-400' },
-              { icon: <Sparkles size={18} />, title: 'Smart Themes', desc: 'Light, sepia, and dark with auto-adapt', color: 'from-cyan-400 to-blue-500', glow: 'rgba(34,211,238,0.2)', accent: 'text-cyan-400' },
-            ].map((c, i) => (
-              <div key={i} data-reveal-id={`callout-r-${i}`}
-                className={`relative overflow-hidden rounded-xl border border-white/[0.06] p-4 group cursor-default
-                  hover:-translate-y-1 hover:scale-[1.03] transition-all duration-400
-                  ${revealCls(`callout-r-${i}`, `delay-[${(i + 3) * 120}ms]`)}`}
-                style={{
-                  background: `radial-gradient(circle at 80% 30%, ${c.glow} 0%, transparent 70%), rgba(255,255,255,0.02)`,
-                }}
-                onMouseEnter={e => e.currentTarget.style.boxShadow = `0 12px 40px -10px ${c.glow}`}
-                onMouseLeave={e => e.currentTarget.style.boxShadow = 'none'}
-              >
-                <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${c.accent} mb-3
-                  group-hover:scale-110 transition-transform duration-300`}
-                  style={{ background: `linear-gradient(135deg, ${c.glow}, ${c.glow.replace('0.2','0.05')})` }}>
-                  {c.icon}
-                </div>
-                <h4 className="text-sm font-semibold text-forest-50 mb-1">{c.title}</h4>
-                <p className="text-xs text-forest-200/40 leading-relaxed">{c.desc}</p>
+              { icon: <Zap size={15} className="text-amber-400" />, text: 'Processes a full book in under 2 min' },
+              { icon: <Globe size={15} className="text-emerald-400" />, text: 'Works entirely in your browser' },
+              { icon: <BookOpen size={15} className="text-blue-400" />, text: 'Supports any EPUB file' },
+              { icon: <Headphones size={15} className="text-violet-400" />, text: '50+ natural AI voices' },
+            ].map((t, i) => (
+              <div key={i} className="flex items-center gap-2 px-4 py-2 rounded-full border border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.05] transition-colors">
+                {t.icon}
+                <span className="text-xs text-forest-200/60 font-medium">{t.text}</span>
               </div>
             ))}
           </div>
