@@ -290,7 +290,7 @@ export default function UploadPage() {
           </div>
 
           {/* ===== TWO-SIDED OPEN BOOK ===== */}
-          <div className="relative flex justify-center items-center"
+          <div className="relative flex justify-center items-center overflow-visible"
             style={{ width: `${320 + bookOpen * 320}px`, maxWidth: '90vw', height: '440px', transition: 'width 0.15s ease-out' }}>
 
             {/* Shadow under book */}
@@ -361,13 +361,13 @@ export default function UploadPage() {
             </div>
 
             {/* ===== RIGHT SIDE — editor underneath, book page on top (flips to reveal) ===== */}
-            <div className="absolute overflow-hidden" style={{
+            <div className="absolute" style={{
               top: 0, bottom: 0, right: 0, width: '50%',
               opacity: bookOpen,
               transition: 'opacity 0.3s',
             }}>
-              {/* Layer 1: Editor preview (underneath) — always present, revealed as page flips */}
-              <div className="absolute inset-0 z-0">
+              {/* Layer 1: Editor preview (underneath) — clipped to bounds */}
+              <div className="absolute inset-0 overflow-hidden rounded-r-md" style={{ zIndex: 1 }}>
                 <div className="w-full h-full bg-white rounded-r-md border border-l-0 border-gray-200 flex flex-col overflow-hidden">
                   {/* TopBar replica */}
                   <div className="flex items-center justify-between px-2 py-1.5 border-b border-gray-200 bg-gray-50 flex-shrink-0">
@@ -503,7 +503,7 @@ export default function UploadPage() {
               </div>
 
               {/* Layer 2: Book page (on top) — flips left to reveal editor underneath */}
-              <div className="absolute inset-0 z-10" style={{ perspective: '1600px' }}>
+              <div className="absolute inset-0" style={{ perspective: '1600px', zIndex: 2 }}>
                 <div className="absolute inset-0 flex flex-col overflow-hidden" style={{
                   background: '#faf5ec',
                   borderRadius: '0 6px 6px 0',
@@ -574,13 +574,13 @@ export default function UploadPage() {
             </div>
 
             {/* ===== FRONT COVER (right side, swings open to the right) ===== */}
-            <div className="absolute" style={{
+            <div className="absolute overflow-visible" style={{
               top: 0, bottom: 0, right: 0, width: '50%',
               perspective: '1200px',
               zIndex: 25,
-              pointerEvents: 'none',
+              pointerEvents: bookOpen > 0.95 ? 'none' : 'auto',
             }}>
-              <div className="absolute inset-0 flex items-center justify-center" style={{
+              <div className="absolute inset-0 flex items-center justify-center overflow-hidden" style={{
                 background: 'linear-gradient(145deg, #10b981, #059669, #047857, #065f46)',
                 borderRadius: '0 8px 8px 0',
                 border: '1px solid rgba(16,185,129,0.25)',
@@ -591,7 +591,6 @@ export default function UploadPage() {
                 transition: 'transform 0.1s ease-out',
               }}>
                 <div className="text-center text-forest-100 relative">
-                  <div className="absolute -inset-10 border border-forest-300/10 rounded-lg pointer-events-none" />
                   <BookOpen size={40} className="mx-auto mb-3 drop-shadow-[0_2px_4px_rgba(0,0,0,0.3)]" />
                   <div className="text-lg font-bold tracking-tight drop-shadow-[0_1px_2px_rgba(0,0,0,0.3)]">VoxBook</div>
                   <div className="text-[9px] text-forest-200/40 mt-1 uppercase tracking-[0.2em]">Interactive Audio</div>
@@ -601,11 +600,11 @@ export default function UploadPage() {
             </div>
 
             {/* ===== BACK COVER (left side, swings open to the left) ===== */}
-            <div className="absolute" style={{
+            <div className="absolute overflow-visible" style={{
               top: 0, bottom: 0, left: 0, width: '50%',
               perspective: '1200px',
               zIndex: 25,
-              pointerEvents: 'none',
+              pointerEvents: bookOpen > 0.95 ? 'none' : 'auto',
             }}>
               <div className="absolute inset-0" style={{
                 background: 'linear-gradient(215deg, #065f46, #064e3b, #022c22)',
