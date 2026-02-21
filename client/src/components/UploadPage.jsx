@@ -16,6 +16,7 @@ export default function UploadPage() {
   const [revealed, setRevealed] = useState(new Set());
   const [activeWord, setActiveWord] = useState(0);
   const [editorVisible, setEditorVisible] = useState(false);
+  const [hoveredStep, setHoveredStep] = useState(-1);
   const fileInputRef = useRef(null);
   const editorSectionRef = useRef(null);
   const navigate = useNavigate();
@@ -293,10 +294,10 @@ export default function UploadPage() {
             word-level highlighting, and a timeline editor — then export as EPUB 3.
           </p>
           <div className="flex gap-3.5 justify-center flex-wrap">
-            <a href="#upload"
+            <Link to="/dashboard"
               className="inline-flex items-center gap-1.5 px-8 py-3.5 rounded-full bg-gradient-to-r from-forest-500 to-forest-400 text-forest-950 font-semibold text-base no-underline animate-pulse-glow hover:scale-105 transition-transform">
               Get Started <ChevronRight size={18} />
-            </a>
+            </Link>
             <a href="#editor-demo"
               className="inline-flex items-center gap-2 px-7 py-3.5 rounded-full border-2 border-forest-500/30 text-forest-300 font-semibold text-base no-underline hover:bg-forest-500/10 hover:border-forest-400 hover:scale-[1.04] transition-all">
               <Play size={16} /> See the Magic
@@ -679,27 +680,36 @@ export default function UploadPage() {
 
                 {/* Segment 1: Upload - Forest green */}
                 <circle cx="100" cy="100" r="85" fill="none"
-                  stroke="url(#grad1)" strokeWidth="22" strokeLinecap="round"
+                  stroke="url(#grad1)" strokeWidth={hoveredStep === 0 ? 28 : 22} strokeLinecap="round"
                   strokeDasharray={`${(1/3) * 2 * Math.PI * 85 - 12} ${2 * Math.PI * 85}`}
                   strokeDashoffset="0"
-                  className="transition-all duration-1000"
-                  style={{ filter: 'drop-shadow(0 0 8px rgba(16,185,129,0.3))' }} />
+                  className="transition-all duration-500"
+                  style={{
+                    filter: hoveredStep === 0 ? 'drop-shadow(0 0 16px rgba(16,185,129,0.6))' : hoveredStep === -1 ? 'drop-shadow(0 0 8px rgba(16,185,129,0.3))' : 'drop-shadow(0 0 4px rgba(16,185,129,0.1))',
+                    opacity: hoveredStep !== -1 && hoveredStep !== 0 ? 0.3 : 1,
+                  }} />
 
                 {/* Segment 2: Generate - Violet */}
                 <circle cx="100" cy="100" r="85" fill="none"
-                  stroke="url(#grad2)" strokeWidth="22" strokeLinecap="round"
+                  stroke="url(#grad2)" strokeWidth={hoveredStep === 1 ? 28 : 22} strokeLinecap="round"
                   strokeDasharray={`${(1/3) * 2 * Math.PI * 85 - 12} ${2 * Math.PI * 85}`}
                   strokeDashoffset={`${-(1/3) * 2 * Math.PI * 85}`}
-                  className="transition-all duration-1000"
-                  style={{ filter: 'drop-shadow(0 0 8px rgba(139,92,246,0.3))' }} />
+                  className="transition-all duration-500"
+                  style={{
+                    filter: hoveredStep === 1 ? 'drop-shadow(0 0 16px rgba(139,92,246,0.6))' : hoveredStep === -1 ? 'drop-shadow(0 0 8px rgba(139,92,246,0.3))' : 'drop-shadow(0 0 4px rgba(139,92,246,0.1))',
+                    opacity: hoveredStep !== -1 && hoveredStep !== 1 ? 0.3 : 1,
+                  }} />
 
                 {/* Segment 3: Enjoy - Amber */}
                 <circle cx="100" cy="100" r="85" fill="none"
-                  stroke="url(#grad3)" strokeWidth="22" strokeLinecap="round"
+                  stroke="url(#grad3)" strokeWidth={hoveredStep === 2 ? 28 : 22} strokeLinecap="round"
                   strokeDasharray={`${(1/3) * 2 * Math.PI * 85 - 12} ${2 * Math.PI * 85}`}
                   strokeDashoffset={`${-(2/3) * 2 * Math.PI * 85}`}
-                  className="transition-all duration-1000"
-                  style={{ filter: 'drop-shadow(0 0 8px rgba(251,191,36,0.3))' }} />
+                  className="transition-all duration-500"
+                  style={{
+                    filter: hoveredStep === 2 ? 'drop-shadow(0 0 16px rgba(251,191,36,0.6))' : hoveredStep === -1 ? 'drop-shadow(0 0 8px rgba(251,191,36,0.3))' : 'drop-shadow(0 0 4px rgba(251,191,36,0.1))',
+                    opacity: hoveredStep !== -1 && hoveredStep !== 2 ? 0.3 : 1,
+                  }} />
 
                 {/* Gradient definitions */}
                 <defs>
@@ -727,24 +737,57 @@ export default function UploadPage() {
                 </div>
               </div>
 
-              {/* Step number badges positioned on the donut */}
-              {/* Step 1: top-right */}
-              <div className="absolute animate-scale-in" style={{ top: '2%', right: '8%', animationDelay: '0.3s' }}>
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-forest-500 to-forest-400 flex items-center justify-center text-white font-bold text-sm shadow-lg shadow-forest-500/30 animate-glow-ring">
+              {/* Step number badges — positioned at the midpoint of each arc segment
+                  The SVG is -rotate-90, so segment 1 starts at top (12 o'clock).
+                  Each segment spans 120°.
+                  Badge 1: midpoint at 60° from top  => 60° clockwise from 12 o'clock
+                  Badge 2: midpoint at 180° from top => 6 o'clock (bottom center)
+                  Badge 3: midpoint at 300° from top => 300° clockwise = top-left area
+              */}
+              {/* Step 1: 60° from top => right side */}
+              <div className="absolute animate-scale-in"
+                style={{
+                  top: '14%', right: '1%',
+                  animationDelay: '0.3s',
+                  transform: hoveredStep === 0 ? 'scale(1.3)' : 'scale(1)',
+                  transition: 'transform 0.4s cubic-bezier(0.34,1.56,0.64,1)',
+                }}>
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-forest-500 to-forest-400 flex items-center justify-center text-white font-bold text-sm shadow-lg"
+                  style={{
+                    boxShadow: hoveredStep === 0 ? '0 0 20px rgba(16,185,129,0.6), 0 0 40px rgba(16,185,129,0.3)' : '0 4px 12px rgba(16,185,129,0.3)',
+                    transition: 'box-shadow 0.4s ease',
+                  }}>
                   1
                 </div>
               </div>
-              {/* Step 2: bottom-left */}
-              <div className="absolute animate-scale-in" style={{ bottom: '2%', left: '2%', animationDelay: '0.6s' }}>
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-violet-500 to-violet-400 flex items-center justify-center text-white font-bold text-sm shadow-lg shadow-violet-500/30"
-                  style={{ boxShadow: '0 0 0 0 rgba(139,92,246,0.4)', animation: 'glowRing 2s ease-in-out infinite' }}>
+              {/* Step 2: 180° from top => bottom center */}
+              <div className="absolute animate-scale-in"
+                style={{
+                  bottom: '-2%', left: '50%', transform: `translateX(-50%) ${hoveredStep === 1 ? 'scale(1.3)' : 'scale(1)'}`,
+                  animationDelay: '0.6s',
+                  transition: 'transform 0.4s cubic-bezier(0.34,1.56,0.64,1)',
+                }}>
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-violet-500 to-violet-400 flex items-center justify-center text-white font-bold text-sm shadow-lg"
+                  style={{
+                    boxShadow: hoveredStep === 1 ? '0 0 20px rgba(139,92,246,0.6), 0 0 40px rgba(139,92,246,0.3)' : '0 4px 12px rgba(139,92,246,0.3)',
+                    transition: 'box-shadow 0.4s ease',
+                  }}>
                   2
                 </div>
               </div>
-              {/* Step 3: bottom-right */}
-              <div className="absolute animate-scale-in" style={{ bottom: '2%', right: '2%', animationDelay: '0.9s' }}>
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-amber-500 to-amber-400 flex items-center justify-center text-white font-bold text-sm shadow-lg shadow-amber-500/30"
-                  style={{ boxShadow: '0 0 0 0 rgba(251,191,36,0.4)', animation: 'glowRing 2s ease-in-out infinite 0.5s' }}>
+              {/* Step 3: 300° from top => left side */}
+              <div className="absolute animate-scale-in"
+                style={{
+                  top: '14%', left: '1%',
+                  animationDelay: '0.9s',
+                  transform: hoveredStep === 2 ? 'scale(1.3)' : 'scale(1)',
+                  transition: 'transform 0.4s cubic-bezier(0.34,1.56,0.64,1)',
+                }}>
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-amber-500 to-amber-400 flex items-center justify-center text-white font-bold text-sm shadow-lg"
+                  style={{
+                    boxShadow: hoveredStep === 2 ? '0 0 20px rgba(251,191,36,0.6), 0 0 40px rgba(251,191,36,0.3)' : '0 4px 12px rgba(251,191,36,0.3)',
+                    transition: 'box-shadow 0.4s ease',
+                  }}>
                   3
                 </div>
               </div>
@@ -754,13 +797,15 @@ export default function UploadPage() {
           {/* Right: Step cards connected with lines */}
           <div className="flex flex-col gap-6 lg:gap-5 w-full max-w-[380px]">
             {[
-              { num: '1', emoji: '📤', title: 'Upload your EPUB', desc: 'Drop your EPUB file and we parse every chapter, image, and metadata instantly — no config needed.', color: 'from-forest-500 to-forest-400', border: 'border-forest-500/20', glow: 'rgba(16,185,129,0.15)', accent: 'text-forest-400', dot: 'bg-forest-400' },
-              { num: '2', emoji: '🤖', title: 'AI generates audio', desc: 'Our AI creates natural narration and syncs every word to the audio timeline automatically.', color: 'from-violet-500 to-violet-400', border: 'border-violet-500/20', glow: 'rgba(139,92,246,0.15)', accent: 'text-violet-400', dot: 'bg-violet-400' },
-              { num: '3', emoji: '🎉', title: 'Read, listen & export', desc: 'Enjoy word-level highlights as you listen, then export as a standards-compliant EPUB 3 audiobook!', color: 'from-amber-500 to-amber-400', border: 'border-amber-500/20', glow: 'rgba(251,191,36,0.15)', accent: 'text-amber-400', dot: 'bg-amber-400' },
+              { num: '1', emoji: '📤', title: 'Upload your EPUB', desc: 'Drop your EPUB file and we parse every chapter, image, and metadata instantly — no config needed.', color: 'from-forest-500 to-forest-400', border: 'border-forest-500/20', borderHover: 'border-forest-400/50', glow: 'rgba(16,185,129,0.15)', glowStrong: 'rgba(16,185,129,0.35)', accent: 'text-forest-400', dot: 'bg-forest-400' },
+              { num: '2', emoji: '🤖', title: 'AI generates audio', desc: 'Our AI creates natural narration and syncs every word to the audio timeline automatically.', color: 'from-violet-500 to-violet-400', border: 'border-violet-500/20', borderHover: 'border-violet-400/50', glow: 'rgba(139,92,246,0.15)', glowStrong: 'rgba(139,92,246,0.35)', accent: 'text-violet-400', dot: 'bg-violet-400' },
+              { num: '3', emoji: '🎉', title: 'Read, listen & export', desc: 'Enjoy word-level highlights as you listen, then export as a standards-compliant EPUB 3 audiobook!', color: 'from-amber-500 to-amber-400', border: 'border-amber-500/20', borderHover: 'border-amber-400/50', glow: 'rgba(251,191,36,0.15)', glowStrong: 'rgba(251,191,36,0.35)', accent: 'text-amber-400', dot: 'bg-amber-400' },
             ].map((s, i) => (
               <div key={i} data-reveal-id={`step-${i}`}
                 className={`relative group animate-fade-in-up ${revealCls(`step-${i}`, `delay-[${i * 200}ms]`)}`}
-                style={{ animationDelay: `${0.2 + i * 0.2}s` }}>
+                style={{ animationDelay: `${0.2 + i * 0.2}s` }}
+                onMouseEnter={() => setHoveredStep(i)}
+                onMouseLeave={() => setHoveredStep(-1)}>
 
                 {/* Connector line (vertical) between cards */}
                 {i < 2 && (
@@ -768,21 +813,30 @@ export default function UploadPage() {
                     style={{ background: `linear-gradient(to bottom, ${s.glow}, transparent)` }} />
                 )}
 
-                <div className={`relative flex gap-4 items-start p-5 rounded-2xl border ${s.border}
-                  hover:-translate-y-1 hover:scale-[1.02] transition-all duration-400 cursor-default overflow-hidden`}
-                  style={{ background: `radial-gradient(circle at 0% 50%, ${s.glow} 0%, transparent 60%), rgba(255,255,255,0.02)` }}
-                  onMouseEnter={e => e.currentTarget.style.boxShadow = `0 16px 50px -12px ${s.glow}, 0 0 0 1px rgba(255,255,255,0.08)`}
-                  onMouseLeave={e => e.currentTarget.style.boxShadow = 'none'}
+                <div className={`relative flex gap-4 items-start p-5 rounded-2xl border transition-all duration-400 cursor-default overflow-hidden`}
+                  style={{
+                    borderColor: hoveredStep === i ? s.glowStrong : 'rgba(255,255,255,0.06)',
+                    background: hoveredStep === i
+                      ? `radial-gradient(circle at 0% 50%, ${s.glowStrong} 0%, transparent 60%), rgba(255,255,255,0.04)`
+                      : `radial-gradient(circle at 0% 50%, ${s.glow} 0%, transparent 60%), rgba(255,255,255,0.02)`,
+                    boxShadow: hoveredStep === i ? `0 16px 50px -12px ${s.glowStrong}, 0 0 0 1px rgba(255,255,255,0.08)` : 'none',
+                    transform: hoveredStep === i ? 'translateY(-4px) scale(1.02)' : 'translateY(0) scale(1)',
+                  }}
                 >
                   {/* Shimmer overlay on hover */}
-                  <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"
-                    style={{ background: `linear-gradient(135deg, ${s.glow.replace('0.15','0.05')} 0%, transparent 50%)` }} />
+                  <div className="absolute inset-0 transition-opacity duration-500 pointer-events-none"
+                    style={{
+                      background: `linear-gradient(135deg, ${s.glow.replace('0.15','0.08')} 0%, transparent 50%)`,
+                      opacity: hoveredStep === i ? 1 : 0,
+                    }} />
 
                   {/* Number circle with icon */}
                   <div className="flex-shrink-0 relative z-10">
-                    <div className={`w-[46px] h-[46px] rounded-xl bg-gradient-to-br ${s.color} flex items-center justify-center shadow-lg
-                      group-hover:scale-110 group-hover:rotate-3 transition-all duration-300`}
-                      style={{ boxShadow: `0 4px 20px ${s.glow}` }}>
+                    <div className={`w-[46px] h-[46px] rounded-xl bg-gradient-to-br ${s.color} flex items-center justify-center shadow-lg transition-all duration-300`}
+                      style={{
+                        boxShadow: hoveredStep === i ? `0 4px 30px ${s.glowStrong}` : `0 4px 20px ${s.glow}`,
+                        transform: hoveredStep === i ? 'scale(1.1) rotate(3deg)' : 'scale(1) rotate(0)',
+                      }}>
                       <span className="text-xl">{s.emoji}</span>
                     </div>
                     {/* Step number badge */}
@@ -806,87 +860,13 @@ export default function UploadPage() {
 
             {/* CTA below steps */}
             <div data-reveal-id="steps-cta" className={`mt-2 ${revealCls('steps-cta', 'delay-[700ms]')}`}>
-              <a href="#upload"
+              <a href="/dashboard"
                 className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-gradient-to-r from-forest-500 to-forest-400 text-forest-950 font-semibold text-sm no-underline
                   hover:scale-105 hover:shadow-[0_8px_30px_rgba(16,185,129,0.3)] transition-all duration-300">
                 Get Started Now <ChevronRight size={16} />
               </a>
             </div>
           </div>
-        </div>
-      </section>
-
-      {/* ---- Showcase (converted books) ---- */}
-      {books.length > 0 && (
-        <section className="py-20 px-6 max-w-6xl mx-auto text-center">
-          <div data-reveal-id="showcase-header" className={`mb-10 ${revealCls('showcase-header')}`}>
-            <h2 className="text-3xl font-bold tracking-tight text-forest-50 mb-3">Recently converted</h2>
-            <p className="text-forest-200/50 text-lg">Books from your library, ready to read and listen.</p>
-          </div>
-          <div className="overflow-x-auto scrollbar-none -mx-6 px-6">
-            <div className="flex justify-center gap-10 py-2 min-w-min">
-              {books.slice(0, 8).map((book, i) => (
-                <Link key={book._id} to={`/read/${book._id}`}
-                  className="flex flex-col items-center gap-3 no-underline flex-shrink-0 w-[130px] group hover:-translate-y-1.5 transition-transform duration-300">
-                  <div className="w-[120px] h-[170px] rounded-xl overflow-hidden bg-gradient-to-br from-forest-500/10 to-forest-700/5 flex items-center justify-center text-forest-800 shadow-xl group-hover:shadow-[0_8px_40px_rgba(16,185,129,0.2)] transition-shadow">
-                    {book.cover ? (
-                      <img src={`/storage/books/${book._id}/assets/${book.cover}`} alt={book.title} draggable={false} className="w-full h-full object-cover" />
-                    ) : (
-                      <BookOpen size={32} />
-                    )}
-                  </div>
-                  <span className="text-xs font-medium text-forest-300/60 text-center truncate w-full group-hover:text-forest-100 transition-colors">{book.title}</span>
-                </Link>
-              ))}
-            </div>
-          </div>
-          <div className="mt-8">
-            <Link to="/dashboard"
-              className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full border border-forest-500/25 text-forest-200/70 text-sm no-underline hover:bg-forest-500/10 hover:text-forest-100 transition-all">
-              View all in Dashboard <ChevronRight size={16} />
-            </Link>
-          </div>
-        </section>
-      )}
-
-      {/* ---- Upload CTA ---- */}
-      <section className="py-20 px-6 max-w-xl mx-auto" id="upload">
-        <div data-reveal-id="upload-header" className={`text-center mb-10 ${revealCls('upload-header')}`}>
-          <h2 className="text-3xl font-bold tracking-tight text-forest-50 mb-3">Start with your EPUB</h2>
-          <p className="text-forest-200/50 text-lg">Drop a file below and we'll take care of the rest.</p>
-        </div>
-        <div data-reveal-id="upload-zone"
-          className={`border-2 border-dashed rounded-2xl p-14 text-center cursor-pointer transition-all duration-300
-            ${dragOver ? 'border-forest-400 bg-forest-500/[0.08] scale-[1.02]' : 'border-forest-500/15 bg-forest-500/[0.02]'}
-            ${uploading ? 'pointer-events-none opacity-70' : ''}
-            hover:border-forest-400 hover:bg-forest-500/[0.06] hover:scale-[1.01]
-            ${revealCls('upload-zone')}`}
-          onClick={() => !uploading && fileInputRef.current?.click()}
-          onDrop={handleDrop}
-          onDragOver={e => { e.preventDefault(); setDragOver(true); }}
-          onDragLeave={() => setDragOver(false)}
-        >
-          <div className="text-forest-400/60 mb-3.5 transition-colors">
-            <Upload size={36} />
-          </div>
-          <p className="text-forest-200/70 text-base mb-1.5">
-            <strong className="text-forest-300">Click to upload</strong> or drag and drop
-          </p>
-          <span className="text-forest-500/40 text-sm">EPUB files up to 100 MB</span>
-
-          {uploading && (
-            <div className="mt-5">
-              <div className="w-full max-w-[280px] h-1 bg-forest-800 rounded-full overflow-hidden mx-auto">
-                <div className="h-full bg-gradient-to-r from-forest-500 to-forest-400 rounded-full transition-all duration-300"
-                  style={{ width: `${progress}%` }} />
-              </div>
-            </div>
-          )}
-
-          {error && <p className="text-candy-400 text-sm mt-3.5">{error}</p>}
-
-          <input ref={fileInputRef} type="file" accept=".epub" className="hidden"
-            onChange={e => handleFile(e.target.files[0])} />
         </div>
       </section>
 
