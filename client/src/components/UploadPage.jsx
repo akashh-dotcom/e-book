@@ -35,15 +35,15 @@ export default function UploadPage() {
     return () => obs.disconnect();
   }, [books]);
 
-  // Book-opening scroll effect — uses tall section + sticky inner
-  // so user scrolls through 150vh and book opens gradually from 0→1
+  // Book-opening scroll effect — opens as section scrolls through viewport
+  // Starts when section top hits 70% of viewport, fully open when top reaches 10%
   const handleScroll = useCallback(() => {
     if (!bookSectionRef.current) return;
     const rect = bookSectionRef.current.getBoundingClientRect();
     const windowH = window.innerHeight;
-    const scrollable = rect.height - windowH; // extra scrollable distance
-    if (scrollable <= 0) return;
-    const p = Math.max(0, Math.min(1, -rect.top / scrollable));
+    const start = windowH * 0.7;   // start opening when section top is 70% down
+    const end   = windowH * 0.1;   // fully open when section top is 10% down
+    const p = Math.max(0, Math.min(1, (start - rect.top) / (start - end)));
     setBookOpen(p);
   }, []);
 
@@ -248,9 +248,9 @@ export default function UploadPage() {
         </div>
       </section>
 
-      {/* ---- Book Opening Demo (sticky scroll — tall section) ---- */}
-      <section className="relative" id="book-demo" ref={bookSectionRef} style={{ height: '250vh' }}>
-        <div className="sticky top-0 h-screen flex flex-col items-center justify-center px-6 overflow-hidden">
+      {/* ---- Book Opening Demo ---- */}
+      <section className="py-24 px-6" id="book-demo" ref={bookSectionRef}>
+        <div className="flex flex-col items-center">
           {/* Header */}
           <div data-reveal-id="demo-header" className={`text-center mb-10 ${revealCls('demo-header')}`}>
             <h2 className="text-3xl sm:text-4xl font-bold tracking-tight mb-3">
@@ -464,21 +464,6 @@ export default function UploadPage() {
             </div>
           </div>
 
-          {/* Scroll progress hint */}
-          <div className="mt-8 text-center">
-            <p className="text-forest-300/40 text-sm transition-all duration-300">
-              {bookOpen < 0.05
-                ? '↓ Scroll slowly to open the book'
-                : bookOpen > 0.95
-                  ? '✨ Book is open! Keep scrolling to continue'
-                  : `Opening... ${Math.round(bookOpen * 100)}%`}
-            </p>
-            {/* Progress bar */}
-            <div className="w-32 h-1 bg-forest-800/30 rounded-full mx-auto mt-2 overflow-hidden">
-              <div className="h-full bg-forest-500 rounded-full transition-all duration-150"
-                style={{ width: `${bookOpen * 100}%` }} />
-            </div>
-          </div>
         </div>
       </section>
 
