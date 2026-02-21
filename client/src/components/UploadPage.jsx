@@ -40,8 +40,9 @@ export default function UploadPage() {
     if (!bookSectionRef.current) return;
     const rect = bookSectionRef.current.getBoundingClientRect();
     const windowH = window.innerHeight;
+    // 0 when section enters viewport, 1 when section top reaches 40% from top
     const p = Math.max(0, Math.min(1,
-      (windowH - rect.top) / (windowH + rect.height * 0.5)
+      (windowH - rect.top) / (windowH * 0.6)
     ));
     setBookOpen(p);
   }, []);
@@ -100,9 +101,10 @@ export default function UploadPage() {
     { num: '3', emoji: '🎉', title: 'Enjoy', desc: 'Read along with highlights, or export as EPUB 3!' },
   ];
 
-  const coverAngle = 90 - bookOpen * 90;
-  const pageSpread = bookOpen * 12;
-  const videoOpacity = Math.max(0, (bookOpen - 0.5) * 2);
+  const coverAngle = bookOpen * 155;                              // 0° (closed) → 155° (wide open)
+  const pageSpread = bookOpen * 18;                               // pages fan out as book opens
+  const contentOpacity = Math.max(0, (bookOpen - 0.2) * 1.25);   // fade in from 20%→100%
+  const coverShadow = 4 + bookOpen * 16;                         // shadow grows as cover lifts
 
   return (
     <div className="min-h-screen bg-forest-950 text-forest-50 font-sans overflow-x-hidden relative">
@@ -257,69 +259,150 @@ export default function UploadPage() {
           <p className="text-forest-200/50 text-lg">Scroll to open the book and watch sync in action!</p>
         </div>
 
-        <div className="flex justify-center items-center min-h-[420px]">
-          <div className="relative" style={{ perspective: '1200px', width: '340px', height: '380px' }}>
-            {/* Back cover */}
-            <div className="absolute inset-0 rounded-r-lg bg-forest-900 border border-forest-700/30 shadow-2xl" />
-            {/* Pages */}
-            {[...Array(5)].map((_, i) => (
-              <div key={i}
-                className="absolute top-2 bottom-2 left-1 right-1 bg-forest-100/90 rounded-r-sm origin-left transition-transform duration-200"
-                style={{
-                  transform: `rotateY(${-Math.min(pageSpread * (5 - i) / 5, 12)}deg)`,
-                  zIndex: i,
-                }} />
-            ))}
-            {/* Front cover */}
-            <div
-              className="absolute inset-0 rounded-lg bg-gradient-to-br from-forest-600 to-forest-800 border border-forest-500/20 shadow-2xl origin-left transition-transform duration-200 flex items-center justify-center"
-              style={{ transform: `rotateY(${-coverAngle}deg)`, backfaceVisibility: 'hidden', zIndex: 10 }}>
-              <div className="text-center text-forest-100">
-                <BookOpen size={48} className="mx-auto mb-3 drop-shadow-lg" />
-                <span className="text-xl font-bold tracking-tight">VoxBook</span>
-              </div>
-            </div>
-            {/* Sync demo overlay */}
-            <div
-              className="absolute inset-0 flex items-center justify-center z-20 transition-opacity duration-300"
-              style={{ opacity: videoOpacity }}>
-              <div className="bg-forest-950/90 rounded-xl border border-forest-500/20 p-6 w-[300px] shadow-2xl backdrop-blur-sm">
-                {/* Sync text */}
-                <div className="mb-4 text-lg font-serif leading-relaxed">
-                  {['Once', 'upon', 'a', 'time,', 'in', 'a', 'land', 'far', 'away...'].map((word, i) => (
-                    <span key={i}
+        <div className="flex justify-center items-center min-h-[520px] relative">
+          {/* Dynamic shadow under book */}
+          <div className="absolute pointer-events-none" style={{
+            width: `${280 + bookOpen * 120}px`, height: '24px',
+            bottom: '40px', left: '50%', transform: 'translateX(-50%)',
+            background: 'radial-gradient(ellipse, rgba(0,0,0,0.45), transparent 70%)',
+            filter: `blur(${6 + bookOpen * 6}px)`,
+            opacity: 0.7 + bookOpen * 0.3,
+          }} />
+
+          <div className="relative" style={{ perspective: '1800px', transformStyle: 'preserve-3d', width: '300px', height: '420px' }}>
+            {/* === Back cover === */}
+            <div className="absolute inset-0" style={{
+              background: 'linear-gradient(160deg, #065f46, #064e3b, #022c22)',
+              borderRadius: '3px 6px 6px 3px',
+              border: '1px solid rgba(6,78,59,0.6)',
+              boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05), 2px 2px 8px rgba(0,0,0,0.4)',
+              transform: 'translateZ(-16px)',
+            }} />
+
+            {/* === Page block (thick stack visible from side) === */}
+            <div className="absolute" style={{
+              top: '4px', bottom: '4px', left: '2px', right: '4px',
+              background: 'linear-gradient(to right, #e8dfc9, #f5eedc, #ede5d0, #f5eedc)',
+              borderRadius: '0 3px 3px 0',
+              transform: 'translateZ(-14px)',
+              borderRight: '2px solid #cec2a6',
+              borderTop: '1px solid #d8cfb6',
+              borderBottom: '1px solid #d8cfb6',
+              boxShadow: 'inset -3px 0 6px rgba(0,0,0,0.08), inset 0 2px 4px rgba(0,0,0,0.04)',
+            }} />
+
+            {/* === Inner page with sync demo (revealed as cover opens) === */}
+            <div className="absolute transition-opacity duration-300" style={{
+              top: '8px', bottom: '8px', left: '6px', right: '8px',
+              opacity: contentOpacity, zIndex: 5,
+              transform: 'translateZ(-12px)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              background: 'linear-gradient(to right, #f8f3e6, #faf6ec)',
+              borderRadius: '0 3px 3px 0',
+            }}>
+              <div className="rounded-xl p-5 w-full max-w-[270px]">
+                {/* Sync text on page */}
+                <div className="mb-4 text-base font-serif leading-loose text-forest-950/70">
+                  {['Once', 'upon', 'a', 'time,', 'in', 'a', 'land', 'far,', 'far', 'away...'].map((word, wi) => (
+                    <span key={wi}
                       className={`inline-block mr-1.5 transition-all duration-300 ${
-                        bookOpen > 0.6 + i * 0.04
-                          ? 'text-forest-300 bg-forest-500/15 rounded px-0.5 scale-105'
-                          : 'text-forest-200/40'
+                        bookOpen > 0.35 + wi * 0.06
+                          ? 'text-forest-700 bg-forest-400/20 rounded px-0.5 font-medium'
+                          : ''
                       }`}>
                       {word}
                     </span>
                   ))}
                 </div>
                 {/* Waveform */}
-                <div className="flex items-end gap-[3px] h-10 mb-3">
-                  {[...Array(30)].map((_, i) => (
+                <div className="flex items-end gap-[3px] h-7 mb-3 px-1">
+                  {[...Array(24)].map((_, i) => (
                     <div key={i}
-                      className="w-1 bg-forest-400/60 rounded-full animate-wave"
+                      className="w-[3px] bg-forest-500/50 rounded-full animate-wave"
                       style={{
-                        animationDelay: `${i * 0.05}s`,
-                        height: `${12 + Math.sin(i * 0.6) * 12 + Math.random() * 8}px`,
+                        animationDelay: `${i * 0.06}s`,
+                        height: `${8 + Math.sin(i * 0.7) * 8 + Math.random() * 5}px`,
                       }} />
                   ))}
                 </div>
-                {/* Controls */}
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-full bg-forest-500 flex items-center justify-center text-forest-950 shadow-lg">
-                    <Play size={16} />
+                {/* Audio controls */}
+                <div className="flex items-center gap-2.5">
+                  <div className="w-7 h-7 rounded-full bg-forest-600 flex items-center justify-center text-white shadow flex-shrink-0">
+                    <Play size={12} />
                   </div>
-                  <div className="flex-1 h-1.5 bg-forest-800 rounded-full overflow-hidden">
-                    <div className="h-full bg-gradient-to-r from-forest-500 to-forest-400 rounded-full transition-all duration-300"
-                      style={{ width: `${Math.max(0, (bookOpen - 0.5) * 200)}%` }} />
+                  <div className="flex-1 h-1 bg-forest-300/30 rounded-full overflow-hidden">
+                    <div className="h-full bg-forest-600 rounded-full transition-all duration-300"
+                      style={{ width: `${Math.min(100, bookOpen * 110)}%` }} />
                   </div>
-                  <span className="text-xs text-forest-400/60 font-mono">0:42</span>
+                  <span className="text-[10px] text-forest-600/60 font-mono">0:42</span>
                 </div>
               </div>
+            </div>
+
+            {/* === Individual pages fanning out === */}
+            {[...Array(6)].map((_, i) => (
+              <div key={i} className="absolute transition-transform duration-[250ms] ease-out" style={{
+                top: `${3 + i * 0.5}px`,
+                bottom: `${3 + i * 0.5}px`,
+                left: '0',
+                right: `${4 + i}px`,
+                background: i % 2 === 0
+                  ? 'linear-gradient(to right, #f0e8d5, #f8f2e3)'
+                  : 'linear-gradient(to right, #ede4cf, #f5eedc)',
+                borderRadius: '0 2px 2px 0',
+                transformOrigin: 'left center',
+                transform: `rotateY(${-pageSpread * (i + 1) / 7}deg) translateZ(${-10 + i * 1.5}px)`,
+                borderRight: `1px solid rgba(190,175,140,${0.2 + i * 0.05})`,
+                boxShadow: i === 5 ? '1px 0 3px rgba(0,0,0,0.05)' : 'none',
+                zIndex: i + 1,
+              }} />
+            ))}
+
+            {/* === Spine (connects front and back covers) === */}
+            <div className="absolute" style={{
+              top: '0', bottom: '0', left: '-6px', width: '12px',
+              background: 'linear-gradient(90deg, #047857, #065f46, #047857)',
+              borderRadius: '4px 0 0 4px',
+              transform: 'translateZ(-8px)',
+              boxShadow: 'inset -2px 0 4px rgba(0,0,0,0.3), -1px 0 3px rgba(0,0,0,0.2)',
+              zIndex: 12,
+            }} />
+
+            {/* === Front cover (opens with 3D rotation) === */}
+            <div className="absolute inset-0 flex items-center justify-center transition-transform duration-[200ms] ease-out" style={{
+              background: 'linear-gradient(145deg, #10b981, #059669, #047857, #065f46)',
+              borderRadius: '3px 8px 8px 3px',
+              border: '1px solid rgba(16,185,129,0.25)',
+              boxShadow: `${coverShadow}px ${coverShadow * 0.6}px ${coverShadow * 2}px rgba(0,0,0,${0.25 + bookOpen * 0.2}), inset 0 1px 0 rgba(255,255,255,0.15), inset 0 -1px 0 rgba(0,0,0,0.1)`,
+              transformOrigin: 'left center',
+              transform: `rotateY(${-coverAngle}deg)`,
+              backfaceVisibility: 'hidden',
+              zIndex: 10,
+            }}>
+              {/* Cover decoration */}
+              <div className="text-center text-forest-100 relative">
+                {/* Embossed border effect */}
+                <div className="absolute -inset-10 border border-forest-300/10 rounded-lg pointer-events-none" />
+                <BookOpen size={44} className="mx-auto mb-3 drop-shadow-[0_2px_4px_rgba(0,0,0,0.3)]" />
+                <div className="text-xl font-bold tracking-tight drop-shadow-[0_1px_2px_rgba(0,0,0,0.3)]">VoxBook</div>
+                <div className="text-[10px] text-forest-200/40 mt-1 uppercase tracking-[0.2em]">Interactive Audio</div>
+                <p className="text-[11px] text-forest-200/30 mt-4 italic">↓ Scroll to open</p>
+              </div>
+            </div>
+
+            {/* === Front cover back face (inner side visible when > 90°) === */}
+            <div className="absolute inset-0 transition-transform duration-[200ms] ease-out" style={{
+              background: 'linear-gradient(135deg, #f5f0e6, #ebe5d4, #e2dac5)',
+              borderRadius: '3px 8px 8px 3px',
+              transformOrigin: 'left center',
+              transform: `rotateY(${-coverAngle + 180}deg)`,
+              backfaceVisibility: 'hidden',
+              zIndex: 10,
+              boxShadow: 'inset 0 0 20px rgba(0,0,0,0.05)',
+            }}>
+              {/* Inner cover marbling/texture */}
+              <div className="absolute inset-4 border border-amber-800/10 rounded opacity-60" />
+              <div className="absolute inset-6 border border-amber-800/5 rounded" />
             </div>
           </div>
         </div>
