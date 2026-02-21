@@ -13,12 +13,10 @@ export default function UploadPage() {
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState('');
-  const [bookOpen, setBookOpen] = useState(0);
   const [revealed, setRevealed] = useState(new Set());
   const [activeWord, setActiveWord] = useState(0);
   const [editorVisible, setEditorVisible] = useState(false);
   const fileInputRef = useRef(null);
-  const bookSectionRef = useRef(null);
   const editorSectionRef = useRef(null);
   const navigate = useNavigate();
   const { uploadBook, fetchBooks, books } = useBookStore();
@@ -39,16 +37,8 @@ export default function UploadPage() {
     return () => obs.disconnect();
   }, [books]);
 
-  // Scroll: book opens
+  // Scroll: editor visibility
   const handleScroll = useCallback(() => {
-    if (bookSectionRef.current) {
-      const rect = bookSectionRef.current.getBoundingClientRect();
-      const windowH = window.innerHeight;
-      const openStart = windowH * 0.7;
-      const openEnd   = windowH * 0.3;
-      const p1 = Math.max(0, Math.min(1, (openStart - rect.top) / (openStart - openEnd)));
-      setBookOpen(p1);
-    }
     if (editorSectionRef.current) {
       const r = editorSectionRef.current.getBoundingClientRect();
       setEditorVisible(r.top < window.innerHeight * 0.75);
@@ -70,14 +60,13 @@ export default function UploadPage() {
     'conversations','in','it.'
   ];
 
-  const isBookReady = bookOpen >= 0.5;
   useEffect(() => {
-    if (!isBookReady) { setActiveWord(0); return; }
+    if (!editorVisible) { setActiveWord(0); return; }
     const timer = setInterval(() => {
       setActiveWord(prev => (prev + 1) % demoWords.length);
     }, 400);
     return () => clearInterval(timer);
-  }, [isBookReady]);
+  }, [editorVisible]);
 
   const handleFile = async (file) => {
     if (!file || !file.name.endsWith('.epub')) {
@@ -128,9 +117,6 @@ export default function UploadPage() {
     { num: '3', emoji: '🎉', title: 'Enjoy', desc: 'Read along with highlights, or export as EPUB 3!' },
   ];
 
-  const coverAngle = bookOpen * 155;                              // 0° (closed) → 155° (wide open)
-  const coverShadow = 4 + bookOpen * 16;                         // shadow grows as cover lifts
-
   return (
     <div className="min-h-screen bg-forest-950 text-forest-50 font-sans overflow-x-hidden relative">
       {/* Floating particles */}
@@ -158,7 +144,7 @@ export default function UploadPage() {
           </a>
           <div className="hidden md:flex gap-7">
             {['Features', 'Demo', 'Upload'].map(s => (
-              <a key={s} href={`#${s === 'Upload' ? 'upload' : s === 'Demo' ? 'book-demo' : 'features'}`}
+              <a key={s} href={`#${s === 'Upload' ? 'upload' : s === 'Demo' ? 'editor-demo' : 'features'}`}
                 className="text-forest-200/70 text-sm font-medium no-underline hover:text-forest-100 transition-colors">
                 {s === 'Upload' ? 'Get Started' : s}
               </a>
@@ -222,7 +208,7 @@ export default function UploadPage() {
               className="inline-flex items-center gap-1.5 px-8 py-3.5 rounded-full bg-gradient-to-r from-forest-500 to-forest-400 text-forest-950 font-semibold text-base no-underline animate-pulse-glow hover:scale-105 transition-transform">
               Get Started <ChevronRight size={18} />
             </a>
-            <a href="#book-demo"
+            <a href="#editor-demo"
               className="inline-flex items-center gap-2 px-7 py-3.5 rounded-full border-2 border-forest-500/30 text-forest-300 font-semibold text-base no-underline hover:bg-forest-500/10 hover:border-forest-400 hover:scale-[1.04] transition-all">
               <Play size={16} /> See the Magic
             </a>
@@ -273,187 +259,8 @@ export default function UploadPage() {
         </div>
       </section>
 
-      {/* ---- Book Opening Demo ---- */}
-      <section className="px-6" id="book-demo" ref={bookSectionRef}
-        style={{ paddingTop: '6rem', paddingBottom: '6rem', minHeight: '140vh' }}>
-        <div className="flex flex-col items-center sticky top-20">
-          {/* Header */}
-          <div data-reveal-id="demo-header" className={`text-center mb-10 ${revealCls('demo-header')}`}>
-            <h2 className="text-3xl sm:text-4xl font-bold tracking-tight mb-3">
-              <span className="bg-gradient-to-r from-forest-300 via-forest-400 to-candy-accent bg-clip-text text-transparent bg-[length:200%_200%] animate-gradient-shift">
-                See the sync magic
-              </span>
-            </h2>
-            <p className="text-forest-200/50 text-base">
-              {bookOpen < 0.9 ? 'Scroll down slowly to open the book' : 'Words highlight in sync with audio'}
-            </p>
-          </div>
-
-          {/* ===== BOOK ===== */}
-          <div className="relative flex justify-center items-center"
-            style={{
-              width: `${280 + bookOpen * 300}px`,
-              maxWidth: '90vw',
-              height: '440px',
-              transition: 'width 0.15s ease-out',
-              perspective: '1200px',
-            }}>
-
-            {/* Shadow under book */}
-            <div className="absolute pointer-events-none" style={{
-              width: `${200 + bookOpen * 320}px`, height: '24px',
-              bottom: '-30px', left: '50%', transform: 'translateX(-50%)',
-              background: 'radial-gradient(ellipse, rgba(0,0,0,0.5), transparent 70%)',
-              filter: `blur(${5 + bookOpen * 10}px)`,
-              opacity: 0.5 + bookOpen * 0.5,
-            }} />
-
-            {/* Spine (center of open book) */}
-            <div className="absolute pointer-events-none" style={{
-              top: 0, bottom: 0, left: '50%', width: '14px', transform: 'translateX(-50%)',
-              background: 'linear-gradient(90deg, rgba(0,0,0,0.15), rgba(0,0,0,0.03) 30%, rgba(0,0,0,0) 50%, rgba(0,0,0,0.03) 70%, rgba(0,0,0,0.15))',
-              zIndex: 30,
-              opacity: bookOpen,
-              borderRadius: '2px',
-            }} />
-
-            {/* ===== LEFT PAGE — word highlights ===== */}
-            <div className="absolute overflow-hidden" style={{
-              top: 0, bottom: 0, left: 0, width: '50%',
-              opacity: Math.max(0, (bookOpen - 0.35) * 1.6),
-              transition: 'opacity 0.3s',
-            }}>
-              <div className="w-full h-full bg-[#f9f3e8] rounded-l-md border border-r-0 border-[#d8cfb6] flex flex-col overflow-hidden">
-                <div className="px-3 py-2 border-b border-[#e8dfc9] flex items-center justify-between flex-shrink-0">
-                  <span className="text-[8px] text-[#8b7355] uppercase tracking-widest font-medium">Chapter I</span>
-                  <span className="text-[7px] text-[#b8a88a]">Page 1</span>
-                </div>
-                <div className="px-4 pt-3 pb-1 flex-shrink-0">
-                  <h3 className="text-[11px] font-bold text-[#3d2e1a] tracking-tight" style={{ fontFamily: 'Georgia, serif' }}>
-                    Down the Rabbit-Hole
-                  </h3>
-                  <div className="w-8 h-[1px] bg-[#c4b496] mt-1.5" />
-                </div>
-                <div className="flex-1 px-4 py-2 overflow-hidden">
-                  <div className="text-[9px] leading-[1.85] flex flex-wrap gap-x-[2px] gap-y-[1px]"
-                    style={{ fontFamily: 'Georgia, serif', color: '#5a4a3a' }}>
-                    {demoWords.map((word, i) => {
-                      const isActive = i === activeWord;
-                      const isPast = i < activeWord;
-                      return (
-                        <span key={i}
-                          className="inline-block px-[1px] rounded-sm"
-                          style={{
-                            transition: 'all 0.2s ease',
-                            background: isActive ? 'rgba(192, 57, 43, 0.12)' : 'transparent',
-                            color: isActive ? '#c0392b' : isPast ? '#3d2e1a' : '#9a8b7a',
-                            fontWeight: isActive ? 600 : 400,
-                            transform: isActive ? 'scale(1.06)' : 'scale(1)',
-                          }}>
-                          {word}
-                        </span>
-                      );
-                    })}
-                  </div>
-                </div>
-                <div className="px-3 py-2.5 border-t border-[#e8dfc9] bg-[#f5eee0] flex-shrink-0">
-                  <div className="flex items-end gap-[1.5px] h-3.5 mb-2 justify-center">
-                    {[...Array(28)].map((_, i) => {
-                      const playing = bookOpen >= 0.5;
-                      const h = playing
-                        ? Math.abs(Math.sin((activeWord * 0.8 + i) * 0.7)) * 8 + 2
-                        : 2;
-                      return (
-                        <div key={i} className="w-[1.5px] rounded-full"
-                          style={{
-                            height: `${h}px`,
-                            background: playing ? '#8b5e34' : '#c4b496',
-                            opacity: playing ? 0.7 : 0.3,
-                            transition: 'height 0.2s ease',
-                          }} />
-                      );
-                    })}
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <div className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0"
-                      style={{ background: '#8b5e34' }}>
-                      {isBookReady ? <Pause size={7} className="text-white" /> : <Play size={7} className="text-white ml-px" />}
-                    </div>
-                    <div className="flex-1 h-[2px] bg-[#d8cfb6] rounded-full overflow-hidden">
-                      <div className="h-full rounded-full" style={{
-                        background: '#8b5e34',
-                        width: `${(activeWord / demoWords.length) * 100}%`,
-                        transition: 'width 0.4s linear',
-                      }} />
-                    </div>
-                    <span className="text-[7px] font-mono tabular-nums" style={{ color: '#8b7355' }}>
-                      {`0:${String(Math.floor(activeWord * 0.6)).padStart(2, '0')}`} / 0:25
-                    </span>
-                  </div>
-                </div>
-                <div className="px-3 py-1.5 border-t border-[#e8dfc9] flex-shrink-0 flex justify-center">
-                  <span className="text-[7px] text-[#b8a88a]">— 1 —</span>
-                </div>
-              </div>
-            </div>
-
-            {/* ===== RIGHT PAGE — continued text ===== */}
-            <div className="absolute overflow-hidden" style={{
-              top: 0, bottom: 0, right: 0, width: '50%',
-              opacity: Math.max(0, (bookOpen - 0.35) * 1.6),
-              transition: 'opacity 0.3s',
-            }}>
-              <div className="w-full h-full bg-[#faf5ec] rounded-r-md border border-l-0 border-[#d8cfb6] flex flex-col overflow-hidden">
-                <div className="px-3 py-2 border-b border-[#e8dfc9] flex items-center justify-between flex-shrink-0">
-                  <span className="text-[8px] text-[#8b7355] uppercase tracking-widest font-medium">Alice in Wonderland</span>
-                  <span className="text-[7px] text-[#b8a88a]">Page 2</span>
-                </div>
-                <div className="flex-1 px-4 py-3 overflow-hidden">
-                  <div className="text-[9px] leading-[1.85]" style={{ fontFamily: 'Georgia, serif', color: '#5a4a3a' }}>
-                    <p className="mb-2">So she was considering in her own mind (as well as she could, for the hot day made her feel very sleepy and stupid), whether the pleasure of making a daisy-chain would be worth the trouble of getting up and picking the daisies...</p>
-                    <p className="mb-2">when suddenly a White Rabbit with pink eyes ran close by her.</p>
-                    <p className="italic text-[#7a6b5a]">&ldquo;Oh dear! Oh dear! I shall be late!&rdquo;</p>
-                    <p className="mt-3">There was nothing so very remarkable in that; nor did Alice think it so very much out of the way to hear the Rabbit say to itself, &ldquo;Oh dear! Oh dear! I shall be late!&rdquo;</p>
-                  </div>
-                </div>
-                <div className="px-3 py-1.5 border-t border-[#e8dfc9] flex-shrink-0 flex justify-center">
-                  <span className="text-[7px] text-[#b8a88a]">— 2 —</span>
-                </div>
-              </div>
-            </div>
-
-            {/* ===== FRONT COVER (swings open to the right) ===== */}
-            <div className="absolute overflow-visible" style={{
-              top: 0, bottom: 0, left: 0, width: bookOpen < 0.01 ? '100%' : '50%',
-              perspective: '1200px',
-              zIndex: 25,
-              pointerEvents: bookOpen > 0.95 ? 'none' : 'auto',
-              transition: 'width 0.15s ease-out',
-            }}>
-              <div className="absolute inset-0 flex items-center justify-center overflow-hidden" style={{
-                background: 'linear-gradient(145deg, #10b981, #059669, #047857, #065f46)',
-                borderRadius: bookOpen < 0.05 ? '8px' : '8px 0 0 8px',
-                border: '1px solid rgba(16,185,129,0.25)',
-                boxShadow: `${coverShadow}px ${coverShadow * 0.5}px ${coverShadow * 2}px rgba(0,0,0,${0.25 + bookOpen * 0.2}), inset 0 1px 0 rgba(255,255,255,0.15)`,
-                transformOrigin: 'right center',
-                transform: `rotateY(${coverAngle}deg)`,
-                backfaceVisibility: 'hidden',
-                transition: 'transform 0.1s ease-out',
-              }}>
-                <div className="text-center text-forest-100 relative">
-                  <BookOpen size={40} className="mx-auto mb-3 drop-shadow-[0_2px_4px_rgba(0,0,0,0.3)]" />
-                  <div className="text-lg font-bold tracking-tight drop-shadow-[0_1px_2px_rgba(0,0,0,0.3)]">VoxBook</div>
-                  <div className="text-[9px] text-forest-200/40 mt-1 uppercase tracking-[0.2em]">Interactive Audio</div>
-                  <p className="text-[10px] text-forest-200/30 mt-4 italic">Scroll to open</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
       {/* ---- Editor Preview Section ---- */}
-      <section className="py-24 px-6 max-w-5xl mx-auto" ref={editorSectionRef}>
+      <section className="py-24 px-6 max-w-5xl mx-auto" id="editor-demo" ref={editorSectionRef}>
         <div data-reveal-id="editor-header" className={`text-center mb-12 ${revealCls('editor-header')}`}>
           <h2 className="text-3xl sm:text-4xl font-bold tracking-tight mb-3">
             <span className="bg-gradient-to-r from-forest-300 via-forest-400 to-candy-accent bg-clip-text text-transparent bg-[length:200%_200%] animate-gradient-shift">
@@ -582,7 +389,7 @@ export default function UploadPage() {
                         <SkipBack size={10} className="text-gray-400" />
                       </div>
                       <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center shadow-sm cursor-pointer">
-                        {isBookReady ? <Pause size={12} className="text-white" /> : <Play size={12} className="text-white ml-0.5" />}
+                        {editorVisible ? <Pause size={12} className="text-white" /> : <Play size={12} className="text-white ml-0.5" />}
                       </div>
                       <div className="w-6 h-6 rounded-full flex items-center justify-center border border-gray-300">
                         <SkipForward size={10} className="text-gray-400" />
