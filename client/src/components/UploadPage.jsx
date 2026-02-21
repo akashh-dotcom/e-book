@@ -384,30 +384,32 @@ export default function UploadPage() {
       </section>
 
       {/* ---- Editor Preview Section ---- */}
-      <section className="py-28 px-6 max-w-5xl mx-auto relative overflow-hidden" id="editor-demo" ref={editorSectionRef}>
+      <section className="py-28 px-6 relative" id="editor-demo" ref={editorSectionRef}>
         {/* Background glows */}
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[800px] pointer-events-none opacity-40"
           style={{ background: 'radial-gradient(ellipse at 50% 30%, rgba(59,130,246,0.12) 0%, rgba(139,92,246,0.08) 30%, transparent 70%)' }} />
 
-        <div data-reveal-id="editor-header" className={`text-center mb-16 relative z-10 ${revealCls('editor-header')}`}>
-          <p className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full border border-blue-500/20 bg-blue-500/10 text-blue-300 text-xs font-medium mb-5">
-            <Play size={13} />
-            Live preview
-          </p>
-          <h2 className="text-4xl sm:text-5xl font-bold tracking-tight mb-4 leading-tight">
-            See the
-            <span className="bg-gradient-to-r from-blue-400 via-violet-400 to-cyan-400 bg-clip-text text-transparent bg-[length:200%_200%] animate-gradient-shift">
-              {' '}magic{' '}
-            </span>
-            in action
-          </h2>
-          <p className="text-forest-200/50 text-lg max-w-lg mx-auto">
-            This is exactly what you get — a real, interactive reader running in your browser.
-          </p>
+        <div className="max-w-5xl mx-auto">
+          <div data-reveal-id="editor-header" className={`text-center mb-16 relative z-10 ${revealCls('editor-header')}`}>
+            <p className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full border border-blue-500/20 bg-blue-500/10 text-blue-300 text-xs font-medium mb-5">
+              <Play size={13} />
+              Live preview
+            </p>
+            <h2 className="text-4xl sm:text-5xl font-bold tracking-tight mb-4 leading-tight">
+              See the
+              <span className="bg-gradient-to-r from-blue-400 via-violet-400 to-cyan-400 bg-clip-text text-transparent bg-[length:200%_200%] animate-gradient-shift">
+                {' '}magic{' '}
+              </span>
+              in action
+            </h2>
+            <p className="text-forest-200/50 text-lg max-w-lg mx-auto">
+              This is exactly what you get — a real, interactive reader running in your browser.
+            </p>
+          </div>
         </div>
 
-        {/* Editor mockup - full width center stage */}
-        <div className="relative z-10">
+        {/* Editor mockup - full width center stage, NO overflow-hidden so pointers are visible */}
+        <div className="relative z-10 max-w-[1200px] mx-auto">
           <div className="flex justify-center">
             <div className="relative w-full max-w-[740px] transition-all duration-700 ease-out"
               style={{
@@ -420,13 +422,13 @@ export default function UploadPage() {
                 style={{ background: 'radial-gradient(ellipse at 50% 50%, rgba(59,130,246,0.1) 0%, rgba(139,92,246,0.06) 40%, transparent 75%)' }} />
 
               {/* Browser chrome */}
-              <div className="relative rounded-t-2xl bg-[#1a1a2e] border border-b-0 border-white/[0.06] px-4 py-2.5 flex items-center gap-3">
+              <div className="relative rounded-t-2xl bg-[#0d1117] border border-b-0 border-white/[0.08] px-4 py-2.5 flex items-center gap-3">
                 <div className="flex gap-1.5">
                   <div className="w-3 h-3 rounded-full bg-red-500/80" />
                   <div className="w-3 h-3 rounded-full bg-yellow-500/80" />
                   <div className="w-3 h-3 rounded-full bg-green-500/80" />
                 </div>
-                <div className="flex-1 bg-white/[0.05] rounded-lg px-3 py-1 text-[11px] text-gray-500 font-mono flex items-center gap-2">
+                <div className="flex-1 bg-white/[0.06] rounded-lg px-3 py-1 text-[11px] text-gray-500 font-mono flex items-center gap-2">
                   <div className="w-3 h-3 rounded-full border border-green-500/50 flex items-center justify-center">
                     <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
                   </div>
@@ -434,74 +436,74 @@ export default function UploadPage() {
                 </div>
               </div>
 
-              {/* Editor UI */}
-              <div className="relative rounded-b-2xl border border-white/[0.06] border-t-0 overflow-hidden bg-white shadow-2xl shadow-black/40"
-                style={{ height: '440px' }}>
+              {/* Editor UI — dark theme */}
+              <div className="relative rounded-b-2xl border border-white/[0.08] border-t-0 overflow-hidden shadow-2xl shadow-black/60"
+                style={{ height: '440px', background: '#0d1117' }}>
                 {/* TopBar */}
-                <div className="flex items-center justify-between px-4 py-2 border-b border-gray-200 bg-gray-50">
+                <div className="flex items-center justify-between px-4 py-2 border-b border-white/[0.06]" style={{ background: '#161b22' }}>
                   <div className="flex items-center gap-2.5">
-                    <Menu size={16} className="text-gray-400" />
-                    <span className="text-sm font-semibold text-gray-700">Alice in Wonderland</span>
+                    <Menu size={16} className="text-gray-500" />
+                    <span className="text-sm font-semibold text-gray-200">Alice in Wonderland</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <div className="w-7 h-7 rounded-md flex items-center justify-center bg-blue-50 border border-blue-200">
-                      <PenTool size={13} className="text-blue-500" />
+                    <div className="w-7 h-7 rounded-md flex items-center justify-center bg-blue-500/10 border border-blue-500/20">
+                      <PenTool size={13} className="text-blue-400" />
                     </div>
-                    <div className="w-7 h-7 rounded-md flex items-center justify-center hover:bg-gray-100">
-                      <Search size={13} className="text-gray-400" />
+                    <div className="w-7 h-7 rounded-md flex items-center justify-center hover:bg-white/[0.06] transition-colors">
+                      <Search size={13} className="text-gray-500" />
                     </div>
-                    <div className="w-7 h-7 rounded-md flex items-center justify-center hover:bg-gray-100">
-                      <Settings size={13} className="text-gray-400" />
+                    <div className="w-7 h-7 rounded-md flex items-center justify-center hover:bg-white/[0.06] transition-colors">
+                      <Settings size={13} className="text-gray-500" />
                     </div>
-                    <div className="w-7 h-7 rounded-md flex items-center justify-center hover:bg-gray-100">
-                      <Bookmark size={13} className="text-gray-400" />
+                    <div className="w-7 h-7 rounded-md flex items-center justify-center hover:bg-white/[0.06] transition-colors">
+                      <Bookmark size={13} className="text-gray-500" />
                     </div>
                   </div>
                 </div>
 
                 {/* Body: sidebar + content */}
                 <div className="flex" style={{ height: 'calc(100% - 41px)' }}>
-                  {/* Sidebar */}
-                  <div className="hidden sm:flex flex-shrink-0 border-r border-gray-100 bg-gray-50/80 flex-col" style={{ width: '180px' }}>
-                    <div className="px-3 py-2.5 border-b border-gray-100">
+                  {/* Sidebar — dark */}
+                  <div className="hidden sm:flex flex-shrink-0 border-r border-white/[0.06] flex-col" style={{ width: '180px', background: '#0d1117' }}>
+                    <div className="px-3 py-2.5 border-b border-white/[0.06]">
                       <div className="flex items-center gap-1.5">
-                        <List size={13} className="text-gray-400" />
-                        <span className="text-[11px] uppercase text-gray-400 font-semibold tracking-wide">Contents</span>
+                        <List size={13} className="text-gray-500" />
+                        <span className="text-[11px] uppercase text-gray-500 font-semibold tracking-wide">Contents</span>
                       </div>
                     </div>
                     <div className="flex-1 py-1.5 overflow-hidden">
                       {['I. Down the Rabbit-Hole', 'II. The Pool of Tears', 'III. A Caucus-Race', 'IV. The Rabbit Sends...', 'V. Advice from a Cat...', 'VI. Pig and Pepper', 'VII. A Mad Tea-Party', 'VIII. The Queen\'s Cro...'].map((ch, i) => (
                         <div key={i} className="px-3 py-[5px] text-[11px] truncate cursor-default transition-colors"
                           style={{
-                            color: i === 0 ? '#2563eb' : '#666',
+                            color: i === 0 ? '#60a5fa' : '#6b7280',
                             fontWeight: i === 0 ? 600 : 400,
-                            borderLeft: i === 0 ? '3px solid #2563eb' : '3px solid transparent',
-                            background: i === 0 ? 'rgba(37,99,235,0.05)' : 'transparent',
+                            borderLeft: i === 0 ? '3px solid #3b82f6' : '3px solid transparent',
+                            background: i === 0 ? 'rgba(59,130,246,0.08)' : 'transparent',
                           }}>
                           {ch}
                         </div>
                       ))}
                     </div>
-                    <div className="px-3 py-2 border-t border-gray-100">
-                      <span className="text-[10px] text-gray-400">12 chapters</span>
+                    <div className="px-3 py-2 border-t border-white/[0.06]">
+                      <span className="text-[10px] text-gray-600">12 chapters</span>
                     </div>
                   </div>
 
-                  {/* Main content area */}
+                  {/* Main content area — dark */}
                   <div className="flex-1 flex flex-col overflow-hidden">
                     {/* Status badges */}
-                    <div className="flex items-center gap-2 px-4 py-2 border-b border-gray-100 flex-shrink-0">
-                      <div className="text-[10px] px-2 py-0.5 rounded-full bg-green-50 text-green-600 font-medium border border-green-200">
+                    <div className="flex items-center gap-2 px-4 py-2 border-b border-white/[0.06] flex-shrink-0">
+                      <div className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 font-medium border border-emerald-500/20">
                         Audio synced
                       </div>
-                      <div className="text-[10px] px-2 py-0.5 rounded-full bg-purple-50 text-purple-600 font-medium border border-purple-200">
+                      <div className="text-[10px] px-2 py-0.5 rounded-full bg-violet-500/10 text-violet-400 font-medium border border-violet-500/20">
                         Auto-Sync
                       </div>
                     </div>
 
                     {/* Chapter content with animated word highlights */}
-                    <div className="flex-1 px-5 py-4 overflow-hidden">
-                      <h4 className="text-base font-bold text-gray-800 mb-3 pb-2 border-b border-gray-200"
+                    <div className="flex-1 px-5 py-4 overflow-hidden" style={{ background: '#0d1117' }}>
+                      <h4 className="text-base font-bold text-gray-200 mb-3 pb-2 border-b border-white/[0.06]"
                         style={{ fontFamily: 'Georgia, serif' }}>
                         CHAPTER I. Down the Rabbit-Hole
                       </h4>
@@ -515,8 +517,8 @@ export default function UploadPage() {
                               className="inline-block px-[2px] rounded-sm cursor-pointer"
                               style={{
                                 transition: 'all 0.2s ease',
-                                background: isActive ? 'rgba(59,130,246,0.15)' : 'transparent',
-                                color: isActive ? '#2563eb' : isPast ? '#1a1a1a' : '#6b6b6b',
+                                background: isActive ? 'rgba(52,211,153,0.15)' : 'transparent',
+                                color: isActive ? '#34d399' : isPast ? '#d1d5db' : '#4b5563',
                                 fontWeight: isActive ? 600 : 400,
                                 transform: isActive ? 'scale(1.08)' : 'scale(1)',
                                 borderRadius: '3px',
@@ -528,43 +530,43 @@ export default function UploadPage() {
                       </div>
                     </div>
 
-                    {/* Audio bar */}
-                    <div className="flex items-center gap-3 px-4 py-2.5 border-t border-gray-200 bg-gray-50 flex-shrink-0">
+                    {/* Audio bar — dark */}
+                    <div className="flex items-center gap-3 px-4 py-2.5 border-t border-white/[0.06] flex-shrink-0" style={{ background: '#161b22' }}>
                       <div className="flex items-center gap-1.5">
-                        <div className="w-6 h-6 rounded-full flex items-center justify-center border border-gray-300 hover:bg-gray-100 transition-colors">
-                          <SkipBack size={10} className="text-gray-400" />
+                        <div className="w-6 h-6 rounded-full flex items-center justify-center border border-white/[0.1] hover:bg-white/[0.06] transition-colors">
+                          <SkipBack size={10} className="text-gray-500" />
                         </div>
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-blue-600 flex items-center justify-center shadow-md shadow-blue-500/30 cursor-pointer">
+                        <div className="w-8 h-8 rounded-full bg-gradient-to-r from-forest-500 to-forest-400 flex items-center justify-center shadow-md shadow-forest-500/30 cursor-pointer">
                           {editorVisible ? <Pause size={12} className="text-white" /> : <Play size={12} className="text-white ml-0.5" />}
                         </div>
-                        <div className="w-6 h-6 rounded-full flex items-center justify-center border border-gray-300 hover:bg-gray-100 transition-colors">
-                          <SkipForward size={10} className="text-gray-400" />
+                        <div className="w-6 h-6 rounded-full flex items-center justify-center border border-white/[0.1] hover:bg-white/[0.06] transition-colors">
+                          <SkipForward size={10} className="text-gray-500" />
                         </div>
                       </div>
-                      <div className="flex-1 h-1.5 bg-gray-200 rounded-full overflow-hidden relative">
-                        <div className="h-full bg-gradient-to-r from-blue-500 to-blue-400 rounded-full" style={{
+                      <div className="flex-1 h-1.5 bg-white/[0.06] rounded-full overflow-hidden relative">
+                        <div className="h-full bg-gradient-to-r from-forest-500 to-forest-400 rounded-full" style={{
                           width: `${(activeWord / demoWords.length) * 100}%`,
                           transition: 'width 0.4s linear',
                         }} />
                       </div>
-                      <span className="text-[11px] text-gray-400 font-mono tabular-nums">
+                      <span className="text-[11px] text-gray-500 font-mono tabular-nums">
                         {`0:${String(Math.floor(activeWord * 0.6)).padStart(2, '0')}`} / 0:25
                       </span>
-                      <div className="text-[10px] px-1.5 py-0.5 rounded border border-gray-200 bg-white text-gray-500 font-semibold cursor-pointer hover:bg-gray-50 transition-colors">
+                      <div className="text-[10px] px-1.5 py-0.5 rounded border border-white/[0.1] bg-white/[0.04] text-gray-400 font-semibold cursor-pointer hover:bg-white/[0.08] transition-colors">
                         1x
                       </div>
                     </div>
 
-                    {/* Bottom bar */}
-                    <div className="flex items-center justify-center gap-3 px-4 py-1.5 border-t border-gray-200 bg-white flex-shrink-0">
-                      <ChevronLeft size={14} className="text-gray-300" />
-                      <span className="text-[11px] text-gray-400">Chapter I</span>
-                      <span className="text-[11px] text-gray-400">1 of 12</span>
-                      <div className="w-20 h-[3px] bg-gray-200 rounded-full overflow-hidden">
-                        <div className="h-full bg-gradient-to-r from-blue-500 to-blue-400 rounded-full" style={{ width: '8%' }} />
+                    {/* Bottom bar — dark */}
+                    <div className="flex items-center justify-center gap-3 px-4 py-1.5 border-t border-white/[0.06] flex-shrink-0" style={{ background: '#0d1117' }}>
+                      <ChevronLeft size={14} className="text-gray-600" />
+                      <span className="text-[11px] text-gray-500">Chapter I</span>
+                      <span className="text-[11px] text-gray-500">1 of 12</span>
+                      <div className="w-20 h-[3px] bg-white/[0.06] rounded-full overflow-hidden">
+                        <div className="h-full bg-gradient-to-r from-forest-500 to-forest-400 rounded-full" style={{ width: '8%' }} />
                       </div>
-                      <span className="text-[11px] text-gray-400">8%</span>
-                      <ChevronRight size={14} className="text-gray-400" />
+                      <span className="text-[11px] text-gray-500">8%</span>
+                      <ChevronRight size={14} className="text-gray-500" />
                     </div>
                   </div>
                 </div>
@@ -614,7 +616,7 @@ export default function UploadPage() {
           </div>
 
           {/* Ticker strip below the mockup — social proof / quick stats */}
-          <div data-reveal-id="editor-ticker" className={`mt-14 flex flex-wrap justify-center gap-x-8 gap-y-4 ${revealCls('editor-ticker')}`}>
+          <div data-reveal-id="editor-ticker" className={`mt-14 max-w-5xl mx-auto flex flex-wrap justify-center gap-x-8 gap-y-4 ${revealCls('editor-ticker')}`}>
             {[
               { icon: <Zap size={15} className="text-amber-400" />, text: 'Processes a full book in under 2 min' },
               { icon: <Globe size={15} className="text-emerald-400" />, text: 'Works entirely in your browser' },
