@@ -35,15 +35,15 @@ export default function UploadPage() {
     return () => obs.disconnect();
   }, [books]);
 
-  // Book-opening scroll effect
+  // Book-opening scroll effect — uses tall section + sticky inner
+  // so user scrolls through 150vh and book opens gradually from 0→1
   const handleScroll = useCallback(() => {
     if (!bookSectionRef.current) return;
     const rect = bookSectionRef.current.getBoundingClientRect();
     const windowH = window.innerHeight;
-    // 0 when section enters viewport, 1 when section top reaches 40% from top
-    const p = Math.max(0, Math.min(1,
-      (windowH - rect.top) / (windowH * 0.6)
-    ));
+    const scrollable = rect.height - windowH; // extra scrollable distance
+    if (scrollable <= 0) return;
+    const p = Math.max(0, Math.min(1, -rect.top / scrollable));
     setBookOpen(p);
   }, []);
 
@@ -248,161 +248,235 @@ export default function UploadPage() {
         </div>
       </section>
 
-      {/* ---- Book Opening Demo ---- */}
-      <section className="py-24 px-6" id="book-demo" ref={bookSectionRef}>
-        <div data-reveal-id="demo-header" className={`text-center mb-14 ${revealCls('demo-header')}`}>
-          <h2 className="text-3xl sm:text-4xl font-bold tracking-tight mb-3.5">
-            <span className="bg-gradient-to-r from-forest-300 via-forest-400 to-candy-accent bg-clip-text text-transparent bg-[length:200%_200%] animate-gradient-shift">
-              See the sync magic
-            </span>
-          </h2>
-          <p className="text-forest-200/50 text-lg">Scroll to open the book and watch sync in action!</p>
-        </div>
+      {/* ---- Book Opening Demo (sticky scroll — tall section) ---- */}
+      <section className="relative" id="book-demo" ref={bookSectionRef} style={{ height: '250vh' }}>
+        <div className="sticky top-0 h-screen flex flex-col items-center justify-center px-6 overflow-hidden">
+          {/* Header */}
+          <div data-reveal-id="demo-header" className={`text-center mb-10 ${revealCls('demo-header')}`}>
+            <h2 className="text-3xl sm:text-4xl font-bold tracking-tight mb-3">
+              <span className="bg-gradient-to-r from-forest-300 via-forest-400 to-candy-accent bg-clip-text text-transparent bg-[length:200%_200%] animate-gradient-shift">
+                See the sync magic
+              </span>
+            </h2>
+            <p className="text-forest-200/50 text-base">Scroll down slowly to open the book</p>
+          </div>
 
-        <div className="flex justify-center items-center min-h-[520px] relative">
-          {/* Dynamic shadow under book */}
-          <div className="absolute pointer-events-none" style={{
-            width: `${280 + bookOpen * 120}px`, height: '24px',
-            bottom: '40px', left: '50%', transform: 'translateX(-50%)',
-            background: 'radial-gradient(ellipse, rgba(0,0,0,0.45), transparent 70%)',
-            filter: `blur(${6 + bookOpen * 6}px)`,
-            opacity: 0.7 + bookOpen * 0.3,
-          }} />
-
-          <div className="relative" style={{ perspective: '1800px', transformStyle: 'preserve-3d', width: '300px', height: '420px' }}>
-            {/* === Back cover === */}
-            <div className="absolute inset-0" style={{
-              background: 'linear-gradient(160deg, #065f46, #064e3b, #022c22)',
-              borderRadius: '3px 6px 6px 3px',
-              border: '1px solid rgba(6,78,59,0.6)',
-              boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05), 2px 2px 8px rgba(0,0,0,0.4)',
-              transform: 'translateZ(-16px)',
+          {/* Book container */}
+          <div className="relative flex justify-center items-center">
+            {/* Dynamic shadow under book */}
+            <div className="absolute pointer-events-none" style={{
+              width: `${240 + bookOpen * 140}px`, height: '20px',
+              bottom: '-30px', left: '50%', transform: 'translateX(-50%)',
+              background: 'radial-gradient(ellipse, rgba(0,0,0,0.5), transparent 70%)',
+              filter: `blur(${5 + bookOpen * 8}px)`,
+              opacity: 0.6 + bookOpen * 0.4,
             }} />
 
-            {/* === Page block (thick stack visible from side) === */}
-            <div className="absolute" style={{
-              top: '4px', bottom: '4px', left: '2px', right: '4px',
-              background: 'linear-gradient(to right, #e8dfc9, #f5eedc, #ede5d0, #f5eedc)',
-              borderRadius: '0 3px 3px 0',
-              transform: 'translateZ(-14px)',
-              borderRight: '2px solid #cec2a6',
-              borderTop: '1px solid #d8cfb6',
-              borderBottom: '1px solid #d8cfb6',
-              boxShadow: 'inset -3px 0 6px rgba(0,0,0,0.08), inset 0 2px 4px rgba(0,0,0,0.04)',
-            }} />
-
-            {/* === Inner page with sync demo (revealed as cover opens) === */}
-            <div className="absolute transition-opacity duration-300" style={{
-              top: '8px', bottom: '8px', left: '6px', right: '8px',
-              opacity: contentOpacity, zIndex: 5,
-              transform: 'translateZ(-12px)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              background: 'linear-gradient(to right, #f8f3e6, #faf6ec)',
-              borderRadius: '0 3px 3px 0',
-            }}>
-              <div className="rounded-xl p-5 w-full max-w-[270px]">
-                {/* Sync text on page */}
-                <div className="mb-4 text-base font-serif leading-loose text-forest-950/70">
-                  {['Once', 'upon', 'a', 'time,', 'in', 'a', 'land', 'far,', 'far', 'away...'].map((word, wi) => (
-                    <span key={wi}
-                      className={`inline-block mr-1.5 transition-all duration-300 ${
-                        bookOpen > 0.35 + wi * 0.06
-                          ? 'text-forest-700 bg-forest-400/20 rounded px-0.5 font-medium'
-                          : ''
-                      }`}>
-                      {word}
-                    </span>
-                  ))}
-                </div>
-                {/* Waveform */}
-                <div className="flex items-end gap-[3px] h-7 mb-3 px-1">
-                  {[...Array(24)].map((_, i) => (
-                    <div key={i}
-                      className="w-[3px] bg-forest-500/50 rounded-full animate-wave"
-                      style={{
-                        animationDelay: `${i * 0.06}s`,
-                        height: `${8 + Math.sin(i * 0.7) * 8 + Math.random() * 5}px`,
-                      }} />
-                  ))}
-                </div>
-                {/* Audio controls */}
-                <div className="flex items-center gap-2.5">
-                  <div className="w-7 h-7 rounded-full bg-forest-600 flex items-center justify-center text-white shadow flex-shrink-0">
-                    <Play size={12} />
-                  </div>
-                  <div className="flex-1 h-1 bg-forest-300/30 rounded-full overflow-hidden">
-                    <div className="h-full bg-forest-600 rounded-full transition-all duration-300"
-                      style={{ width: `${Math.min(100, bookOpen * 110)}%` }} />
-                  </div>
-                  <span className="text-[10px] text-forest-600/60 font-mono">0:42</span>
-                </div>
-              </div>
-            </div>
-
-            {/* === Individual pages fanning out === */}
-            {[...Array(6)].map((_, i) => (
-              <div key={i} className="absolute transition-transform duration-[250ms] ease-out" style={{
-                top: `${3 + i * 0.5}px`,
-                bottom: `${3 + i * 0.5}px`,
-                left: '0',
-                right: `${4 + i}px`,
-                background: i % 2 === 0
-                  ? 'linear-gradient(to right, #f0e8d5, #f8f2e3)'
-                  : 'linear-gradient(to right, #ede4cf, #f5eedc)',
-                borderRadius: '0 2px 2px 0',
-                transformOrigin: 'left center',
-                transform: `rotateY(${-pageSpread * (i + 1) / 7}deg) translateZ(${-10 + i * 1.5}px)`,
-                borderRight: `1px solid rgba(190,175,140,${0.2 + i * 0.05})`,
-                boxShadow: i === 5 ? '1px 0 3px rgba(0,0,0,0.05)' : 'none',
-                zIndex: i + 1,
+            <div className="relative" style={{ perspective: '2000px', transformStyle: 'preserve-3d', width: '320px', height: '440px' }}>
+              {/* === Back cover === */}
+              <div className="absolute inset-0" style={{
+                background: 'linear-gradient(160deg, #065f46, #064e3b, #022c22)',
+                borderRadius: '3px 6px 6px 3px',
+                border: '1px solid rgba(6,78,59,0.6)',
+                boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05), 2px 2px 8px rgba(0,0,0,0.4)',
+                transform: 'translateZ(-16px)',
               }} />
-            ))}
 
-            {/* === Spine (connects front and back covers) === */}
-            <div className="absolute" style={{
-              top: '0', bottom: '0', left: '-6px', width: '12px',
-              background: 'linear-gradient(90deg, #047857, #065f46, #047857)',
-              borderRadius: '4px 0 0 4px',
-              transform: 'translateZ(-8px)',
-              boxShadow: 'inset -2px 0 4px rgba(0,0,0,0.3), -1px 0 3px rgba(0,0,0,0.2)',
-              zIndex: 12,
-            }} />
+              {/* === Page block (thick stack visible from side) === */}
+              <div className="absolute" style={{
+                top: '4px', bottom: '4px', left: '2px', right: '4px',
+                background: 'linear-gradient(to right, #e8dfc9, #f5eedc, #ede5d0, #f5eedc)',
+                borderRadius: '0 4px 4px 0',
+                transform: 'translateZ(-14px)',
+                borderRight: '2px solid #cec2a6',
+                borderTop: '1px solid #d8cfb6',
+                borderBottom: '1px solid #d8cfb6',
+                boxShadow: 'inset -3px 0 6px rgba(0,0,0,0.08)',
+              }} />
 
-            {/* === Front cover (opens with 3D rotation) === */}
-            <div className="absolute inset-0 flex items-center justify-center transition-transform duration-[200ms] ease-out" style={{
-              background: 'linear-gradient(145deg, #10b981, #059669, #047857, #065f46)',
-              borderRadius: '3px 8px 8px 3px',
-              border: '1px solid rgba(16,185,129,0.25)',
-              boxShadow: `${coverShadow}px ${coverShadow * 0.6}px ${coverShadow * 2}px rgba(0,0,0,${0.25 + bookOpen * 0.2}), inset 0 1px 0 rgba(255,255,255,0.15), inset 0 -1px 0 rgba(0,0,0,0.1)`,
-              transformOrigin: 'left center',
-              transform: `rotateY(${-coverAngle}deg)`,
-              backfaceVisibility: 'hidden',
-              zIndex: 10,
-            }}>
-              {/* Cover decoration */}
-              <div className="text-center text-forest-100 relative">
-                {/* Embossed border effect */}
-                <div className="absolute -inset-10 border border-forest-300/10 rounded-lg pointer-events-none" />
-                <BookOpen size={44} className="mx-auto mb-3 drop-shadow-[0_2px_4px_rgba(0,0,0,0.3)]" />
-                <div className="text-xl font-bold tracking-tight drop-shadow-[0_1px_2px_rgba(0,0,0,0.3)]">VoxBook</div>
-                <div className="text-[10px] text-forest-200/40 mt-1 uppercase tracking-[0.2em]">Interactive Audio</div>
-                <p className="text-[11px] text-forest-200/30 mt-4 italic">↓ Scroll to open</p>
+              {/* === Inner page — VIDEO PREVIEW of the project (revealed as cover opens) === */}
+              <div className="absolute overflow-hidden transition-opacity duration-500" style={{
+                top: '6px', bottom: '6px', left: '4px', right: '6px',
+                opacity: contentOpacity, zIndex: 5,
+                transform: 'translateZ(-12px)',
+                background: '#f9f5ea',
+                borderRadius: '0 4px 4px 0',
+              }}>
+                {/* Mini app window mock — looks like a screen recording */}
+                <div className="flex flex-col h-full">
+                  {/* Browser chrome */}
+                  <div className="flex items-center gap-1.5 px-3 py-2 bg-gray-200/90 border-b border-gray-300/50" style={{ borderRadius: '0 4px 0 0' }}>
+                    <div className="flex gap-1">
+                      <div className="w-[7px] h-[7px] rounded-full bg-red-400" />
+                      <div className="w-[7px] h-[7px] rounded-full bg-yellow-400" />
+                      <div className="w-[7px] h-[7px] rounded-full bg-green-500" />
+                    </div>
+                    <div className="flex-1 bg-white rounded-md text-[8px] text-gray-400 px-2.5 py-[3px] mx-1.5 border border-gray-200">
+                      localhost:3000/read/book-demo
+                    </div>
+                  </div>
+
+                  {/* App UI mock */}
+                  <div className="flex-1 flex flex-col bg-white relative">
+                    {/* Top bar */}
+                    <div className="flex items-center justify-between px-3 py-2 border-b border-gray-100 bg-gray-50/80">
+                      <div className="flex items-center gap-1.5">
+                        <BookOpen size={11} className="text-forest-600" />
+                        <span className="text-[9px] font-semibold text-gray-700">Alice in Wonderland</span>
+                      </div>
+                      <span className="text-[8px] text-gray-400">Chapter 1</span>
+                    </div>
+
+                    {/* Reader content with sync highlighting */}
+                    <div className="flex-1 px-4 py-3 overflow-hidden">
+                      <div className="text-[11px] text-gray-700 font-serif leading-[1.8] space-y-2">
+                        <p>
+                          <span>Alice was beginning to get very </span>
+                          <span className="bg-forest-300/30 text-forest-800 px-0.5 rounded font-medium transition-all duration-300"
+                            style={{ opacity: bookOpen > 0.4 ? 1 : 0.3 }}>tired</span>
+                          <span> of sitting by her sister on the bank, and of having </span>
+                          <span className="bg-forest-300/30 text-forest-800 px-0.5 rounded font-medium transition-all duration-300"
+                            style={{ opacity: bookOpen > 0.5 ? 1 : 0.3 }}>nothing</span>
+                          <span> to do: once or twice she had peeped into the book her sister was reading...</span>
+                        </p>
+                        <p>
+                          <span className="bg-forest-300/30 text-forest-800 px-0.5 rounded font-medium transition-all duration-300"
+                            style={{ opacity: bookOpen > 0.6 ? 1 : 0.3 }}>&ldquo;and what</span>
+                          <span> is the use of a book,&rdquo; thought Alice, &ldquo;without </span>
+                          <span className="bg-forest-300/30 text-forest-800 px-0.5 rounded font-medium transition-all duration-300"
+                            style={{ opacity: bookOpen > 0.7 ? 1 : 0.3 }}>pictures</span>
+                          <span> or </span>
+                          <span className="bg-forest-300/30 text-forest-800 px-0.5 rounded font-medium transition-all duration-300"
+                            style={{ opacity: bookOpen > 0.8 ? 1 : 0.3 }}>conversations</span>
+                          <span>?&rdquo;</span>
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Audio / sync bar at bottom */}
+                    <div className="px-3 py-2 border-t border-gray-100 bg-gray-50/80">
+                      {/* Waveform */}
+                      <div className="flex items-end gap-[2px] h-5 mb-1.5 justify-center">
+                        {[...Array(36)].map((_, i) => (
+                          <div key={i}
+                            className="w-[2px] rounded-full transition-all duration-150"
+                            style={{
+                              height: `${4 + Math.sin(i * 0.5 + bookOpen * 10) * 6 + Math.cos(i * 0.8) * 4}px`,
+                              background: bookOpen > 0.3 ? '#10b981' : '#d1d5db',
+                              opacity: bookOpen > 0.3 ? 0.7 : 0.3,
+                            }} />
+                        ))}
+                      </div>
+                      {/* Controls */}
+                      <div className="flex items-center gap-2">
+                        <div className="w-6 h-6 rounded-full bg-forest-500 flex items-center justify-center flex-shrink-0 shadow-sm">
+                          <Play size={10} className="text-white ml-px" />
+                        </div>
+                        <div className="flex-1 h-[3px] bg-gray-200 rounded-full overflow-hidden">
+                          <div className="h-full bg-forest-500 rounded-full transition-all duration-500"
+                            style={{ width: `${Math.min(100, bookOpen * 100)}%` }} />
+                        </div>
+                        <span className="text-[8px] text-gray-400 font-mono tabular-nums">
+                          {`${Math.floor(bookOpen * 2)}:${String(Math.floor((bookOpen * 42) % 60)).padStart(2, '0')}`} / 2:42
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Play overlay (fades out as book opens more) */}
+                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/5 transition-opacity duration-500"
+                      style={{ opacity: Math.max(0, 1 - bookOpen * 2) }}>
+                      <div className="w-14 h-14 rounded-full bg-white/95 shadow-xl flex items-center justify-center mb-3 border border-gray-100">
+                        <Play size={22} className="text-forest-600 ml-1" />
+                      </div>
+                      <span className="text-[11px] font-medium text-gray-600 bg-white/80 px-3 py-1 rounded-full shadow-sm">
+                        Watch VoxBook in action
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* === Individual pages fanning out === */}
+              {[...Array(6)].map((_, i) => (
+                <div key={i} className="absolute" style={{
+                  top: `${3 + i * 0.5}px`,
+                  bottom: `${3 + i * 0.5}px`,
+                  left: '0',
+                  right: `${4 + i}px`,
+                  background: i % 2 === 0
+                    ? 'linear-gradient(to right, #f0e8d5, #f8f2e3)'
+                    : 'linear-gradient(to right, #ede4cf, #f5eedc)',
+                  borderRadius: '0 2px 2px 0',
+                  transformOrigin: 'left center',
+                  transform: `rotateY(${-pageSpread * (i + 1) / 7}deg) translateZ(${-10 + i * 1.5}px)`,
+                  borderRight: `1px solid rgba(190,175,140,${0.2 + i * 0.05})`,
+                  boxShadow: i === 5 ? '1px 0 3px rgba(0,0,0,0.06)' : 'none',
+                  zIndex: i + 1,
+                  transition: 'transform 0.15s ease-out',
+                }} />
+              ))}
+
+              {/* === Spine === */}
+              <div className="absolute" style={{
+                top: '0', bottom: '0', left: '-6px', width: '12px',
+                background: 'linear-gradient(90deg, #047857, #065f46, #047857)',
+                borderRadius: '4px 0 0 4px',
+                transform: 'translateZ(-8px)',
+                boxShadow: 'inset -2px 0 4px rgba(0,0,0,0.3), -1px 0 3px rgba(0,0,0,0.2)',
+                zIndex: 12,
+              }} />
+
+              {/* === Front cover (opens gradually with scroll) === */}
+              <div className="absolute inset-0 flex items-center justify-center" style={{
+                background: 'linear-gradient(145deg, #10b981, #059669, #047857, #065f46)',
+                borderRadius: '3px 8px 8px 3px',
+                border: '1px solid rgba(16,185,129,0.25)',
+                boxShadow: `${coverShadow}px ${coverShadow * 0.5}px ${coverShadow * 2}px rgba(0,0,0,${0.25 + bookOpen * 0.2}), inset 0 1px 0 rgba(255,255,255,0.15), inset 0 -1px 0 rgba(0,0,0,0.1)`,
+                transformOrigin: 'left center',
+                transform: `rotateY(${-coverAngle}deg)`,
+                backfaceVisibility: 'hidden',
+                zIndex: 10,
+                transition: 'transform 0.1s ease-out',
+              }}>
+                <div className="text-center text-forest-100 relative">
+                  <div className="absolute -inset-10 border border-forest-300/10 rounded-lg pointer-events-none" />
+                  <BookOpen size={44} className="mx-auto mb-3 drop-shadow-[0_2px_4px_rgba(0,0,0,0.3)]" />
+                  <div className="text-xl font-bold tracking-tight drop-shadow-[0_1px_2px_rgba(0,0,0,0.3)]">VoxBook</div>
+                  <div className="text-[10px] text-forest-200/40 mt-1 uppercase tracking-[0.2em]">Interactive Audio</div>
+                  <p className="text-[11px] text-forest-200/30 mt-5 italic">↓ Scroll to open</p>
+                </div>
+              </div>
+
+              {/* === Front cover inner face (visible when cover > 90°) === */}
+              <div className="absolute inset-0" style={{
+                background: 'linear-gradient(135deg, #f5f0e6, #ebe5d4, #e2dac5)',
+                borderRadius: '3px 8px 8px 3px',
+                transformOrigin: 'left center',
+                transform: `rotateY(${-coverAngle + 180}deg)`,
+                backfaceVisibility: 'hidden',
+                zIndex: 10,
+                boxShadow: 'inset 0 0 20px rgba(0,0,0,0.05)',
+                transition: 'transform 0.1s ease-out',
+              }}>
+                <div className="absolute inset-4 border border-amber-800/10 rounded opacity-60" />
+                <div className="absolute inset-6 border border-amber-800/5 rounded" />
               </div>
             </div>
+          </div>
 
-            {/* === Front cover back face (inner side visible when > 90°) === */}
-            <div className="absolute inset-0 transition-transform duration-[200ms] ease-out" style={{
-              background: 'linear-gradient(135deg, #f5f0e6, #ebe5d4, #e2dac5)',
-              borderRadius: '3px 8px 8px 3px',
-              transformOrigin: 'left center',
-              transform: `rotateY(${-coverAngle + 180}deg)`,
-              backfaceVisibility: 'hidden',
-              zIndex: 10,
-              boxShadow: 'inset 0 0 20px rgba(0,0,0,0.05)',
-            }}>
-              {/* Inner cover marbling/texture */}
-              <div className="absolute inset-4 border border-amber-800/10 rounded opacity-60" />
-              <div className="absolute inset-6 border border-amber-800/5 rounded" />
+          {/* Scroll progress hint */}
+          <div className="mt-8 text-center">
+            <p className="text-forest-300/40 text-sm transition-all duration-300">
+              {bookOpen < 0.05
+                ? '↓ Scroll slowly to open the book'
+                : bookOpen > 0.95
+                  ? '✨ Book is open! Keep scrolling to continue'
+                  : `Opening... ${Math.round(bookOpen * 100)}%`}
+            </p>
+            {/* Progress bar */}
+            <div className="w-32 h-1 bg-forest-800/30 rounded-full mx-auto mt-2 overflow-hidden">
+              <div className="h-full bg-forest-500 rounded-full transition-all duration-150"
+                style={{ width: `${bookOpen * 100}%` }} />
             </div>
           </div>
         </div>
