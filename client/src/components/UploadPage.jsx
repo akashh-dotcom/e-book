@@ -673,7 +673,7 @@ export default function UploadPage() {
             </div>
 
             {/* Main donut SVG */}
-            <div className="relative w-[260px] h-[260px] sm:w-[300px] sm:h-[300px]">
+            <div className="relative w-[260px] h-[260px] sm:w-[300px] sm:h-[300px]" onMouseLeave={() => setHoveredStep(-1)}>
               <svg viewBox="0 0 200 200" className="w-full h-full -rotate-90">
                 {/* Background circle */}
                 <circle cx="100" cy="100" r="85" fill="none" stroke="rgba(255,255,255,0.03)" strokeWidth="22" />
@@ -711,6 +711,32 @@ export default function UploadPage() {
                     opacity: hoveredStep !== -1 && hoveredStep !== 2 ? 0.3 : 1,
                   }} />
 
+                {/* Invisible hover hit areas for each segment (wider stroke, transparent) */}
+                {/* Segment 1 hit area */}
+                <circle cx="100" cy="100" r="85" fill="none"
+                  stroke="transparent" strokeWidth="36"
+                  strokeDasharray={`${(1/3) * 2 * Math.PI * 85} ${2 * Math.PI * 85}`}
+                  strokeDashoffset="0"
+                  className="cursor-pointer"
+                  style={{ pointerEvents: 'stroke' }}
+                  onMouseEnter={() => setHoveredStep(0)} />
+                {/* Segment 2 hit area */}
+                <circle cx="100" cy="100" r="85" fill="none"
+                  stroke="transparent" strokeWidth="36"
+                  strokeDasharray={`${(1/3) * 2 * Math.PI * 85} ${2 * Math.PI * 85}`}
+                  strokeDashoffset={`${-(1/3) * 2 * Math.PI * 85}`}
+                  className="cursor-pointer"
+                  style={{ pointerEvents: 'stroke' }}
+                  onMouseEnter={() => setHoveredStep(1)} />
+                {/* Segment 3 hit area */}
+                <circle cx="100" cy="100" r="85" fill="none"
+                  stroke="transparent" strokeWidth="36"
+                  strokeDasharray={`${(1/3) * 2 * Math.PI * 85} ${2 * Math.PI * 85}`}
+                  strokeDashoffset={`${-(2/3) * 2 * Math.PI * 85}`}
+                  className="cursor-pointer"
+                  style={{ pointerEvents: 'stroke' }}
+                  onMouseEnter={() => setHoveredStep(2)} />
+
                 {/* Gradient definitions */}
                 <defs>
                   <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="0%">
@@ -729,7 +755,7 @@ export default function UploadPage() {
               </svg>
 
               {/* Center content */}
-              <div className="absolute inset-0 flex flex-col items-center justify-center">
+              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
                 <div className="w-28 h-28 sm:w-32 sm:h-32 rounded-full bg-forest-950/90 border border-white/[0.06] flex flex-col items-center justify-center gap-1.5 shadow-xl">
                   <BookOpen size={28} className="text-forest-400" />
                   <span className="text-forest-100 font-bold text-sm tracking-tight">VoxBook</span>
@@ -737,15 +763,10 @@ export default function UploadPage() {
                 </div>
               </div>
 
-              {/* Step number badges — positioned at the midpoint of each arc segment
-                  The SVG is -rotate-90, so segment 1 starts at top (12 o'clock).
-                  Each segment spans 120°.
-                  Badge 1: midpoint at 60° from top  => 60° clockwise from 12 o'clock
-                  Badge 2: midpoint at 180° from top => 6 o'clock (bottom center)
-                  Badge 3: midpoint at 300° from top => 300° clockwise = top-left area
-              */}
+              {/* Step number badges — positioned at midpoint of each arc segment */}
               {/* Step 1: 60° from top => right side */}
-              <div className="absolute animate-scale-in"
+              <div className="absolute animate-scale-in cursor-pointer"
+                onMouseEnter={() => setHoveredStep(0)}
                 style={{
                   top: '14%', right: '1%',
                   animationDelay: '0.3s',
@@ -761,7 +782,8 @@ export default function UploadPage() {
                 </div>
               </div>
               {/* Step 2: 180° from top => bottom center */}
-              <div className="absolute animate-scale-in"
+              <div className="absolute animate-scale-in cursor-pointer"
+                onMouseEnter={() => setHoveredStep(1)}
                 style={{
                   bottom: '-2%', left: '50%', transform: `translateX(-50%) ${hoveredStep === 1 ? 'scale(1.3)' : 'scale(1)'}`,
                   animationDelay: '0.6s',
@@ -776,7 +798,8 @@ export default function UploadPage() {
                 </div>
               </div>
               {/* Step 3: 300° from top => left side */}
-              <div className="absolute animate-scale-in"
+              <div className="absolute animate-scale-in cursor-pointer"
+                onMouseEnter={() => setHoveredStep(2)}
                 style={{
                   top: '14%', left: '1%',
                   animationDelay: '0.9s',
@@ -803,9 +826,7 @@ export default function UploadPage() {
             ].map((s, i) => (
               <div key={i} data-reveal-id={`step-${i}`}
                 className={`relative group animate-fade-in-up ${revealCls(`step-${i}`, `delay-[${i * 200}ms]`)}`}
-                style={{ animationDelay: `${0.2 + i * 0.2}s` }}
-                onMouseEnter={() => setHoveredStep(i)}
-                onMouseLeave={() => setHoveredStep(-1)}>
+                style={{ animationDelay: `${0.2 + i * 0.2}s` }}>
 
                 {/* Connector line (vertical) between cards */}
                 {i < 2 && (
