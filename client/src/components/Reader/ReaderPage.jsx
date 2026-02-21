@@ -11,7 +11,6 @@ import SearchPanel from './SearchPanel';
 import SettingsPanel from './SettingsPanel';
 import BookmarksPanel from './BookmarksPanel';
 import AudioBar from './AudioBar';
-import TrimEditorPanel from './TrimEditorPanel';
 import ChapterAudioUpload from '../AudioUpload/ChapterAudioUpload';
 import EditorMode from '../Editor/EditorMode';
 
@@ -22,7 +21,6 @@ export default function ReaderPage() {
   // Audio & sync data
   const audio = useAudioPlayer(bookId, reader.chapterIndex);
   const overlay = useMediaOverlay(audio.syncData, audio.audioUrl);
-  const [trimEditorOpen, setTrimEditorOpen] = useState(false);
   const [reSyncing, setReSyncing] = useState(false);
   const [editorMode, setEditorMode] = useState(false);
 
@@ -196,18 +194,6 @@ export default function ReaderPage() {
           />
         )}
 
-        {trimEditorOpen && audio.hasAudio && (
-          <TrimEditorPanel
-            bookId={bookId}
-            chapterIndex={reader.chapterIndex}
-            overlay={overlay}
-            syncData={audio.syncData}
-            onClose={() => setTrimEditorOpen(false)}
-            onTrimDone={handleTrimDone}
-            onReSync={handleReSync}
-            reSyncing={reSyncing}
-          />
-        )}
       </div>
 
       {audio.hasAudio && (
@@ -215,8 +201,6 @@ export default function ReaderPage() {
           overlay={overlay}
           bookId={bookId}
           hasSyncData={hasSync}
-          onToggleTrimEditor={() => setTrimEditorOpen(!trimEditorOpen)}
-          trimEditorOpen={trimEditorOpen}
         />
       )}
 

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Play, Pause, SkipBack, SkipForward, Scissors, Download, Loader } from 'lucide-react';
+import { Play, Pause, SkipBack, SkipForward, Download, Loader } from 'lucide-react';
 import { formatTime } from '../../utils/timeFormatter';
 import api from '../../services/api';
 
@@ -7,8 +7,6 @@ export default function AudioBar({
   overlay,
   bookId,
   hasSyncData,
-  onToggleTrimEditor,
-  trimEditorOpen,
 }) {
   const [exporting, setExporting] = useState(false);
 
@@ -73,16 +71,6 @@ export default function AudioBar({
           <option key={r} value={r}>{r}x</option>
         ))}
       </select>
-
-      {onToggleTrimEditor && (
-        <button
-          className={`icon-btn trim-editor-toggle ${trimEditorOpen ? 'active' : ''}`}
-          onClick={onToggleTrimEditor}
-          title="Audio Editor"
-        >
-          <Scissors size={16} />
-        </button>
-      )}
 
       <button
         className="icon-btn export-btn"
