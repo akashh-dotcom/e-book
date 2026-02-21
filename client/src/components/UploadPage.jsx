@@ -14,6 +14,7 @@ export default function UploadPage() {
   const [error, setError] = useState('');
   const [bookOpen, setBookOpen] = useState(0);
   const [revealed, setRevealed] = useState(new Set());
+  const [activeWord, setActiveWord] = useState(0);
   const fileInputRef = useRef(null);
   const bookSectionRef = useRef(null);
   const navigate = useNavigate();
@@ -51,6 +52,25 @@ export default function UploadPage() {
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, [handleScroll]);
+
+  // Auto-cycle word highlighting when book is open (simulates audio playback)
+  const demoWords = [
+    'Alice','was','beginning','to','get','very','tired','of',
+    'sitting','by','her','sister','on','the','bank,','and',
+    'of','having','nothing','to','do.','Once','or','twice',
+    'she','had','peeped','into','the','book','her','sister',
+    'was','reading,','but','it','had','no','pictures','or',
+    'conversations','in','it.'
+  ];
+
+  const isBookReady = bookOpen >= 0.5;
+  useEffect(() => {
+    if (!isBookReady) { setActiveWord(0); return; }
+    const timer = setInterval(() => {
+      setActiveWord(prev => (prev + 1) % demoWords.length);
+    }, 400);
+    return () => clearInterval(timer);
+  }, [isBookReady]);
 
   const handleFile = async (file) => {
     if (!file || !file.name.endsWith('.epub')) {
@@ -347,100 +367,90 @@ export default function UploadPage() {
               </div>
             </div>
 
-            {/* === VIDEO PREVIEW — sits OUTSIDE 3D context, overlays the book page area === */}
-            <div className="absolute overflow-hidden rounded-r transition-opacity duration-500 pointer-events-none"
+            {/* === VIDEO PREVIEW — OUTSIDE 3D context, fitted inside the book === */}
+            <div className="absolute overflow-hidden transition-opacity duration-500 pointer-events-none"
               style={{
-                top: '6px', bottom: '6px', left: '4px', right: '6px',
+                top: '8px', bottom: '8px', left: '10px', right: '10px',
                 opacity: contentOpacity,
                 zIndex: 15,
+                borderRadius: '0 4px 4px 0',
               }}>
-              <div className="flex flex-col h-full bg-[#f9f5ea] rounded-r">
-                {/* Browser chrome */}
-                <div className="flex items-center gap-1.5 px-3 py-2 bg-gray-200 border-b border-gray-300/60" style={{ borderRadius: '0 4px 0 0' }}>
-                  <div className="flex gap-1">
-                    <div className="w-2 h-2 rounded-full bg-red-400" />
-                    <div className="w-2 h-2 rounded-full bg-yellow-400" />
-                    <div className="w-2 h-2 rounded-full bg-green-500" />
+              <div className="flex flex-col w-full h-full bg-white rounded overflow-hidden shadow-inner">
+                {/* Top bar — compact */}
+                <div className="flex items-center justify-between px-2.5 py-1.5 border-b border-gray-100 bg-gray-50 flex-shrink-0">
+                  <div className="flex items-center gap-1">
+                    <BookOpen size={10} className="text-forest-600" />
+                    <span className="text-[8px] font-semibold text-gray-700 truncate">Alice in Wonderland</span>
                   </div>
-                  <div className="flex-1 bg-white rounded-md text-[8px] text-gray-400 px-2.5 py-1 mx-1.5 border border-gray-200">
-                    localhost:3000/read/book-demo
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[7px] text-gray-400">Ch. 1</span>
+                    <div className="flex gap-0.5">
+                      <div className="w-1.5 h-1.5 rounded-full bg-red-400" />
+                      <div className="w-1.5 h-1.5 rounded-full bg-yellow-400" />
+                      <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                    </div>
                   </div>
                 </div>
 
-                {/* App UI mock */}
-                <div className="flex-1 flex flex-col bg-white relative overflow-hidden">
-                  {/* Top bar */}
-                  <div className="flex items-center justify-between px-3 py-2 border-b border-gray-100 bg-gray-50/80">
-                    <div className="flex items-center gap-1.5">
-                      <BookOpen size={11} className="text-forest-600" />
-                      <span className="text-[9px] font-semibold text-gray-700">Alice in Wonderland</span>
-                    </div>
-                    <span className="text-[8px] text-gray-400">Chapter 1</span>
+                {/* Reader text with auto-cycling word highlights */}
+                <div className="flex-1 px-3 py-2.5 overflow-hidden">
+                  <div className="text-[10px] text-gray-600 font-serif leading-[1.9] flex flex-wrap gap-x-[3px] gap-y-[2px]">
+                    {demoWords.map((word, i) => {
+                      const isActive = i === activeWord;
+                      const isPast = i < activeWord;
+                      return (
+                        <span key={i}
+                          className={`inline-block px-[2px] rounded transition-all duration-200 ${
+                            isActive
+                              ? 'bg-forest-400/30 text-forest-900 font-semibold scale-105'
+                              : isPast
+                                ? 'text-gray-800'
+                                : 'text-gray-400'
+                          }`}>
+                          {word}
+                        </span>
+                      );
+                    })}
                   </div>
+                </div>
 
-                  {/* Reader content with sync highlighting */}
-                  <div className="flex-1 px-4 py-3 overflow-hidden">
-                    <div className="text-[11px] text-gray-700 font-serif leading-[1.8] space-y-2">
-                      <p>
-                        <span>Alice was beginning to get very </span>
-                        <span className="bg-forest-300/30 text-forest-800 px-0.5 rounded font-medium transition-all duration-300"
-                          style={{ opacity: bookOpen > 0.4 ? 1 : 0.3 }}>tired</span>
-                        <span> of sitting by her sister on the bank, and of having </span>
-                        <span className="bg-forest-300/30 text-forest-800 px-0.5 rounded font-medium transition-all duration-300"
-                          style={{ opacity: bookOpen > 0.5 ? 1 : 0.3 }}>nothing</span>
-                        <span> to do: once or twice she had peeped into the book her sister was reading...</span>
-                      </p>
-                      <p>
-                        <span className="bg-forest-300/30 text-forest-800 px-0.5 rounded font-medium transition-all duration-300"
-                          style={{ opacity: bookOpen > 0.6 ? 1 : 0.3 }}>&ldquo;and what</span>
-                        <span> is the use of a book,&rdquo; thought Alice, &ldquo;without </span>
-                        <span className="bg-forest-300/30 text-forest-800 px-0.5 rounded font-medium transition-all duration-300"
-                          style={{ opacity: bookOpen > 0.7 ? 1 : 0.3 }}>pictures</span>
-                        <span> or </span>
-                        <span className="bg-forest-300/30 text-forest-800 px-0.5 rounded font-medium transition-all duration-300"
-                          style={{ opacity: bookOpen > 0.8 ? 1 : 0.3 }}>conversations</span>
-                        <span>?&rdquo;</span>
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Audio / sync bar at bottom */}
-                  <div className="px-3 py-2 border-t border-gray-100 bg-gray-50/80">
-                    {/* Waveform */}
-                    <div className="flex items-end gap-[2px] h-5 mb-1.5 justify-center">
-                      {[...Array(36)].map((_, i) => (
+                {/* Audio bar — compact with animated waveform */}
+                <div className="px-2.5 py-2 border-t border-gray-100 bg-gray-50 flex-shrink-0">
+                  {/* Animated waveform — driven by activeWord */}
+                  <div className="flex items-end gap-[1.5px] h-4 mb-1.5 justify-center">
+                    {[...Array(30)].map((_, i) => {
+                      const isPlaying = bookOpen >= 0.5;
+                      const wave = isPlaying
+                        ? Math.abs(Math.sin((activeWord * 0.8 + i) * 0.7)) * 10 + 3
+                        : 3;
+                      return (
                         <div key={i}
-                          className="w-[2px] rounded-full transition-all duration-150"
+                          className="w-[2px] rounded-full"
                           style={{
-                            height: `${4 + Math.sin(i * 0.5 + bookOpen * 10) * 6 + Math.cos(i * 0.8) * 4}px`,
-                            background: bookOpen > 0.3 ? '#10b981' : '#d1d5db',
-                            opacity: bookOpen > 0.3 ? 0.7 : 0.3,
+                            height: `${wave}px`,
+                            background: isPlaying ? '#10b981' : '#d1d5db',
+                            opacity: isPlaying ? 0.8 : 0.3,
+                            transition: 'height 0.2s ease, background 0.3s',
                           }} />
-                      ))}
-                    </div>
-                    {/* Controls */}
-                    <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 rounded-full bg-forest-500 flex items-center justify-center flex-shrink-0 shadow-sm">
-                        <Play size={10} className="text-white ml-px" />
-                      </div>
-                      <div className="flex-1 h-[3px] bg-gray-200 rounded-full overflow-hidden">
-                        <div className="h-full bg-forest-500 rounded-full transition-all duration-500"
-                          style={{ width: `${Math.min(100, bookOpen * 100)}%` }} />
-                      </div>
-                      <span className="text-[8px] text-gray-400 font-mono tabular-nums">
-                        {`${Math.floor(bookOpen * 2)}:${String(Math.floor((bookOpen * 42) % 60)).padStart(2, '0')}`} / 2:42
-                      </span>
-                    </div>
+                      );
+                    })}
                   </div>
-
-                  {/* Play overlay (fades out as book opens more) */}
-                  <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/5 transition-opacity duration-500"
-                    style={{ opacity: Math.max(0, 1 - bookOpen * 2) }}>
-                    <div className="w-14 h-14 rounded-full bg-white/95 shadow-xl flex items-center justify-center mb-3 border border-gray-100">
-                      <Play size={22} className="text-forest-600 ml-1" />
+                  {/* Controls */}
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-5 h-5 rounded-full bg-forest-500 flex items-center justify-center flex-shrink-0">
+                      {bookOpen >= 0.5
+                        ? <AudioLines size={9} className="text-white" />
+                        : <Play size={8} className="text-white ml-px" />}
                     </div>
-                    <span className="text-[11px] font-medium text-gray-600 bg-white/80 px-3 py-1 rounded-full shadow-sm">
-                      Watch VoxBook in action
+                    <div className="flex-1 h-[2px] bg-gray-200 rounded-full overflow-hidden">
+                      <div className="h-full bg-forest-500 rounded-full"
+                        style={{
+                          width: `${(activeWord / demoWords.length) * 100}%`,
+                          transition: 'width 0.4s linear',
+                        }} />
+                    </div>
+                    <span className="text-[7px] text-gray-400 font-mono tabular-nums">
+                      {`0:${String(Math.floor(activeWord * 0.6)).padStart(2,'0')}`}
                     </span>
                   </div>
                 </div>
