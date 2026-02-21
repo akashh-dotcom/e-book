@@ -4,7 +4,7 @@ import {
   Upload, BookOpen, Headphones, Wand2, Download,
   ChevronRight, ChevronLeft, Sparkles, AudioLines, Globe, LayoutDashboard,
   Zap, Shield, Star, Music, Play, Pause, SkipBack, SkipForward,
-  PenTool, Search, Settings, Bookmark, Menu, List,
+  PenTool, Search, Settings, Bookmark, Menu, List, Check, Crown, Infinity,
 } from 'lucide-react';
 import useBookStore from '../store/bookStore';
 
@@ -17,6 +17,7 @@ export default function UploadPage() {
   const [activeWord, setActiveWord] = useState(0);
   const [editorVisible, setEditorVisible] = useState(false);
   const [hoveredStep, setHoveredStep] = useState(-1);
+  const [billingCycle, setBillingCycle] = useState('monthly');
   const fileInputRef = useRef(null);
   const editorSectionRef = useRef(null);
   const navigate = useNavigate();
@@ -887,6 +888,235 @@ export default function UploadPage() {
                 Get Started Now <ChevronRight size={16} />
               </a>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ---- Pricing Section ---- */}
+      <section className="py-28 px-6 max-w-6xl mx-auto relative overflow-hidden" id="pricing">
+        {/* Background glow */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[600px] pointer-events-none opacity-20"
+          style={{ background: 'radial-gradient(circle, rgba(139,92,246,0.1) 0%, rgba(16,185,129,0.06) 40%, transparent 70%)' }} />
+
+        <div data-reveal-id="pricing-header" className={`text-center mb-14 relative z-10 ${revealCls('pricing-header')}`}>
+          <p className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full border border-violet-500/20 bg-violet-500/10 text-violet-300 text-xs font-medium mb-5">
+            <Star size={13} />
+            Pricing
+          </p>
+          <h2 className="text-4xl sm:text-5xl font-bold tracking-tight text-forest-50 mb-4 leading-tight">
+            Simple, transparent{' '}
+            <span className="bg-gradient-to-r from-violet-400 via-forest-400 to-amber-400 bg-clip-text text-transparent bg-[length:200%_200%] animate-gradient-shift">
+              pricing
+            </span>
+          </h2>
+          <p className="text-forest-200/50 text-lg max-w-lg mx-auto">
+            Choose the plan that fits your needs. Upgrade or cancel anytime.
+          </p>
+
+          {/* Billing toggle */}
+          <div className="mt-8 inline-flex items-center gap-1 p-1 rounded-full border border-white/[0.08] bg-white/[0.03]">
+            <button
+              onClick={() => setBillingCycle('monthly')}
+              className={`px-5 py-2 rounded-full text-sm font-medium transition-all duration-300 ${
+                billingCycle === 'monthly'
+                  ? 'bg-forest-500 text-forest-950 shadow-md shadow-forest-500/20'
+                  : 'text-forest-200/50 hover:text-forest-200/80'
+              }`}>
+              Monthly
+            </button>
+            <button
+              onClick={() => setBillingCycle('annual')}
+              className={`px-5 py-2 rounded-full text-sm font-medium transition-all duration-300 flex items-center gap-1.5 ${
+                billingCycle === 'annual'
+                  ? 'bg-forest-500 text-forest-950 shadow-md shadow-forest-500/20'
+                  : 'text-forest-200/50 hover:text-forest-200/80'
+              }`}>
+              Annual
+              <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${
+                billingCycle === 'annual'
+                  ? 'bg-forest-950/20 text-forest-950'
+                  : 'bg-forest-500/15 text-forest-400'
+              }`}>
+                Save 20%
+              </span>
+            </button>
+          </div>
+        </div>
+
+        {/* Pricing cards */}
+        <div className="relative z-10 grid grid-cols-1 md:grid-cols-3 gap-5 max-w-[1000px] mx-auto">
+          {[
+            {
+              name: 'Starter',
+              desc: 'Perfect for casual readers who want to try audiobook creation.',
+              monthlyPrice: 0,
+              annualPrice: 0,
+              color: 'forest',
+              gradient: 'from-forest-500/10 to-forest-500/5',
+              border: 'border-white/[0.06]',
+              accent: 'text-forest-400',
+              btnStyle: 'border border-forest-500/30 text-forest-300 hover:bg-forest-500/10',
+              btnText: 'Get Started Free',
+              badge: null,
+              features: [
+                { text: '3 books per month', included: true },
+                { text: '5 AI voices', included: true },
+                { text: 'Word-level sync', included: true },
+                { text: 'EPUB 3 export', included: true },
+                { text: 'Basic support', included: true },
+                { text: 'Timeline editor', included: false },
+                { text: 'Priority processing', included: false },
+                { text: 'Custom voice cloning', included: false },
+              ],
+            },
+            {
+              name: 'Pro',
+              desc: 'For power readers and creators who need more.',
+              monthlyPrice: 12,
+              annualPrice: 10,
+              color: 'violet',
+              gradient: 'from-violet-500/15 to-violet-500/5',
+              border: 'border-violet-500/30',
+              accent: 'text-violet-400',
+              btnStyle: 'bg-gradient-to-r from-violet-500 to-violet-400 text-white shadow-lg shadow-violet-500/20 hover:shadow-violet-500/30',
+              btnText: 'Start Pro Trial',
+              badge: 'Most Popular',
+              features: [
+                { text: '25 books per month', included: true },
+                { text: '30+ AI voices', included: true },
+                { text: 'Word-level sync', included: true },
+                { text: 'EPUB 3 export', included: true },
+                { text: 'Priority support', included: true },
+                { text: 'Timeline editor', included: true },
+                { text: 'Priority processing', included: true },
+                { text: 'Custom voice cloning', included: false },
+              ],
+            },
+            {
+              name: 'Enterprise',
+              desc: 'Unlimited everything for teams and publishers.',
+              monthlyPrice: 39,
+              annualPrice: 32,
+              color: 'amber',
+              gradient: 'from-amber-500/10 to-amber-500/5',
+              border: 'border-amber-500/20',
+              accent: 'text-amber-400',
+              btnStyle: 'bg-gradient-to-r from-amber-500 to-amber-400 text-forest-950 shadow-lg shadow-amber-500/20 hover:shadow-amber-500/30',
+              btnText: 'Contact Sales',
+              badge: null,
+              features: [
+                { text: 'Unlimited books', included: true },
+                { text: '50+ AI voices', included: true },
+                { text: 'Word-level sync', included: true },
+                { text: 'EPUB 3 export', included: true },
+                { text: 'Dedicated support', included: true },
+                { text: 'Timeline editor', included: true },
+                { text: 'Priority processing', included: true },
+                { text: 'Custom voice cloning', included: true },
+              ],
+            },
+          ].map((plan, i) => {
+            const price = billingCycle === 'monthly' ? plan.monthlyPrice : plan.annualPrice;
+            const isPro = plan.name === 'Pro';
+            return (
+              <div key={i} data-reveal-id={`price-${i}`}
+                className={`relative rounded-2xl border p-6 pb-8 flex flex-col transition-all duration-500 group
+                  hover:-translate-y-1 ${plan.border}
+                  ${isPro ? 'md:-mt-4 md:mb-[-16px] md:pb-10 md:pt-8' : ''}
+                  ${revealCls(`price-${i}`, `delay-[${i * 120}ms]`)}`}
+                style={{
+                  background: `radial-gradient(ellipse at 50% 0%, ${plan.gradient.includes('violet') ? 'rgba(139,92,246,0.08)' : plan.gradient.includes('amber') ? 'rgba(251,191,36,0.06)' : 'rgba(16,185,129,0.06)'} 0%, transparent 60%), rgba(255,255,255,0.02)`,
+                }}
+                onMouseEnter={e => {
+                  const glowColor = plan.color === 'violet' ? 'rgba(139,92,246,0.15)' : plan.color === 'amber' ? 'rgba(251,191,36,0.12)' : 'rgba(16,185,129,0.12)';
+                  e.currentTarget.style.boxShadow = `0 12px 40px -10px ${glowColor}`;
+                }}
+                onMouseLeave={e => { e.currentTarget.style.boxShadow = 'none'; }}
+              >
+                {/* Popular badge */}
+                {plan.badge && (
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3.5 py-1 rounded-full bg-gradient-to-r from-violet-500 to-violet-400 text-white text-[11px] font-semibold shadow-md shadow-violet-500/20">
+                    {plan.badge}
+                  </div>
+                )}
+
+                {/* Plan header */}
+                <div className="mb-5">
+                  <div className="flex items-center gap-2 mb-2">
+                    {plan.name === 'Enterprise' && <Crown size={18} className="text-amber-400" />}
+                    {plan.name === 'Pro' && <Zap size={18} className="text-violet-400" />}
+                    {plan.name === 'Starter' && <BookOpen size={18} className="text-forest-400" />}
+                    <h3 className={`text-lg font-bold ${plan.accent}`}>{plan.name}</h3>
+                  </div>
+                  <p className="text-sm text-forest-200/40 leading-relaxed">{plan.desc}</p>
+                </div>
+
+                {/* Price */}
+                <div className="mb-6">
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-4xl font-extrabold text-forest-50 tracking-tight">
+                      ${price}
+                    </span>
+                    {price > 0 && (
+                      <span className="text-sm text-forest-200/40 font-medium">
+                        / {billingCycle === 'monthly' ? 'mo' : 'mo'}
+                      </span>
+                    )}
+                  </div>
+                  {price === 0 && (
+                    <p className="text-xs text-forest-300/40 mt-1">Free forever</p>
+                  )}
+                  {billingCycle === 'annual' && price > 0 && (
+                    <p className="text-xs text-forest-400/60 mt-1">
+                      ${price * 12}/year — save ${(plan.monthlyPrice - plan.annualPrice) * 12}/yr
+                    </p>
+                  )}
+                </div>
+
+                {/* CTA button */}
+                <button className={`w-full py-2.5 rounded-xl text-sm font-semibold transition-all duration-300 hover:scale-[1.02] mb-6 ${plan.btnStyle}`}>
+                  {plan.btnText}
+                </button>
+
+                {/* Features list */}
+                <div className="flex-1">
+                  <p className="text-[11px] uppercase tracking-wider text-forest-200/30 font-semibold mb-3">What's included</p>
+                  <ul className="space-y-2.5">
+                    {plan.features.map((f, fi) => (
+                      <li key={fi} className="flex items-center gap-2.5">
+                        {f.included ? (
+                          <div className={`w-4 h-4 rounded-full flex items-center justify-center ${
+                            plan.color === 'violet' ? 'bg-violet-500/15 text-violet-400'
+                            : plan.color === 'amber' ? 'bg-amber-500/15 text-amber-400'
+                            : 'bg-forest-500/15 text-forest-400'
+                          }`}>
+                            <Check size={10} strokeWidth={3} />
+                          </div>
+                        ) : (
+                          <div className="w-4 h-4 rounded-full bg-white/[0.04] flex items-center justify-center">
+                            <div className="w-1.5 h-[1.5px] bg-white/20 rounded-full" />
+                          </div>
+                        )}
+                        <span className={`text-sm ${f.included ? 'text-forest-200/60' : 'text-forest-200/25'}`}>
+                          {f.text}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Trust note */}
+        <div data-reveal-id="pricing-note" className={`mt-10 text-center ${revealCls('pricing-note')}`}>
+          <div className="inline-flex items-center gap-4 text-forest-200/30 text-xs">
+            <span className="flex items-center gap-1"><Shield size={12} /> SSL Secured</span>
+            <span className="w-1 h-1 rounded-full bg-forest-200/20" />
+            <span>Cancel anytime</span>
+            <span className="w-1 h-1 rounded-full bg-forest-200/20" />
+            <span>7-day free trial on paid plans</span>
           </div>
         </div>
       </section>
