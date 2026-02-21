@@ -97,12 +97,100 @@ export default function UploadPage() {
     `transition-all duration-700 ease-out ${delay} ${isR(id) ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`;
 
   const features = [
-    { icon: <Headphones size={28} />, title: 'Audio Narration', desc: 'AI-powered voices bring every page to life with natural narration.', emoji: '🎧' },
-    { icon: <Wand2 size={28} />, title: 'Magic Sync', desc: "Words light up as they're spoken — like karaoke for books!", emoji: '✨' },
-    { icon: <AudioLines size={28} />, title: 'Timeline Editor', desc: 'Drag and drop to fine-tune when each word appears.', emoji: '🎵' },
-    { icon: <Globe size={28} />, title: '50+ Fun Voices', desc: 'Pick from soothing storytellers to energetic adventurers.', emoji: '🌍' },
-    { icon: <Download size={28} />, title: 'EPUB 3 Export', desc: 'Download your creation as a real audiobook to share!', emoji: '📦' },
-    { icon: <Sparkles size={28} />, title: 'Pretty Themes', desc: 'Light, sepia, and dark modes with smooth highlighting.', emoji: '🎨' },
+    {
+      icon: <Headphones size={28} />, title: 'Audio Narration',
+      desc: 'AI-powered voices bring every page to life with crystal-clear, natural narration.',
+      gradient: 'from-violet-500 to-purple-600', glow: 'rgba(139,92,246,0.3)',
+      bgGlow: 'radial-gradient(circle at 30% 20%, rgba(139,92,246,0.15) 0%, transparent 60%)',
+      iconBg: 'from-violet-500/20 to-purple-500/20', textAccent: 'text-violet-400',
+      span: 'lg:col-span-2', // wider card
+      visual: (
+        <div className="absolute -right-2 -bottom-2 opacity-20 group-hover:opacity-40 transition-opacity duration-500">
+          <div className="flex items-end gap-[3px]">
+            {[40,60,35,55,45,65,30,50,40,55,35,60].map((h,i) => (
+              <div key={i} className="w-[4px] rounded-full bg-violet-400 animate-wave" style={{ height: `${h}px`, animationDelay: `${i * 0.1}s` }} />
+            ))}
+          </div>
+        </div>
+      ),
+    },
+    {
+      icon: <Wand2 size={28} />, title: 'Magic Sync',
+      desc: "Words light up as they're spoken — like karaoke for books!",
+      gradient: 'from-amber-400 to-orange-500', glow: 'rgba(251,191,36,0.3)',
+      bgGlow: 'radial-gradient(circle at 70% 30%, rgba(251,191,36,0.12) 0%, transparent 60%)',
+      iconBg: 'from-amber-400/20 to-orange-500/20', textAccent: 'text-amber-400',
+      span: '',
+      visual: (
+        <div className="absolute right-4 bottom-4 opacity-20 group-hover:opacity-50 transition-opacity duration-500">
+          <Sparkles size={48} className="text-amber-400 animate-sparkle" />
+        </div>
+      ),
+    },
+    {
+      icon: <AudioLines size={28} />, title: 'Timeline Editor',
+      desc: 'Drag and drop to fine-tune exactly when each word appears in the audio.',
+      gradient: 'from-cyan-400 to-blue-500', glow: 'rgba(34,211,238,0.3)',
+      bgGlow: 'radial-gradient(circle at 50% 80%, rgba(34,211,238,0.12) 0%, transparent 60%)',
+      iconBg: 'from-cyan-400/20 to-blue-500/20', textAccent: 'text-cyan-400',
+      span: '',
+      visual: (
+        <div className="absolute right-3 bottom-3 opacity-15 group-hover:opacity-35 transition-opacity duration-500">
+          <svg width="60" height="40" viewBox="0 0 60 40">
+            <rect x="0" y="8" width="12" height="24" rx="3" fill="currentColor" className="text-cyan-400" />
+            <rect x="16" y="2" width="12" height="36" rx="3" fill="currentColor" className="text-cyan-300" />
+            <rect x="32" y="12" width="12" height="16" rx="3" fill="currentColor" className="text-blue-400" />
+            <rect x="48" y="5" width="12" height="30" rx="3" fill="currentColor" className="text-blue-300" />
+          </svg>
+        </div>
+      ),
+    },
+    {
+      icon: <Globe size={28} />, title: '50+ Fun Voices',
+      desc: 'From soothing storytellers to energetic adventurers — find the perfect voice for every story.',
+      gradient: 'from-emerald-400 to-teal-500', glow: 'rgba(52,211,153,0.3)',
+      bgGlow: 'radial-gradient(circle at 40% 70%, rgba(52,211,153,0.12) 0%, transparent 60%)',
+      iconBg: 'from-emerald-400/20 to-teal-500/20', textAccent: 'text-emerald-400',
+      span: '',
+      visual: (
+        <div className="absolute right-4 bottom-3 opacity-15 group-hover:opacity-40 transition-opacity duration-500 flex gap-1">
+          {['🗣️','🎙️','🗣️'].map((e,i) => (
+            <span key={i} className="text-2xl animate-float" style={{ animationDelay: `${i * 0.5}s` }}>{e}</span>
+          ))}
+        </div>
+      ),
+    },
+    {
+      icon: <Download size={28} />, title: 'EPUB 3 Export',
+      desc: 'Download your creation as a standards-compliant audiobook — ready to share everywhere.',
+      gradient: 'from-rose-400 to-pink-500', glow: 'rgba(251,113,133,0.3)',
+      bgGlow: 'radial-gradient(circle at 60% 20%, rgba(251,113,133,0.12) 0%, transparent 60%)',
+      iconBg: 'from-rose-400/20 to-pink-500/20', textAccent: 'text-rose-400',
+      span: 'lg:col-span-2', // wider card
+      visual: (
+        <div className="absolute right-4 bottom-4 opacity-15 group-hover:opacity-40 transition-opacity duration-500">
+          <div className="relative">
+            <BookOpen size={44} className="text-rose-400" />
+            <Download size={18} className="text-pink-300 absolute -bottom-1 -right-1" />
+          </div>
+        </div>
+      ),
+    },
+    {
+      icon: <Sparkles size={28} />, title: 'Pretty Themes',
+      desc: 'Light, sepia, and dark modes with smooth word highlighting.',
+      gradient: 'from-fuchsia-400 to-purple-500', glow: 'rgba(232,121,249,0.3)',
+      bgGlow: 'radial-gradient(circle at 80% 50%, rgba(232,121,249,0.12) 0%, transparent 60%)',
+      iconBg: 'from-fuchsia-400/20 to-purple-500/20', textAccent: 'text-fuchsia-400',
+      span: '',
+      visual: (
+        <div className="absolute right-3 bottom-3 opacity-15 group-hover:opacity-40 transition-opacity duration-500 flex gap-1.5">
+          {[{bg:'bg-white border border-gray-200',s:20},{bg:'bg-amber-100',s:20},{bg:'bg-gray-900',s:20}].map((t,i) => (
+            <div key={i} className={`${t.bg} rounded-lg`} style={{ width: t.s, height: t.s + 6 }} />
+          ))}
+        </div>
+      ),
+    },
   ];
 
   const stats = [
@@ -229,32 +317,67 @@ export default function UploadPage() {
       </section>
 
       {/* ---- Features ---- */}
-      <section className="py-24 px-6 max-w-6xl mx-auto" id="features">
-        <div data-reveal-id="features-header" className={`text-center mb-14 ${revealCls('features-header')}`}>
-          <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-forest-50 mb-3.5">
+      <section className="py-28 px-6 max-w-6xl mx-auto relative" id="features">
+        {/* Section background glow */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[600px] rounded-full pointer-events-none opacity-30"
+          style={{ background: 'radial-gradient(circle, rgba(139,92,246,0.08) 0%, rgba(34,211,238,0.06) 30%, rgba(251,191,36,0.04) 60%, transparent 80%)' }} />
+
+        <div data-reveal-id="features-header" className={`text-center mb-16 relative z-10 ${revealCls('features-header')}`}>
+          <p className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full border border-forest-500/20 bg-forest-500/10 text-forest-300 text-xs font-medium mb-5">
+            <Zap size={13} />
+            Powerful features
+          </p>
+          <h2 className="text-4xl sm:text-5xl font-bold tracking-tight text-forest-50 mb-4 leading-tight">
             Everything you need to create<br />
-            <span className="bg-gradient-to-r from-forest-300 via-forest-400 to-candy-accent bg-clip-text text-transparent bg-[length:200%_200%] animate-gradient-shift">
+            <span className="bg-gradient-to-r from-violet-400 via-cyan-400 to-amber-400 bg-clip-text text-transparent bg-[length:200%_200%] animate-gradient-shift">
               synced audiobooks
             </span>
           </h2>
-          <p className="text-forest-200/50 text-lg max-w-md mx-auto">From upload to export — a complete toolkit in your browser.</p>
+          <p className="text-forest-200/50 text-lg max-w-lg mx-auto">From upload to export — a complete creative toolkit, right in your browser.</p>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 relative z-10">
           {features.map((f, i) => (
             <div key={i} data-reveal-id={`feat-${i}`}
-              className={`relative overflow-hidden rounded-2xl border border-forest-500/8 bg-forest-500/[0.03] p-8 group
-                hover:bg-forest-500/[0.08] hover:border-forest-500/20 hover:-translate-y-1.5 hover:scale-[1.02]
-                hover:shadow-[0_12px_40px_rgba(16,185,129,0.1)] transition-all duration-400 cursor-default
-                ${revealCls(`feat-${i}`, `delay-[${i * 80}ms]`)}`}>
-              <span className="absolute top-4 right-4 text-2xl opacity-30 group-hover:opacity-80 group-hover:scale-125 group-hover:rotate-12 transition-all duration-300">
-                {f.emoji}
-              </span>
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-forest-500/15 to-forest-400/15 flex items-center justify-center text-forest-400 mb-4
-                group-hover:scale-110 group-hover:-rotate-6 transition-transform duration-300">
+              className={`relative overflow-hidden rounded-2xl p-7 pb-8 group cursor-default
+                border border-white/[0.06] backdrop-blur-sm
+                hover:-translate-y-2 hover:scale-[1.02]
+                transition-all duration-500 ease-out
+                ${f.span}
+                ${revealCls(`feat-${i}`, `delay-[${i * 100}ms]`)}`}
+              style={{
+                background: f.bgGlow + ', rgba(255,255,255,0.02)',
+                boxShadow: `0 0 0 1px rgba(255,255,255,0.03)`,
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.boxShadow = `0 20px 60px -15px ${f.glow}, 0 0 0 1px rgba(255,255,255,0.08)`;
+                e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)';
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.boxShadow = '0 0 0 1px rgba(255,255,255,0.03)';
+                e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)';
+              }}
+            >
+              {/* Gradient border shimmer on hover */}
+              <div className="absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"
+                style={{ background: `linear-gradient(135deg, ${f.glow.replace('0.3','0.05')} 0%, transparent 50%, ${f.glow.replace('0.3','0.03')} 100%)` }} />
+
+              {/* Visual element */}
+              {f.visual}
+
+              {/* Icon */}
+              <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${f.iconBg} flex items-center justify-center ${f.textAccent} mb-5
+                group-hover:scale-110 group-hover:shadow-lg transition-all duration-300 relative z-10`}
+                style={{ boxShadow: `0 0 0 0 ${f.glow}` }}
+                onMouseEnter={e => e.currentTarget.style.boxShadow = `0 0 25px ${f.glow}`}
+                onMouseLeave={e => e.currentTarget.style.boxShadow = `0 0 0 0 ${f.glow}`}
+              >
                 {f.icon}
               </div>
-              <h3 className="text-base font-semibold text-forest-50 mb-2">{f.title}</h3>
-              <p className="text-sm text-forest-200/50 leading-relaxed">{f.desc}</p>
+
+              {/* Content */}
+              <h3 className="text-lg font-semibold text-forest-50 mb-2 relative z-10">{f.title}</h3>
+              <p className="text-sm text-forest-200/50 leading-relaxed relative z-10 max-w-sm">{f.desc}</p>
             </div>
           ))}
         </div>
