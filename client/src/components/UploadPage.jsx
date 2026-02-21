@@ -297,8 +297,8 @@ export default function UploadPage() {
               {/* === Inner page — VIDEO PREVIEW of the project (revealed as cover opens) === */}
               <div className="absolute overflow-hidden transition-opacity duration-500" style={{
                 top: '6px', bottom: '6px', left: '4px', right: '6px',
-                opacity: contentOpacity, zIndex: 5,
-                transform: 'translateZ(-12px)',
+                opacity: contentOpacity, zIndex: 8,
+                transform: 'translateZ(-1px)',
                 background: '#f9f5ea',
                 borderRadius: '0 4px 4px 0',
               }}>
@@ -445,21 +445,6 @@ export default function UploadPage() {
                   <div className="text-[10px] text-forest-200/40 mt-1 uppercase tracking-[0.2em]">Interactive Audio</div>
                   <p className="text-[11px] text-forest-200/30 mt-5 italic">↓ Scroll to open</p>
                 </div>
-              </div>
-
-              {/* === Front cover inner face (visible when cover > 90°) === */}
-              <div className="absolute inset-0" style={{
-                background: 'linear-gradient(135deg, #f5f0e6, #ebe5d4, #e2dac5)',
-                borderRadius: '3px 8px 8px 3px',
-                transformOrigin: 'left center',
-                transform: `rotateY(${-coverAngle + 180}deg)`,
-                backfaceVisibility: 'hidden',
-                zIndex: 10,
-                boxShadow: 'inset 0 0 20px rgba(0,0,0,0.05)',
-                transition: 'transform 0.1s ease-out',
-              }}>
-                <div className="absolute inset-4 border border-amber-800/10 rounded opacity-60" />
-                <div className="absolute inset-6 border border-amber-800/5 rounded" />
               </div>
             </div>
           </div>
