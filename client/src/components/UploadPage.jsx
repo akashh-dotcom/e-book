@@ -129,8 +129,6 @@ export default function UploadPage() {
   ];
 
   const coverAngle = bookOpen * 155;                              // 0° (closed) → 155° (wide open)
-  const pageSpread = bookOpen * 18;                               // pages fan out as book opens
-  const contentOpacity = Math.max(0, (bookOpen - 0.2) * 1.25);   // fade in from 20%→100%
   const coverShadow = 4 + bookOpen * 16;                         // shadow grows as cover lifts
 
   return (
@@ -362,73 +360,224 @@ export default function UploadPage() {
               </div>
             </div>
 
-            {/* ===== RIGHT PAGE — audio controls & waveform ===== */}
+            {/* ===== RIGHT SIDE — editor underneath, book page on top (flips to reveal) ===== */}
             <div className="absolute overflow-hidden" style={{
               top: 0, bottom: 0, right: 0, width: '50%',
               opacity: bookOpen,
               transition: 'opacity 0.3s',
             }}>
-              <div className="w-full h-full bg-[#faf5ec] rounded-r-md border border-l-0 border-[#d8cfb6] flex flex-col overflow-hidden">
-                {/* Top portion - continued text */}
-                <div className="px-3 py-2 border-b border-[#e8dfc9] flex items-center justify-between flex-shrink-0">
-                  <span className="text-[8px] text-[#8b7355] uppercase tracking-widest font-medium">Alice in Wonderland</span>
-                  <span className="text-[7px] text-[#b8a88a]">Page 2</span>
-                </div>
-                <div className="flex-1 px-4 py-3 overflow-hidden">
-                  <div className="text-[9px] leading-[1.85]" style={{ fontFamily: 'Georgia, serif', color: '#5a4a3a' }}>
-                    <p className="mb-2">So she was considering in her own mind (as well as she could, for the hot day made her feel very sleepy and stupid), whether the pleasure of making a daisy-chain would be worth the trouble of getting up and picking the daisies...</p>
-                    <p className="mb-2">when suddenly a White Rabbit with pink eyes ran close by her.</p>
-                    <p className="italic text-[#7a6b5a]">&ldquo;Oh dear! Oh dear! I shall be late!&rdquo;</p>
+              {/* Layer 1: Editor preview (underneath) — always present, revealed as page flips */}
+              <div className="absolute inset-0 z-0">
+                <div className="w-full h-full bg-white rounded-r-md border border-l-0 border-gray-200 flex flex-col overflow-hidden">
+                  {/* TopBar replica */}
+                  <div className="flex items-center justify-between px-2 py-1.5 border-b border-gray-200 bg-gray-50 flex-shrink-0">
+                    <div className="flex items-center gap-1.5">
+                      <Menu size={9} className="text-gray-400" />
+                      <span className="text-[8px] font-semibold text-gray-700 truncate">Alice in Wonderland</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <div className="w-4 h-4 rounded flex items-center justify-center bg-blue-50">
+                        <PenTool size={7} className="text-blue-500" />
+                      </div>
+                      <div className="w-4 h-4 rounded flex items-center justify-center">
+                        <Search size={7} className="text-gray-400" />
+                      </div>
+                      <div className="w-4 h-4 rounded flex items-center justify-center">
+                        <Settings size={7} className="text-gray-400" />
+                      </div>
+                      <div className="w-4 h-4 rounded flex items-center justify-center">
+                        <Bookmark size={7} className="text-gray-400" />
+                      </div>
+                    </div>
                   </div>
-                </div>
-                {/* Audio player bar */}
-                <div className="px-3 py-2.5 border-t border-[#e8dfc9] bg-[#f5eee0] flex-shrink-0">
-                  <div className="flex items-end gap-[1.5px] h-3.5 mb-2 justify-center">
-                    {[...Array(28)].map((_, i) => {
-                      const playing = bookOpen >= 0.5;
-                      const h = playing
-                        ? Math.abs(Math.sin((activeWord * 0.8 + i) * 0.7)) * 8 + 2
-                        : 2;
-                      return (
-                        <div key={i} className="w-[1.5px] rounded-full"
-                          style={{
-                            height: `${h}px`,
-                            background: playing ? '#8b5e34' : '#c4b496',
-                            opacity: playing ? 0.7 : 0.3,
-                            transition: 'height 0.2s ease',
+
+                  {/* Body: sidebar + content */}
+                  <div className="flex flex-1 overflow-hidden">
+                    {/* Mini sidebar */}
+                    <div className="flex-shrink-0 border-r border-gray-100 bg-gray-50/80 flex flex-col" style={{ width: '65px' }}>
+                      <div className="px-1.5 py-1.5 border-b border-gray-100">
+                        <div className="flex items-center gap-1">
+                          <List size={7} className="text-gray-400" />
+                          <span className="text-[6px] uppercase text-gray-400 font-semibold tracking-wide">Contents</span>
+                        </div>
+                      </div>
+                      <div className="flex-1 py-1 overflow-hidden">
+                        {['I. Down the Rab...', 'II. The Pool of...', 'III. A Caucus-R...', 'IV. The Rabbit...', 'V. Advice from...', 'VI. Pig and Pe...'].map((ch, i) => (
+                          <div key={i} className="px-1.5 py-[3px] text-[5px] truncate cursor-default"
+                            style={{
+                              color: i === 0 ? '#2563eb' : '#888',
+                              fontWeight: i === 0 ? 600 : 400,
+                              borderLeft: i === 0 ? '2px solid #2563eb' : '2px solid transparent',
+                              background: i === 0 ? 'rgba(37,99,235,0.05)' : 'transparent',
+                            }}>
+                            {ch}
+                          </div>
+                        ))}
+                      </div>
+                      <div className="px-1.5 py-1 border-t border-gray-100">
+                        <span className="text-[5px] text-gray-400">12 chapters</span>
+                      </div>
+                    </div>
+
+                    {/* Main content area */}
+                    <div className="flex-1 flex flex-col overflow-hidden">
+                      {/* Audio upload bar */}
+                      <div className="flex items-center gap-1 px-2 py-1.5 border-b border-gray-100 flex-shrink-0">
+                        <div className="text-[5px] px-1.5 py-0.5 rounded bg-green-50 text-green-600 font-medium border border-green-200">
+                          Audio synced
+                        </div>
+                        <div className="text-[5px] px-1.5 py-0.5 rounded bg-purple-50 text-purple-600 font-medium border border-purple-200">
+                          Auto-Sync
+                        </div>
+                      </div>
+
+                      {/* Chapter content with word highlights */}
+                      <div className="flex-1 px-3 py-2 overflow-hidden">
+                        <h4 className="text-[9px] font-bold text-gray-800 mb-1.5 pb-1 border-b border-gray-200"
+                          style={{ fontFamily: 'Georgia, serif' }}>
+                          CHAPTER I. Down the Rabbit-Hole
+                        </h4>
+                        <div className="text-[7.5px] leading-[1.75] flex flex-wrap gap-x-[2px] gap-y-[1px]"
+                          style={{ fontFamily: 'Georgia, serif' }}>
+                          {demoWords.map((word, i) => {
+                            const isActive = i === activeWord;
+                            const isPast = i < activeWord;
+                            return (
+                              <span key={`ed-${i}`}
+                                className="inline-block px-[1px] rounded-sm cursor-pointer"
+                                style={{
+                                  transition: 'all 0.2s ease',
+                                  background: isActive ? 'rgba(192, 57, 43, 0.12)' : 'transparent',
+                                  color: isActive ? '#c0392b' : isPast ? '#1a1a1a' : '#6b6b6b',
+                                  fontWeight: isActive ? 600 : 400,
+                                  transform: isActive ? 'scale(1.08)' : 'scale(1)',
+                                }}>
+                                {word}
+                              </span>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Audio bar replica */}
+                      <div className="flex items-center gap-1.5 px-2 py-1.5 border-t border-gray-200 bg-gray-50 flex-shrink-0">
+                        <div className="flex items-center gap-0.5">
+                          <div className="w-3 h-3 rounded-full flex items-center justify-center" style={{ border: '1px solid #ddd' }}>
+                            <SkipBack size={5} className="text-gray-400" />
+                          </div>
+                          <div className="w-4 h-4 rounded-full bg-blue-500 flex items-center justify-center shadow-sm">
+                            {isBookReady ? <Pause size={6} className="text-white" /> : <Play size={6} className="text-white ml-px" />}
+                          </div>
+                          <div className="w-3 h-3 rounded-full flex items-center justify-center" style={{ border: '1px solid #ddd' }}>
+                            <SkipForward size={5} className="text-gray-400" />
+                          </div>
+                        </div>
+                        <div className="flex-1 h-[3px] bg-gray-200 rounded-full overflow-hidden relative">
+                          <div className="h-full bg-blue-500 rounded-full" style={{
+                            width: `${(activeWord / demoWords.length) * 100}%`,
+                            transition: 'width 0.4s linear',
                           }} />
-                      );
-                    })}
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <div className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0"
-                      style={{ background: '#8b5e34' }}>
-                      {isBookReady ? <Pause size={7} className="text-white" /> : <Play size={7} className="text-white ml-px" />}
+                        </div>
+                        <span className="text-[6px] text-gray-400 font-mono tabular-nums">
+                          {`0:${String(Math.floor(activeWord * 0.6)).padStart(2, '0')}`} / 0:25
+                        </span>
+                        <div className="text-[5px] px-1 py-0.5 rounded border border-gray-200 bg-white text-gray-500 font-semibold">
+                          1x
+                        </div>
+                      </div>
+
+                      {/* Bottom bar replica */}
+                      <div className="flex items-center justify-center gap-2 px-2 py-1 border-t border-gray-200 bg-white flex-shrink-0">
+                        <ChevronLeft size={7} className="text-gray-300" />
+                        <span className="text-[5px] text-gray-400 truncate">Chapter I</span>
+                        <span className="text-[5px] text-gray-400">1 of 12</span>
+                        <div className="w-10 h-[2px] bg-gray-200 rounded-full overflow-hidden">
+                          <div className="h-full bg-blue-500 rounded-full" style={{ width: '8%' }} />
+                        </div>
+                        <span className="text-[5px] text-gray-400">8%</span>
+                        <ChevronRight size={7} className="text-gray-400" />
+                      </div>
                     </div>
-                    <div className="flex-1 h-[2px] bg-[#d8cfb6] rounded-full overflow-hidden">
-                      <div className="h-full rounded-full" style={{
-                        background: '#8b5e34',
-                        width: `${(activeWord / demoWords.length) * 100}%`,
-                        transition: 'width 0.4s linear',
-                      }} />
-                    </div>
-                    <span className="text-[7px] font-mono tabular-nums" style={{ color: '#8b7355' }}>
-                      {`0:${String(Math.floor(activeWord * 0.6)).padStart(2, '0')}`} / 0:25
-                    </span>
                   </div>
                 </div>
-                {/* Page footer */}
-                <div className="px-3 py-1.5 border-t border-[#e8dfc9] flex-shrink-0 flex justify-center">
-                  <span className="text-[7px] text-[#b8a88a]">— 2 —</span>
+              </div>
+
+              {/* Layer 2: Book page (on top) — flips left to reveal editor underneath */}
+              <div className="absolute inset-0 z-10" style={{ perspective: '1600px' }}>
+                <div className="absolute inset-0 flex flex-col overflow-hidden" style={{
+                  background: '#faf5ec',
+                  borderRadius: '0 6px 6px 0',
+                  border: '1px solid #d8cfb6',
+                  transformOrigin: 'left center',
+                  transform: `rotateY(${-pageTurn * 180}deg)`,
+                  backfaceVisibility: 'hidden',
+                  transition: 'transform 0.08s ease-out',
+                  boxShadow: pageTurn > 0.02
+                    ? `${-4 - pageTurn * 10}px 2px ${8 + pageTurn * 14}px rgba(0,0,0,${0.1 + pageTurn * 0.2})`
+                    : '1px 0 3px rgba(0,0,0,0.06)',
+                }}>
+                  {/* Book page header */}
+                  <div className="px-3 py-2 border-b border-[#e8dfc9] flex items-center justify-between flex-shrink-0">
+                    <span className="text-[8px] text-[#8b7355] uppercase tracking-widest font-medium">Alice in Wonderland</span>
+                    <span className="text-[7px] text-[#b8a88a]">Page 2</span>
+                  </div>
+                  {/* Book page text */}
+                  <div className="flex-1 px-4 py-3 overflow-hidden">
+                    <div className="text-[9px] leading-[1.85]" style={{ fontFamily: 'Georgia, serif', color: '#5a4a3a' }}>
+                      <p className="mb-2">So she was considering in her own mind (as well as she could, for the hot day made her feel very sleepy and stupid), whether the pleasure of making a daisy-chain would be worth the trouble of getting up and picking the daisies...</p>
+                      <p className="mb-2">when suddenly a White Rabbit with pink eyes ran close by her.</p>
+                      <p className="italic text-[#7a6b5a]">&ldquo;Oh dear! Oh dear! I shall be late!&rdquo;</p>
+                    </div>
+                  </div>
+                  {/* Audio waveform + controls */}
+                  <div className="px-3 py-2.5 border-t border-[#e8dfc9] bg-[#f5eee0] flex-shrink-0">
+                    <div className="flex items-end gap-[1.5px] h-3.5 mb-2 justify-center">
+                      {[...Array(28)].map((_, i) => {
+                        const playing = bookOpen >= 0.5;
+                        const h = playing
+                          ? Math.abs(Math.sin((activeWord * 0.8 + i) * 0.7)) * 8 + 2
+                          : 2;
+                        return (
+                          <div key={i} className="w-[1.5px] rounded-full"
+                            style={{
+                              height: `${h}px`,
+                              background: playing ? '#8b5e34' : '#c4b496',
+                              opacity: playing ? 0.7 : 0.3,
+                              transition: 'height 0.2s ease',
+                            }} />
+                        );
+                      })}
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0"
+                        style={{ background: '#8b5e34' }}>
+                        {isBookReady ? <Pause size={7} className="text-white" /> : <Play size={7} className="text-white ml-px" />}
+                      </div>
+                      <div className="flex-1 h-[2px] bg-[#d8cfb6] rounded-full overflow-hidden">
+                        <div className="h-full rounded-full" style={{
+                          background: '#8b5e34',
+                          width: `${(activeWord / demoWords.length) * 100}%`,
+                          transition: 'width 0.4s linear',
+                        }} />
+                      </div>
+                      <span className="text-[7px] font-mono tabular-nums" style={{ color: '#8b7355' }}>
+                        {`0:${String(Math.floor(activeWord * 0.6)).padStart(2, '0')}`} / 0:25
+                      </span>
+                    </div>
+                  </div>
+                  {/* Page footer */}
+                  <div className="px-3 py-1.5 border-t border-[#e8dfc9] flex-shrink-0 flex justify-center">
+                    <span className="text-[7px] text-[#b8a88a]">— 2 —</span>
+                  </div>
                 </div>
               </div>
             </div>
 
-            {/* ===== FRONT COVER (opens to reveal pages) ===== */}
-            <div className="absolute overflow-hidden" style={{
+            {/* ===== FRONT COVER (right side, swings open to the right) ===== */}
+            <div className="absolute" style={{
               top: 0, bottom: 0, right: 0, width: '50%',
               perspective: '1200px',
-              zIndex: 20,
+              zIndex: 25,
               pointerEvents: 'none',
             }}>
               <div className="absolute inset-0 flex items-center justify-center" style={{
@@ -451,11 +600,11 @@ export default function UploadPage() {
               </div>
             </div>
 
-            {/* ===== BACK COVER (left side, opens outward) ===== */}
-            <div className="absolute overflow-hidden" style={{
+            {/* ===== BACK COVER (left side, swings open to the left) ===== */}
+            <div className="absolute" style={{
               top: 0, bottom: 0, left: 0, width: '50%',
               perspective: '1200px',
-              zIndex: 20,
+              zIndex: 25,
               pointerEvents: 'none',
             }}>
               <div className="absolute inset-0" style={{
@@ -469,187 +618,6 @@ export default function UploadPage() {
                 transition: 'transform 0.1s ease-out',
               }} />
             </div>
-
-            {/* ===== PAGE TURN OVERLAY — flips right page to reveal editor ===== */}
-            {bookOpen > 0.9 && (
-              <>
-                {/* Editor preview (underneath the turning page) */}
-                <div className="absolute overflow-hidden" style={{
-                  top: 0, bottom: 0, right: 0, width: '50%',
-                  opacity: pageTurn,
-                  zIndex: 14,
-                }}>
-                  {/* Mini replica of the actual VoxBook editor UI */}
-                  <div className="w-full h-full bg-white rounded-r-md border border-l-0 border-gray-200 flex flex-col overflow-hidden">
-                    {/* TopBar replica */}
-                    <div className="flex items-center justify-between px-2 py-1.5 border-b border-gray-200 bg-gray-50 flex-shrink-0">
-                      <div className="flex items-center gap-1.5">
-                        <Menu size={9} className="text-gray-400" />
-                        <span className="text-[8px] font-semibold text-gray-700 truncate">Alice in Wonderland</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <div className="w-4 h-4 rounded flex items-center justify-center bg-blue-50">
-                          <PenTool size={7} className="text-blue-500" />
-                        </div>
-                        <div className="w-4 h-4 rounded flex items-center justify-center hover:bg-gray-100">
-                          <Search size={7} className="text-gray-400" />
-                        </div>
-                        <div className="w-4 h-4 rounded flex items-center justify-center hover:bg-gray-100">
-                          <Settings size={7} className="text-gray-400" />
-                        </div>
-                        <div className="w-4 h-4 rounded flex items-center justify-center hover:bg-gray-100">
-                          <Bookmark size={7} className="text-gray-400" />
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Body: sidebar + content */}
-                    <div className="flex flex-1 overflow-hidden">
-                      {/* Mini sidebar */}
-                      <div className="flex-shrink-0 border-r border-gray-100 bg-gray-50/80 flex flex-col" style={{ width: '65px' }}>
-                        <div className="px-1.5 py-1.5 border-b border-gray-100">
-                          <div className="flex items-center gap-1">
-                            <List size={7} className="text-gray-400" />
-                            <span className="text-[6px] uppercase text-gray-400 font-semibold tracking-wide">Contents</span>
-                          </div>
-                        </div>
-                        <div className="flex-1 py-1 overflow-hidden">
-                          {['I. Down the Rab...', 'II. The Pool of...', 'III. A Caucus-R...', 'IV. The Rabbit...', 'V. Advice from...', 'VI. Pig and Pe...'].map((ch, i) => (
-                            <div key={i} className="px-1.5 py-[3px] text-[5px] truncate cursor-default"
-                              style={{
-                                color: i === 0 ? '#2563eb' : '#888',
-                                fontWeight: i === 0 ? 600 : 400,
-                                borderLeft: i === 0 ? '2px solid #2563eb' : '2px solid transparent',
-                                background: i === 0 ? 'rgba(37,99,235,0.05)' : 'transparent',
-                              }}>
-                              {ch}
-                            </div>
-                          ))}
-                        </div>
-                        <div className="px-1.5 py-1 border-t border-gray-100">
-                          <span className="text-[5px] text-gray-400">12 chapters</span>
-                        </div>
-                      </div>
-
-                      {/* Main content area */}
-                      <div className="flex-1 flex flex-col overflow-hidden">
-                        {/* Audio upload bar */}
-                        <div className="flex items-center gap-1 px-2 py-1.5 border-b border-gray-100 flex-shrink-0">
-                          <div className="text-[5px] px-1.5 py-0.5 rounded bg-green-50 text-green-600 font-medium border border-green-200">
-                            Audio synced
-                          </div>
-                          <div className="text-[5px] px-1.5 py-0.5 rounded bg-purple-50 text-purple-600 font-medium border border-purple-200">
-                            Auto-Sync
-                          </div>
-                        </div>
-
-                        {/* Chapter content with word highlights */}
-                        <div className="flex-1 px-3 py-2 overflow-hidden">
-                          <h4 className="text-[9px] font-bold text-gray-800 mb-1.5 pb-1 border-b border-gray-200"
-                            style={{ fontFamily: 'Georgia, serif' }}>
-                            CHAPTER I. Down the Rabbit-Hole
-                          </h4>
-                          <div className="text-[7.5px] leading-[1.75] flex flex-wrap gap-x-[2px] gap-y-[1px]"
-                            style={{ fontFamily: 'Georgia, serif' }}>
-                            {demoWords.map((word, i) => {
-                              const isActive = i === activeWord;
-                              const isPast = i < activeWord;
-                              return (
-                                <span key={`ed-${i}`}
-                                  className="inline-block px-[1px] rounded-sm cursor-pointer"
-                                  style={{
-                                    transition: 'all 0.2s ease',
-                                    background: isActive ? 'rgba(192, 57, 43, 0.12)' : isPast ? 'transparent' : 'transparent',
-                                    color: isActive ? '#c0392b' : isPast ? '#1a1a1a' : '#6b6b6b',
-                                    fontWeight: isActive ? 600 : 400,
-                                    transform: isActive ? 'scale(1.08)' : 'scale(1)',
-                                  }}>
-                                  {word}
-                                </span>
-                              );
-                            })}
-                          </div>
-                        </div>
-
-                        {/* Audio bar replica */}
-                        <div className="flex items-center gap-1.5 px-2 py-1.5 border-t border-gray-200 bg-gray-50 flex-shrink-0">
-                          <div className="flex items-center gap-0.5">
-                            <div className="w-3 h-3 rounded-full flex items-center justify-center" style={{ border: '1px solid #ddd' }}>
-                              <SkipBack size={5} className="text-gray-400" />
-                            </div>
-                            <div className="w-4 h-4 rounded-full bg-blue-500 flex items-center justify-center shadow-sm">
-                              {isBookReady ? <Pause size={6} className="text-white" /> : <Play size={6} className="text-white ml-px" />}
-                            </div>
-                            <div className="w-3 h-3 rounded-full flex items-center justify-center" style={{ border: '1px solid #ddd' }}>
-                              <SkipForward size={5} className="text-gray-400" />
-                            </div>
-                          </div>
-                          <div className="flex-1 h-[3px] bg-gray-200 rounded-full overflow-hidden relative">
-                            <div className="h-full bg-blue-500 rounded-full" style={{
-                              width: `${(activeWord / demoWords.length) * 100}%`,
-                              transition: 'width 0.4s linear',
-                            }} />
-                          </div>
-                          <span className="text-[6px] text-gray-400 font-mono tabular-nums">
-                            {`0:${String(Math.floor(activeWord * 0.6)).padStart(2, '0')}`} / 0:25
-                          </span>
-                          <div className="text-[5px] px-1 py-0.5 rounded border border-gray-200 bg-white text-gray-500 font-semibold">
-                            1x
-                          </div>
-                        </div>
-
-                        {/* Bottom bar replica */}
-                        <div className="flex items-center justify-center gap-2 px-2 py-1 border-t border-gray-200 bg-white flex-shrink-0">
-                          <ChevronLeft size={7} className="text-gray-300" />
-                          <span className="text-[5px] text-gray-400 truncate">Chapter I</span>
-                          <span className="text-[5px] text-gray-400">1 of 12</span>
-                          <div className="w-10 h-[2px] bg-gray-200 rounded-full overflow-hidden">
-                            <div className="h-full bg-blue-500 rounded-full" style={{ width: '8%' }} />
-                          </div>
-                          <span className="text-[5px] text-gray-400">8%</span>
-                          <ChevronRight size={7} className="text-gray-400" />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* The turning page (right page flips left to reveal editor) */}
-                <div className="absolute overflow-hidden" style={{
-                  top: 0, bottom: 0, right: 0, width: '50%',
-                  perspective: '1600px',
-                  zIndex: pageTurn < 0.98 ? 16 : 12,
-                  pointerEvents: 'none',
-                }}>
-                  <div className="absolute inset-0 flex flex-col overflow-hidden" style={{
-                    background: '#faf5ec',
-                    borderRadius: '0 6px 6px 0',
-                    border: '1px solid #d8cfb6',
-                    transformOrigin: 'left center',
-                    transform: `rotateY(${-pageTurn * 180}deg)`,
-                    backfaceVisibility: 'hidden',
-                    transition: 'transform 0.08s ease-out',
-                    boxShadow: pageTurn > 0.05 ? `${-4 - pageTurn * 8}px 2px ${8 + pageTurn * 12}px rgba(0,0,0,${0.08 + pageTurn * 0.15})` : 'none',
-                  }}>
-                    {/* Same content as right page (visible before flip) */}
-                    <div className="px-3 py-2 border-b border-[#e8dfc9] flex items-center justify-between flex-shrink-0">
-                      <span className="text-[8px] text-[#8b7355] uppercase tracking-widest font-medium">Alice in Wonderland</span>
-                      <span className="text-[7px] text-[#b8a88a]">Page 2</span>
-                    </div>
-                    <div className="flex-1 px-4 py-3 overflow-hidden">
-                      <div className="text-[9px] leading-[1.85]" style={{ fontFamily: 'Georgia, serif', color: '#5a4a3a' }}>
-                        <p className="mb-2">So she was considering in her own mind (as well as she could, for the hot day made her feel very sleepy and stupid), whether the pleasure of making a daisy-chain would be worth the trouble of getting up and picking the daisies...</p>
-                        <p className="mb-2">when suddenly a White Rabbit with pink eyes ran close by her.</p>
-                        <p className="italic text-[#7a6b5a]">&ldquo;Oh dear! Oh dear! I shall be late!&rdquo;</p>
-                      </div>
-                    </div>
-                    <div className="px-3 py-1.5 border-t border-[#e8dfc9] flex-shrink-0 flex justify-center">
-                      <span className="text-[7px] text-[#b8a88a]">— 2 —</span>
-                    </div>
-                  </div>
-                </div>
-              </>
-            )}
           </div>
         </div>
       </section>
