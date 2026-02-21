@@ -1,11 +1,10 @@
 import { useState, useRef, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import {
   Upload, BookOpen, Headphones, Wand2, Download,
-  ChevronRight, Sparkles, AudioLines, Globe,
+  ChevronRight, Sparkles, AudioLines, Globe, LayoutDashboard,
 } from 'lucide-react';
 import useBookStore from '../store/bookStore';
-import Library from './Library';
 
 export default function UploadPage() {
   const [dragOver, setDragOver] = useState(false);
@@ -98,7 +97,12 @@ export default function UploadPage() {
           <div className="landing-nav-links">
             <a href="#features">Features</a>
             <a href="#upload">Get Started</a>
-            {books.length > 0 && <a href="#library">Library</a>}
+            {books.length > 0 && (
+              <Link to="/dashboard" className="landing-nav-dashboard">
+                <LayoutDashboard size={15} />
+                Dashboard
+              </Link>
+            )}
           </div>
           <div className="landing-nav-actions">
             <button className="landing-btn-ghost" disabled title="Coming soon">Log in</button>
@@ -149,6 +153,47 @@ export default function UploadPage() {
         </div>
       </section>
 
+      {/* ---- Showcase (converted books) ---- */}
+      {books.length > 0 && (
+        <section className="landing-showcase reveal">
+          <div className="landing-section-header">
+            <h2>Recently converted</h2>
+            <p>Books from your library, ready to read and listen.</p>
+          </div>
+          <div className="landing-showcase-scroll">
+            <div className="landing-showcase-track">
+              {books.slice(0, 8).map((book, i) => (
+                <Link
+                  key={book._id}
+                  to={`/read/${book._id}`}
+                  className="landing-showcase-item reveal"
+                  style={{ transitionDelay: `${i * 80}ms` }}
+                >
+                  <div className="landing-showcase-cover">
+                    {book.cover ? (
+                      <img
+                        src={`/storage/books/${book._id}/assets/${book.cover}`}
+                        alt={book.title}
+                        draggable={false}
+                      />
+                    ) : (
+                      <BookOpen size={32} />
+                    )}
+                  </div>
+                  <span className="landing-showcase-title">{book.title}</span>
+                </Link>
+              ))}
+            </div>
+          </div>
+          <div className="landing-showcase-cta">
+            <Link to="/dashboard" className="landing-btn-ghost">
+              View all in Dashboard
+              <ChevronRight size={16} />
+            </Link>
+          </div>
+        </section>
+      )}
+
       {/* ---- Upload CTA ---- */}
       <section className="landing-upload-section" id="upload">
         <div className="landing-section-header reveal">
@@ -189,13 +234,6 @@ export default function UploadPage() {
           />
         </div>
       </section>
-
-      {/* ---- Library ---- */}
-      {books.length > 0 && (
-        <section className="landing-library" id="library">
-          <Library />
-        </section>
-      )}
 
       {/* ---- Footer ---- */}
       <footer className="landing-footer">
