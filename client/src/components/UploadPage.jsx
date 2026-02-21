@@ -631,33 +631,186 @@ export default function UploadPage() {
       </section>
 
       {/* ---- How it works ---- */}
-      <section className="py-24 px-6 max-w-5xl mx-auto">
-        <div data-reveal-id="steps-header" className={`text-center mb-14 ${revealCls('steps-header')}`}>
-          <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-forest-50 mb-3.5">How it works</h2>
-          <p className="text-forest-200/50 text-lg">Three simple steps to your synced audiobook</p>
+      <section className="py-28 px-6 max-w-6xl mx-auto relative overflow-hidden">
+        {/* Background glow */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[700px] pointer-events-none opacity-25"
+          style={{ background: 'radial-gradient(circle, rgba(16,185,129,0.12) 0%, rgba(52,211,153,0.06) 40%, transparent 70%)' }} />
+
+        <div data-reveal-id="steps-header" className={`text-center mb-20 relative z-10 ${revealCls('steps-header')}`}>
+          <p className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full border border-forest-500/20 bg-forest-500/10 text-forest-300 text-xs font-medium mb-5">
+            <Zap size={13} />
+            Simple process
+          </p>
+          <h2 className="text-4xl sm:text-5xl font-bold tracking-tight text-forest-50 mb-4 leading-tight">
+            How it{' '}
+            <span className="bg-gradient-to-r from-forest-300 via-forest-400 to-candy-accent bg-clip-text text-transparent bg-[length:200%_200%] animate-gradient-shift">
+              works
+            </span>
+          </h2>
+          <p className="text-forest-200/50 text-lg max-w-md mx-auto">Three simple steps to your synced audiobook</p>
         </div>
-        <div className="flex flex-col md:flex-row items-center justify-center gap-4 md:gap-0">
-          {steps.map((s, i) => (
-            <div key={i} className="contents">
-              <div data-reveal-id={`step-${i}`}
-                className={`relative bg-forest-500/[0.04] border border-forest-500/10 rounded-2xl p-8 text-center flex-1 max-w-[280px]
-                  hover:bg-forest-500/[0.08] hover:-translate-y-2 hover:shadow-[0_8px_30px_rgba(16,185,129,0.12)] transition-all duration-300 group
-                  ${revealCls(`step-${i}`, `delay-[${i * 150}ms]`)}`}>
-                <div className="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-candy-accent text-white text-sm font-bold flex items-center justify-center shadow-lg animate-pop"
-                  style={{ animationDelay: `${0.5 + i * 0.2}s` }}>
-                  {s.num}
-                </div>
-                <div className="text-4xl mb-3 group-hover:animate-bounce">{s.emoji}</div>
-                <h3 className="text-lg font-semibold text-forest-50 mb-2">{s.title}</h3>
-                <p className="text-sm text-forest-200/50 leading-relaxed">{s.desc}</p>
-              </div>
-              {i < 2 && (
-                <div className="text-forest-500/30 mx-2 hidden md:flex">
-                  <ChevronRight size={24} />
-                </div>
-              )}
+
+        {/* Circular infographic layout */}
+        <div className="relative z-10 flex flex-col lg:flex-row items-center justify-center gap-16 lg:gap-24">
+
+          {/* Left: Donut chart / circle */}
+          <div data-reveal-id="circle-chart" className={`relative flex-shrink-0 ${revealCls('circle-chart')}`}>
+            {/* Outer rotating ring */}
+            <div className="absolute -inset-5 rounded-full animate-spin-slow pointer-events-none">
+              <svg width="100%" height="100%" viewBox="0 0 320 320">
+                <circle cx="160" cy="160" r="155" fill="none" stroke="rgba(16,185,129,0.06)" strokeWidth="1" strokeDasharray="8 12" />
+              </svg>
             </div>
-          ))}
+
+            {/* Orbiting dots on the rotating ring */}
+            <div className="absolute -inset-5 rounded-full animate-spin-slow pointer-events-none" style={{ animationDuration: '25s' }}>
+              <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-forest-400/60" />
+              <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 w-1.5 h-1.5 rounded-full bg-candy-accent/40" />
+              <div className="absolute top-1/2 left-0 -translate-x-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-blue-400/40" />
+            </div>
+
+            {/* Main donut SVG */}
+            <div className="relative w-[260px] h-[260px] sm:w-[300px] sm:h-[300px]">
+              <svg viewBox="0 0 200 200" className="w-full h-full -rotate-90">
+                {/* Background circle */}
+                <circle cx="100" cy="100" r="85" fill="none" stroke="rgba(255,255,255,0.03)" strokeWidth="22" />
+
+                {/* Segment 1: Upload - Forest green */}
+                <circle cx="100" cy="100" r="85" fill="none"
+                  stroke="url(#grad1)" strokeWidth="22" strokeLinecap="round"
+                  strokeDasharray={`${(1/3) * 2 * Math.PI * 85 - 12} ${2 * Math.PI * 85}`}
+                  strokeDashoffset="0"
+                  className="transition-all duration-1000"
+                  style={{ filter: 'drop-shadow(0 0 8px rgba(16,185,129,0.3))' }} />
+
+                {/* Segment 2: Generate - Violet */}
+                <circle cx="100" cy="100" r="85" fill="none"
+                  stroke="url(#grad2)" strokeWidth="22" strokeLinecap="round"
+                  strokeDasharray={`${(1/3) * 2 * Math.PI * 85 - 12} ${2 * Math.PI * 85}`}
+                  strokeDashoffset={`${-(1/3) * 2 * Math.PI * 85}`}
+                  className="transition-all duration-1000"
+                  style={{ filter: 'drop-shadow(0 0 8px rgba(139,92,246,0.3))' }} />
+
+                {/* Segment 3: Enjoy - Amber */}
+                <circle cx="100" cy="100" r="85" fill="none"
+                  stroke="url(#grad3)" strokeWidth="22" strokeLinecap="round"
+                  strokeDasharray={`${(1/3) * 2 * Math.PI * 85 - 12} ${2 * Math.PI * 85}`}
+                  strokeDashoffset={`${-(2/3) * 2 * Math.PI * 85}`}
+                  className="transition-all duration-1000"
+                  style={{ filter: 'drop-shadow(0 0 8px rgba(251,191,36,0.3))' }} />
+
+                {/* Gradient definitions */}
+                <defs>
+                  <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stopColor="#10b981" />
+                    <stop offset="100%" stopColor="#34d399" />
+                  </linearGradient>
+                  <linearGradient id="grad2" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stopColor="#8b5cf6" />
+                    <stop offset="100%" stopColor="#a78bfa" />
+                  </linearGradient>
+                  <linearGradient id="grad3" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stopColor="#f59e0b" />
+                    <stop offset="100%" stopColor="#fbbf24" />
+                  </linearGradient>
+                </defs>
+              </svg>
+
+              {/* Center content */}
+              <div className="absolute inset-0 flex flex-col items-center justify-center">
+                <div className="w-28 h-28 sm:w-32 sm:h-32 rounded-full bg-forest-950/90 border border-white/[0.06] flex flex-col items-center justify-center gap-1.5 shadow-xl">
+                  <BookOpen size={28} className="text-forest-400" />
+                  <span className="text-forest-100 font-bold text-sm tracking-tight">VoxBook</span>
+                  <span className="text-[10px] text-forest-300/50">3 Steps</span>
+                </div>
+              </div>
+
+              {/* Step number badges positioned on the donut */}
+              {/* Step 1: top-right */}
+              <div className="absolute animate-scale-in" style={{ top: '2%', right: '8%', animationDelay: '0.3s' }}>
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-forest-500 to-forest-400 flex items-center justify-center text-white font-bold text-sm shadow-lg shadow-forest-500/30 animate-glow-ring">
+                  1
+                </div>
+              </div>
+              {/* Step 2: bottom-left */}
+              <div className="absolute animate-scale-in" style={{ bottom: '2%', left: '2%', animationDelay: '0.6s' }}>
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-violet-500 to-violet-400 flex items-center justify-center text-white font-bold text-sm shadow-lg shadow-violet-500/30"
+                  style={{ boxShadow: '0 0 0 0 rgba(139,92,246,0.4)', animation: 'glowRing 2s ease-in-out infinite' }}>
+                  2
+                </div>
+              </div>
+              {/* Step 3: bottom-right */}
+              <div className="absolute animate-scale-in" style={{ bottom: '2%', right: '2%', animationDelay: '0.9s' }}>
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-amber-500 to-amber-400 flex items-center justify-center text-white font-bold text-sm shadow-lg shadow-amber-500/30"
+                  style={{ boxShadow: '0 0 0 0 rgba(251,191,36,0.4)', animation: 'glowRing 2s ease-in-out infinite 0.5s' }}>
+                  3
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Right: Step cards connected with lines */}
+          <div className="flex flex-col gap-6 lg:gap-5 w-full max-w-[380px]">
+            {[
+              { num: '1', emoji: '📤', title: 'Upload your EPUB', desc: 'Drop your EPUB file and we parse every chapter, image, and metadata instantly — no config needed.', color: 'from-forest-500 to-forest-400', border: 'border-forest-500/20', glow: 'rgba(16,185,129,0.15)', accent: 'text-forest-400', dot: 'bg-forest-400' },
+              { num: '2', emoji: '🤖', title: 'AI generates audio', desc: 'Our AI creates natural narration and syncs every word to the audio timeline automatically.', color: 'from-violet-500 to-violet-400', border: 'border-violet-500/20', glow: 'rgba(139,92,246,0.15)', accent: 'text-violet-400', dot: 'bg-violet-400' },
+              { num: '3', emoji: '🎉', title: 'Read, listen & export', desc: 'Enjoy word-level highlights as you listen, then export as a standards-compliant EPUB 3 audiobook!', color: 'from-amber-500 to-amber-400', border: 'border-amber-500/20', glow: 'rgba(251,191,36,0.15)', accent: 'text-amber-400', dot: 'bg-amber-400' },
+            ].map((s, i) => (
+              <div key={i} data-reveal-id={`step-${i}`}
+                className={`relative group animate-fade-in-up ${revealCls(`step-${i}`, `delay-[${i * 200}ms]`)}`}
+                style={{ animationDelay: `${0.2 + i * 0.2}s` }}>
+
+                {/* Connector line (vertical) between cards */}
+                {i < 2 && (
+                  <div className="hidden lg:block absolute left-[23px] top-full w-[2px] h-5 z-0"
+                    style={{ background: `linear-gradient(to bottom, ${s.glow}, transparent)` }} />
+                )}
+
+                <div className={`relative flex gap-4 items-start p-5 rounded-2xl border ${s.border}
+                  hover:-translate-y-1 hover:scale-[1.02] transition-all duration-400 cursor-default overflow-hidden`}
+                  style={{ background: `radial-gradient(circle at 0% 50%, ${s.glow} 0%, transparent 60%), rgba(255,255,255,0.02)` }}
+                  onMouseEnter={e => e.currentTarget.style.boxShadow = `0 16px 50px -12px ${s.glow}, 0 0 0 1px rgba(255,255,255,0.08)`}
+                  onMouseLeave={e => e.currentTarget.style.boxShadow = 'none'}
+                >
+                  {/* Shimmer overlay on hover */}
+                  <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"
+                    style={{ background: `linear-gradient(135deg, ${s.glow.replace('0.15','0.05')} 0%, transparent 50%)` }} />
+
+                  {/* Number circle with icon */}
+                  <div className="flex-shrink-0 relative z-10">
+                    <div className={`w-[46px] h-[46px] rounded-xl bg-gradient-to-br ${s.color} flex items-center justify-center shadow-lg
+                      group-hover:scale-110 group-hover:rotate-3 transition-all duration-300`}
+                      style={{ boxShadow: `0 4px 20px ${s.glow}` }}>
+                      <span className="text-xl">{s.emoji}</span>
+                    </div>
+                    {/* Step number badge */}
+                    <div className={`absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-gradient-to-br ${s.color} flex items-center justify-center
+                      text-[10px] font-bold text-white shadow-md border-2 border-forest-950`}>
+                      {s.num}
+                    </div>
+                  </div>
+
+                  {/* Text content */}
+                  <div className="flex-1 relative z-10 min-w-0">
+                    <h3 className={`text-base font-semibold text-forest-50 mb-1.5 flex items-center gap-2`}>
+                      {s.title}
+                      <span className={`w-1.5 h-1.5 rounded-full ${s.dot} animate-pulse`} />
+                    </h3>
+                    <p className="text-sm text-forest-200/50 leading-relaxed">{s.desc}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+
+            {/* CTA below steps */}
+            <div data-reveal-id="steps-cta" className={`mt-2 ${revealCls('steps-cta', 'delay-[700ms]')}`}>
+              <a href="#upload"
+                className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-gradient-to-r from-forest-500 to-forest-400 text-forest-950 font-semibold text-sm no-underline
+                  hover:scale-105 hover:shadow-[0_8px_30px_rgba(16,185,129,0.3)] transition-all duration-300">
+                Get Started Now <ChevronRight size={16} />
+              </a>
+            </div>
+          </div>
         </div>
       </section>
 
