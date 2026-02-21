@@ -680,35 +680,35 @@ export default function UploadPage() {
 
                 {/* Segment 1: Upload - Forest green */}
                 <circle cx="100" cy="100" r="85" fill="none"
-                  stroke="url(#grad1)" strokeWidth={hoveredStep === 0 ? 28 : 22} strokeLinecap="round"
+                  stroke="url(#grad1)" strokeWidth={hoveredStep === 0 ? 25 : 22} strokeLinecap="round"
                   strokeDasharray={`${(1/3) * 2 * Math.PI * 85 - 12} ${2 * Math.PI * 85}`}
                   strokeDashoffset="0"
                   className="transition-all duration-500"
                   style={{
-                    filter: hoveredStep === 0 ? 'drop-shadow(0 0 16px rgba(16,185,129,0.6))' : hoveredStep === -1 ? 'drop-shadow(0 0 8px rgba(16,185,129,0.3))' : 'drop-shadow(0 0 4px rgba(16,185,129,0.1))',
-                    opacity: hoveredStep !== -1 && hoveredStep !== 0 ? 0.3 : 1,
+                    filter: hoveredStep === 0 ? 'drop-shadow(0 0 10px rgba(16,185,129,0.25))' : 'drop-shadow(0 0 6px rgba(16,185,129,0.15))',
+                    opacity: hoveredStep !== -1 && hoveredStep !== 0 ? 0.35 : 1,
                   }} />
 
                 {/* Segment 2: Generate - Violet */}
                 <circle cx="100" cy="100" r="85" fill="none"
-                  stroke="url(#grad2)" strokeWidth={hoveredStep === 1 ? 28 : 22} strokeLinecap="round"
+                  stroke="url(#grad2)" strokeWidth={hoveredStep === 1 ? 25 : 22} strokeLinecap="round"
                   strokeDasharray={`${(1/3) * 2 * Math.PI * 85 - 12} ${2 * Math.PI * 85}`}
                   strokeDashoffset={`${-(1/3) * 2 * Math.PI * 85}`}
                   className="transition-all duration-500"
                   style={{
-                    filter: hoveredStep === 1 ? 'drop-shadow(0 0 16px rgba(139,92,246,0.6))' : hoveredStep === -1 ? 'drop-shadow(0 0 8px rgba(139,92,246,0.3))' : 'drop-shadow(0 0 4px rgba(139,92,246,0.1))',
-                    opacity: hoveredStep !== -1 && hoveredStep !== 1 ? 0.3 : 1,
+                    filter: hoveredStep === 1 ? 'drop-shadow(0 0 10px rgba(139,92,246,0.25))' : 'drop-shadow(0 0 6px rgba(139,92,246,0.15))',
+                    opacity: hoveredStep !== -1 && hoveredStep !== 1 ? 0.35 : 1,
                   }} />
 
                 {/* Segment 3: Enjoy - Amber */}
                 <circle cx="100" cy="100" r="85" fill="none"
-                  stroke="url(#grad3)" strokeWidth={hoveredStep === 2 ? 28 : 22} strokeLinecap="round"
+                  stroke="url(#grad3)" strokeWidth={hoveredStep === 2 ? 25 : 22} strokeLinecap="round"
                   strokeDasharray={`${(1/3) * 2 * Math.PI * 85 - 12} ${2 * Math.PI * 85}`}
                   strokeDashoffset={`${-(2/3) * 2 * Math.PI * 85}`}
                   className="transition-all duration-500"
                   style={{
-                    filter: hoveredStep === 2 ? 'drop-shadow(0 0 16px rgba(251,191,36,0.6))' : hoveredStep === -1 ? 'drop-shadow(0 0 8px rgba(251,191,36,0.3))' : 'drop-shadow(0 0 4px rgba(251,191,36,0.1))',
-                    opacity: hoveredStep !== -1 && hoveredStep !== 2 ? 0.3 : 1,
+                    filter: hoveredStep === 2 ? 'drop-shadow(0 0 10px rgba(251,191,36,0.25))' : 'drop-shadow(0 0 6px rgba(251,191,36,0.15))',
+                    opacity: hoveredStep !== -1 && hoveredStep !== 2 ? 0.35 : 1,
                   }} />
 
                 {/* Invisible hover hit areas for each segment (wider stroke, transparent) */}
@@ -770,12 +770,12 @@ export default function UploadPage() {
                 style={{
                   top: '14%', right: '1%',
                   animationDelay: '0.3s',
-                  transform: hoveredStep === 0 ? 'scale(1.3)' : 'scale(1)',
+                  transform: hoveredStep === 0 ? 'scale(1.15)' : 'scale(1)',
                   transition: 'transform 0.4s cubic-bezier(0.34,1.56,0.64,1)',
                 }}>
                 <div className="w-10 h-10 rounded-full bg-gradient-to-br from-forest-500 to-forest-400 flex items-center justify-center text-white font-bold text-sm shadow-lg"
                   style={{
-                    boxShadow: hoveredStep === 0 ? '0 0 20px rgba(16,185,129,0.6), 0 0 40px rgba(16,185,129,0.3)' : '0 4px 12px rgba(16,185,129,0.3)',
+                    boxShadow: hoveredStep === 0 ? '0 0 12px rgba(16,185,129,0.3)' : '0 4px 10px rgba(16,185,129,0.2)',
                     transition: 'box-shadow 0.4s ease',
                   }}>
                   1
@@ -785,13 +785,13 @@ export default function UploadPage() {
               <div className="absolute animate-scale-in cursor-pointer"
                 onMouseEnter={() => setHoveredStep(1)}
                 style={{
-                  bottom: '-2%', left: '50%', transform: `translateX(-50%) ${hoveredStep === 1 ? 'scale(1.3)' : 'scale(1)'}`,
+                  bottom: '-2%', left: '50%', transform: `translateX(-50%) ${hoveredStep === 1 ? 'scale(1.15)' : 'scale(1)'}`,
                   animationDelay: '0.6s',
                   transition: 'transform 0.4s cubic-bezier(0.34,1.56,0.64,1)',
                 }}>
                 <div className="w-10 h-10 rounded-full bg-gradient-to-br from-violet-500 to-violet-400 flex items-center justify-center text-white font-bold text-sm shadow-lg"
                   style={{
-                    boxShadow: hoveredStep === 1 ? '0 0 20px rgba(139,92,246,0.6), 0 0 40px rgba(139,92,246,0.3)' : '0 4px 12px rgba(139,92,246,0.3)',
+                    boxShadow: hoveredStep === 1 ? '0 0 12px rgba(139,92,246,0.3)' : '0 4px 10px rgba(139,92,246,0.2)',
                     transition: 'box-shadow 0.4s ease',
                   }}>
                   2
@@ -803,12 +803,12 @@ export default function UploadPage() {
                 style={{
                   top: '14%', left: '1%',
                   animationDelay: '0.9s',
-                  transform: hoveredStep === 2 ? 'scale(1.3)' : 'scale(1)',
+                  transform: hoveredStep === 2 ? 'scale(1.15)' : 'scale(1)',
                   transition: 'transform 0.4s cubic-bezier(0.34,1.56,0.64,1)',
                 }}>
                 <div className="w-10 h-10 rounded-full bg-gradient-to-br from-amber-500 to-amber-400 flex items-center justify-center text-white font-bold text-sm shadow-lg"
                   style={{
-                    boxShadow: hoveredStep === 2 ? '0 0 20px rgba(251,191,36,0.6), 0 0 40px rgba(251,191,36,0.3)' : '0 4px 12px rgba(251,191,36,0.3)',
+                    boxShadow: hoveredStep === 2 ? '0 0 12px rgba(251,191,36,0.3)' : '0 4px 10px rgba(251,191,36,0.2)',
                     transition: 'box-shadow 0.4s ease',
                   }}>
                   3
@@ -820,9 +820,9 @@ export default function UploadPage() {
           {/* Right: Step cards connected with lines */}
           <div className="flex flex-col gap-6 lg:gap-5 w-full max-w-[380px]">
             {[
-              { num: '1', emoji: '📤', title: 'Upload your EPUB', desc: 'Drop your EPUB file and we parse every chapter, image, and metadata instantly — no config needed.', color: 'from-forest-500 to-forest-400', border: 'border-forest-500/20', borderHover: 'border-forest-400/50', glow: 'rgba(16,185,129,0.15)', glowStrong: 'rgba(16,185,129,0.35)', accent: 'text-forest-400', dot: 'bg-forest-400' },
-              { num: '2', emoji: '🤖', title: 'AI generates audio', desc: 'Our AI creates natural narration and syncs every word to the audio timeline automatically.', color: 'from-violet-500 to-violet-400', border: 'border-violet-500/20', borderHover: 'border-violet-400/50', glow: 'rgba(139,92,246,0.15)', glowStrong: 'rgba(139,92,246,0.35)', accent: 'text-violet-400', dot: 'bg-violet-400' },
-              { num: '3', emoji: '🎉', title: 'Read, listen & export', desc: 'Enjoy word-level highlights as you listen, then export as a standards-compliant EPUB 3 audiobook!', color: 'from-amber-500 to-amber-400', border: 'border-amber-500/20', borderHover: 'border-amber-400/50', glow: 'rgba(251,191,36,0.15)', glowStrong: 'rgba(251,191,36,0.35)', accent: 'text-amber-400', dot: 'bg-amber-400' },
+              { num: '1', emoji: '📤', title: 'Upload your EPUB', desc: 'Drop your EPUB file and we parse every chapter, image, and metadata instantly — no config needed.', color: 'from-forest-500 to-forest-400', glow: 'rgba(16,185,129,0.10)', glowActive: 'rgba(16,185,129,0.20)', accent: 'text-forest-400', dot: 'bg-forest-400' },
+              { num: '2', emoji: '🤖', title: 'AI generates audio', desc: 'Our AI creates natural narration and syncs every word to the audio timeline automatically.', color: 'from-violet-500 to-violet-400', glow: 'rgba(139,92,246,0.10)', glowActive: 'rgba(139,92,246,0.20)', accent: 'text-violet-400', dot: 'bg-violet-400' },
+              { num: '3', emoji: '🎉', title: 'Read, listen & export', desc: 'Enjoy word-level highlights as you listen, then export as a standards-compliant EPUB 3 audiobook!', color: 'from-amber-500 to-amber-400', glow: 'rgba(251,191,36,0.10)', glowActive: 'rgba(251,191,36,0.20)', accent: 'text-amber-400', dot: 'bg-amber-400' },
             ].map((s, i) => (
               <div key={i} data-reveal-id={`step-${i}`}
                 className={`relative group animate-fade-in-up ${revealCls(`step-${i}`, `delay-[${i * 200}ms]`)}`}
@@ -836,18 +836,18 @@ export default function UploadPage() {
 
                 <div className={`relative flex gap-4 items-start p-5 rounded-2xl border transition-all duration-400 cursor-default overflow-hidden`}
                   style={{
-                    borderColor: hoveredStep === i ? s.glowStrong : 'rgba(255,255,255,0.06)',
+                    borderColor: hoveredStep === i ? s.glowActive : 'rgba(255,255,255,0.06)',
                     background: hoveredStep === i
-                      ? `radial-gradient(circle at 0% 50%, ${s.glowStrong} 0%, transparent 60%), rgba(255,255,255,0.04)`
+                      ? `radial-gradient(circle at 0% 50%, ${s.glowActive} 0%, transparent 60%), rgba(255,255,255,0.03)`
                       : `radial-gradient(circle at 0% 50%, ${s.glow} 0%, transparent 60%), rgba(255,255,255,0.02)`,
-                    boxShadow: hoveredStep === i ? `0 16px 50px -12px ${s.glowStrong}, 0 0 0 1px rgba(255,255,255,0.08)` : 'none',
-                    transform: hoveredStep === i ? 'translateY(-4px) scale(1.02)' : 'translateY(0) scale(1)',
+                    boxShadow: hoveredStep === i ? `0 8px 30px -10px ${s.glowActive}` : 'none',
+                    transform: hoveredStep === i ? 'translateY(-2px)' : 'translateY(0)',
                   }}
                 >
                   {/* Shimmer overlay on hover */}
                   <div className="absolute inset-0 transition-opacity duration-500 pointer-events-none"
                     style={{
-                      background: `linear-gradient(135deg, ${s.glow.replace('0.15','0.08')} 0%, transparent 50%)`,
+                      background: `linear-gradient(135deg, ${s.glow.replace('0.10','0.05')} 0%, transparent 50%)`,
                       opacity: hoveredStep === i ? 1 : 0,
                     }} />
 
@@ -855,8 +855,8 @@ export default function UploadPage() {
                   <div className="flex-shrink-0 relative z-10">
                     <div className={`w-[46px] h-[46px] rounded-xl bg-gradient-to-br ${s.color} flex items-center justify-center shadow-lg transition-all duration-300`}
                       style={{
-                        boxShadow: hoveredStep === i ? `0 4px 30px ${s.glowStrong}` : `0 4px 20px ${s.glow}`,
-                        transform: hoveredStep === i ? 'scale(1.1) rotate(3deg)' : 'scale(1) rotate(0)',
+                        boxShadow: hoveredStep === i ? `0 4px 16px ${s.glowActive}` : `0 4px 12px ${s.glow}`,
+                        transform: hoveredStep === i ? 'scale(1.05)' : 'scale(1)',
                       }}>
                       <span className="text-xl">{s.emoji}</span>
                     </div>
