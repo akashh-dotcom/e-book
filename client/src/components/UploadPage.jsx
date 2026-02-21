@@ -262,7 +262,7 @@ export default function UploadPage() {
           </div>
 
           {/* Book container */}
-          <div className="relative flex justify-center items-center">
+          <div className="relative flex justify-center items-center" style={{ width: '320px', height: '440px' }}>
             {/* Dynamic shadow under book */}
             <div className="absolute pointer-events-none" style={{
               width: `${240 + bookOpen * 140}px`, height: '20px',
@@ -272,7 +272,8 @@ export default function UploadPage() {
               opacity: 0.6 + bookOpen * 0.4,
             }} />
 
-            <div className="relative" style={{ perspective: '2000px', transformStyle: 'preserve-3d', width: '320px', height: '440px' }}>
+            {/* 3D Book (covers + pages + spine only) */}
+            <div className="absolute inset-0" style={{ perspective: '2000px', transformStyle: 'preserve-3d' }}>
               {/* === Back cover === */}
               <div className="absolute inset-0" style={{
                 background: 'linear-gradient(160deg, #065f46, #064e3b, #022c22)',
@@ -282,7 +283,7 @@ export default function UploadPage() {
                 transform: 'translateZ(-16px)',
               }} />
 
-              {/* === Page block (thick stack visible from side) === */}
+              {/* === Page block (thick stack) === */}
               <div className="absolute" style={{
                 top: '4px', bottom: '4px', left: '2px', right: '4px',
                 background: 'linear-gradient(to right, #e8dfc9, #f5eedc, #ede5d0, #f5eedc)',
@@ -293,108 +294,6 @@ export default function UploadPage() {
                 borderBottom: '1px solid #d8cfb6',
                 boxShadow: 'inset -3px 0 6px rgba(0,0,0,0.08)',
               }} />
-
-              {/* === Inner page — VIDEO PREVIEW of the project (revealed as cover opens) === */}
-              <div className="absolute overflow-hidden transition-opacity duration-500" style={{
-                top: '6px', bottom: '6px', left: '4px', right: '6px',
-                opacity: contentOpacity, zIndex: 8,
-                transform: 'translateZ(-1px)',
-                background: '#f9f5ea',
-                borderRadius: '0 4px 4px 0',
-              }}>
-                {/* Mini app window mock — looks like a screen recording */}
-                <div className="flex flex-col h-full">
-                  {/* Browser chrome */}
-                  <div className="flex items-center gap-1.5 px-3 py-2 bg-gray-200/90 border-b border-gray-300/50" style={{ borderRadius: '0 4px 0 0' }}>
-                    <div className="flex gap-1">
-                      <div className="w-[7px] h-[7px] rounded-full bg-red-400" />
-                      <div className="w-[7px] h-[7px] rounded-full bg-yellow-400" />
-                      <div className="w-[7px] h-[7px] rounded-full bg-green-500" />
-                    </div>
-                    <div className="flex-1 bg-white rounded-md text-[8px] text-gray-400 px-2.5 py-[3px] mx-1.5 border border-gray-200">
-                      localhost:3000/read/book-demo
-                    </div>
-                  </div>
-
-                  {/* App UI mock */}
-                  <div className="flex-1 flex flex-col bg-white relative">
-                    {/* Top bar */}
-                    <div className="flex items-center justify-between px-3 py-2 border-b border-gray-100 bg-gray-50/80">
-                      <div className="flex items-center gap-1.5">
-                        <BookOpen size={11} className="text-forest-600" />
-                        <span className="text-[9px] font-semibold text-gray-700">Alice in Wonderland</span>
-                      </div>
-                      <span className="text-[8px] text-gray-400">Chapter 1</span>
-                    </div>
-
-                    {/* Reader content with sync highlighting */}
-                    <div className="flex-1 px-4 py-3 overflow-hidden">
-                      <div className="text-[11px] text-gray-700 font-serif leading-[1.8] space-y-2">
-                        <p>
-                          <span>Alice was beginning to get very </span>
-                          <span className="bg-forest-300/30 text-forest-800 px-0.5 rounded font-medium transition-all duration-300"
-                            style={{ opacity: bookOpen > 0.4 ? 1 : 0.3 }}>tired</span>
-                          <span> of sitting by her sister on the bank, and of having </span>
-                          <span className="bg-forest-300/30 text-forest-800 px-0.5 rounded font-medium transition-all duration-300"
-                            style={{ opacity: bookOpen > 0.5 ? 1 : 0.3 }}>nothing</span>
-                          <span> to do: once or twice she had peeped into the book her sister was reading...</span>
-                        </p>
-                        <p>
-                          <span className="bg-forest-300/30 text-forest-800 px-0.5 rounded font-medium transition-all duration-300"
-                            style={{ opacity: bookOpen > 0.6 ? 1 : 0.3 }}>&ldquo;and what</span>
-                          <span> is the use of a book,&rdquo; thought Alice, &ldquo;without </span>
-                          <span className="bg-forest-300/30 text-forest-800 px-0.5 rounded font-medium transition-all duration-300"
-                            style={{ opacity: bookOpen > 0.7 ? 1 : 0.3 }}>pictures</span>
-                          <span> or </span>
-                          <span className="bg-forest-300/30 text-forest-800 px-0.5 rounded font-medium transition-all duration-300"
-                            style={{ opacity: bookOpen > 0.8 ? 1 : 0.3 }}>conversations</span>
-                          <span>?&rdquo;</span>
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Audio / sync bar at bottom */}
-                    <div className="px-3 py-2 border-t border-gray-100 bg-gray-50/80">
-                      {/* Waveform */}
-                      <div className="flex items-end gap-[2px] h-5 mb-1.5 justify-center">
-                        {[...Array(36)].map((_, i) => (
-                          <div key={i}
-                            className="w-[2px] rounded-full transition-all duration-150"
-                            style={{
-                              height: `${4 + Math.sin(i * 0.5 + bookOpen * 10) * 6 + Math.cos(i * 0.8) * 4}px`,
-                              background: bookOpen > 0.3 ? '#10b981' : '#d1d5db',
-                              opacity: bookOpen > 0.3 ? 0.7 : 0.3,
-                            }} />
-                        ))}
-                      </div>
-                      {/* Controls */}
-                      <div className="flex items-center gap-2">
-                        <div className="w-6 h-6 rounded-full bg-forest-500 flex items-center justify-center flex-shrink-0 shadow-sm">
-                          <Play size={10} className="text-white ml-px" />
-                        </div>
-                        <div className="flex-1 h-[3px] bg-gray-200 rounded-full overflow-hidden">
-                          <div className="h-full bg-forest-500 rounded-full transition-all duration-500"
-                            style={{ width: `${Math.min(100, bookOpen * 100)}%` }} />
-                        </div>
-                        <span className="text-[8px] text-gray-400 font-mono tabular-nums">
-                          {`${Math.floor(bookOpen * 2)}:${String(Math.floor((bookOpen * 42) % 60)).padStart(2, '0')}`} / 2:42
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Play overlay (fades out as book opens more) */}
-                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/5 transition-opacity duration-500"
-                      style={{ opacity: Math.max(0, 1 - bookOpen * 2) }}>
-                      <div className="w-14 h-14 rounded-full bg-white/95 shadow-xl flex items-center justify-center mb-3 border border-gray-100">
-                        <Play size={22} className="text-forest-600 ml-1" />
-                      </div>
-                      <span className="text-[11px] font-medium text-gray-600 bg-white/80 px-3 py-1 rounded-full shadow-sm">
-                        Watch VoxBook in action
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
 
               {/* === Individual pages fanning out === */}
               {[...Array(6)].map((_, i) => (
@@ -444,6 +343,106 @@ export default function UploadPage() {
                   <div className="text-xl font-bold tracking-tight drop-shadow-[0_1px_2px_rgba(0,0,0,0.3)]">VoxBook</div>
                   <div className="text-[10px] text-forest-200/40 mt-1 uppercase tracking-[0.2em]">Interactive Audio</div>
                   <p className="text-[11px] text-forest-200/30 mt-5 italic">↓ Scroll to open</p>
+                </div>
+              </div>
+            </div>
+
+            {/* === VIDEO PREVIEW — sits OUTSIDE 3D context, overlays the book page area === */}
+            <div className="absolute overflow-hidden rounded-r transition-opacity duration-500 pointer-events-none"
+              style={{
+                top: '6px', bottom: '6px', left: '4px', right: '6px',
+                opacity: contentOpacity,
+                zIndex: 15,
+              }}>
+              <div className="flex flex-col h-full bg-[#f9f5ea] rounded-r">
+                {/* Browser chrome */}
+                <div className="flex items-center gap-1.5 px-3 py-2 bg-gray-200 border-b border-gray-300/60" style={{ borderRadius: '0 4px 0 0' }}>
+                  <div className="flex gap-1">
+                    <div className="w-2 h-2 rounded-full bg-red-400" />
+                    <div className="w-2 h-2 rounded-full bg-yellow-400" />
+                    <div className="w-2 h-2 rounded-full bg-green-500" />
+                  </div>
+                  <div className="flex-1 bg-white rounded-md text-[8px] text-gray-400 px-2.5 py-1 mx-1.5 border border-gray-200">
+                    localhost:3000/read/book-demo
+                  </div>
+                </div>
+
+                {/* App UI mock */}
+                <div className="flex-1 flex flex-col bg-white relative overflow-hidden">
+                  {/* Top bar */}
+                  <div className="flex items-center justify-between px-3 py-2 border-b border-gray-100 bg-gray-50/80">
+                    <div className="flex items-center gap-1.5">
+                      <BookOpen size={11} className="text-forest-600" />
+                      <span className="text-[9px] font-semibold text-gray-700">Alice in Wonderland</span>
+                    </div>
+                    <span className="text-[8px] text-gray-400">Chapter 1</span>
+                  </div>
+
+                  {/* Reader content with sync highlighting */}
+                  <div className="flex-1 px-4 py-3 overflow-hidden">
+                    <div className="text-[11px] text-gray-700 font-serif leading-[1.8] space-y-2">
+                      <p>
+                        <span>Alice was beginning to get very </span>
+                        <span className="bg-forest-300/30 text-forest-800 px-0.5 rounded font-medium transition-all duration-300"
+                          style={{ opacity: bookOpen > 0.4 ? 1 : 0.3 }}>tired</span>
+                        <span> of sitting by her sister on the bank, and of having </span>
+                        <span className="bg-forest-300/30 text-forest-800 px-0.5 rounded font-medium transition-all duration-300"
+                          style={{ opacity: bookOpen > 0.5 ? 1 : 0.3 }}>nothing</span>
+                        <span> to do: once or twice she had peeped into the book her sister was reading...</span>
+                      </p>
+                      <p>
+                        <span className="bg-forest-300/30 text-forest-800 px-0.5 rounded font-medium transition-all duration-300"
+                          style={{ opacity: bookOpen > 0.6 ? 1 : 0.3 }}>&ldquo;and what</span>
+                        <span> is the use of a book,&rdquo; thought Alice, &ldquo;without </span>
+                        <span className="bg-forest-300/30 text-forest-800 px-0.5 rounded font-medium transition-all duration-300"
+                          style={{ opacity: bookOpen > 0.7 ? 1 : 0.3 }}>pictures</span>
+                        <span> or </span>
+                        <span className="bg-forest-300/30 text-forest-800 px-0.5 rounded font-medium transition-all duration-300"
+                          style={{ opacity: bookOpen > 0.8 ? 1 : 0.3 }}>conversations</span>
+                        <span>?&rdquo;</span>
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Audio / sync bar at bottom */}
+                  <div className="px-3 py-2 border-t border-gray-100 bg-gray-50/80">
+                    {/* Waveform */}
+                    <div className="flex items-end gap-[2px] h-5 mb-1.5 justify-center">
+                      {[...Array(36)].map((_, i) => (
+                        <div key={i}
+                          className="w-[2px] rounded-full transition-all duration-150"
+                          style={{
+                            height: `${4 + Math.sin(i * 0.5 + bookOpen * 10) * 6 + Math.cos(i * 0.8) * 4}px`,
+                            background: bookOpen > 0.3 ? '#10b981' : '#d1d5db',
+                            opacity: bookOpen > 0.3 ? 0.7 : 0.3,
+                          }} />
+                      ))}
+                    </div>
+                    {/* Controls */}
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 rounded-full bg-forest-500 flex items-center justify-center flex-shrink-0 shadow-sm">
+                        <Play size={10} className="text-white ml-px" />
+                      </div>
+                      <div className="flex-1 h-[3px] bg-gray-200 rounded-full overflow-hidden">
+                        <div className="h-full bg-forest-500 rounded-full transition-all duration-500"
+                          style={{ width: `${Math.min(100, bookOpen * 100)}%` }} />
+                      </div>
+                      <span className="text-[8px] text-gray-400 font-mono tabular-nums">
+                        {`${Math.floor(bookOpen * 2)}:${String(Math.floor((bookOpen * 42) % 60)).padStart(2, '0')}`} / 2:42
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Play overlay (fades out as book opens more) */}
+                  <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/5 transition-opacity duration-500"
+                    style={{ opacity: Math.max(0, 1 - bookOpen * 2) }}>
+                    <div className="w-14 h-14 rounded-full bg-white/95 shadow-xl flex items-center justify-center mb-3 border border-gray-100">
+                      <Play size={22} className="text-forest-600 ml-1" />
+                    </div>
+                    <span className="text-[11px] font-medium text-gray-600 bg-white/80 px-3 py-1 rounded-full shadow-sm">
+                      Watch VoxBook in action
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
