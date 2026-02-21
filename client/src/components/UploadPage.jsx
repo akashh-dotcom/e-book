@@ -234,10 +234,14 @@ export default function UploadPage() {
             <span>VoxBook</span>
           </a>
           <div className="hidden md:flex gap-7">
-            {['Features', 'Demo', 'Upload'].map(s => (
-              <a key={s} href={`#${s === 'Upload' ? 'upload' : s === 'Demo' ? 'editor-demo' : 'features'}`}
+            {[
+              { label: 'Features', href: '#features' },
+              { label: 'Demo', href: '#editor-demo' },
+              { label: 'Pricing', href: '#pricing' },
+            ].map(s => (
+              <a key={s.label} href={s.href}
                 className="text-forest-200/70 text-sm font-medium no-underline hover:text-forest-100 transition-colors">
-                {s === 'Upload' ? 'Get Started' : s}
+                {s.label}
               </a>
             ))}
             {books.length > 0 && (
