@@ -20,18 +20,6 @@ export default function Dashboard() {
     fetchBooks().finally(() => setLoading(false));
   }, [fetchBooks]);
 
-  // Scroll reveal
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      entries => entries.forEach(e => {
-        if (e.isIntersecting) e.target.classList.add('revealed');
-      }),
-      { threshold: 0.1 }
-    );
-    document.querySelectorAll('.dash-reveal').forEach(el => observer.observe(el));
-    return () => observer.disconnect();
-  }, [books, loading]);
-
   const handleDelete = async (e, id) => {
     e.preventDefault();
     e.stopPropagation();
@@ -63,77 +51,74 @@ export default function Dashboard() {
   );
 
   return (
-    <div className="dash">
+    <div className="flex min-h-screen bg-forest-950 text-forest-100 font-sans">
       {/* Sidebar */}
-      <aside className="dash-sidebar">
-        <Link to="/" className="dash-logo">
-          <BookOpen size={22} />
+      <aside className="w-60 flex-shrink-0 flex flex-col bg-forest-950/70 border-r border-forest-500/8 p-5 sticky top-0 h-screen
+        max-md:w-full max-md:h-auto max-md:relative max-md:flex-row max-md:items-center max-md:p-3 max-md:gap-3">
+        <Link to="/" className="flex items-center gap-2.5 text-forest-100 no-underline text-lg font-bold tracking-tight px-2 mb-7 max-md:mb-0">
+          <BookOpen size={22} className="text-forest-400" />
           <span>VoxBook</span>
         </Link>
 
-        <nav className="dash-nav">
-          <div className="dash-nav-item active">
-            <LayoutDashboard size={18} />
+        <nav className="flex flex-col gap-0.5 flex-1 max-md:flex-row max-md:flex-none">
+          <div className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium text-forest-50 bg-forest-500/10">
+            <LayoutDashboard size={18} className="text-forest-400" />
             <span>Library</span>
           </div>
         </nav>
 
-        <div className="dash-sidebar-footer">
+        <div className="mt-auto pt-4 border-t border-forest-500/8 max-md:mt-0 max-md:ml-auto max-md:pt-0 max-md:border-0">
           <button
-            className="dash-upload-btn"
+            className="flex items-center justify-center gap-2 w-full px-4 py-2.5 rounded-xl bg-gradient-to-r from-forest-500 to-forest-400 text-forest-950 text-sm font-semibold
+              shadow-[0_2px_12px_rgba(16,185,129,0.3)] hover:-translate-y-0.5 hover:shadow-[0_4px_20px_rgba(16,185,129,0.45)] active:translate-y-0
+              disabled:opacity-70 disabled:cursor-default transition-all cursor-pointer border-none font-[inherit]"
             onClick={() => fileInputRef.current?.click()}
             disabled={uploading}
           >
-            {uploading ? <Loader size={18} className="spin" /> : <Plus size={18} />}
+            {uploading ? <Loader size={18} className="animate-spin" /> : <Plus size={18} />}
             {uploading ? `Uploading ${progress}%` : 'Upload EPUB'}
           </button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".epub"
-            style={{ display: 'none' }}
-            onChange={e => handleFile(e.target.files[0])}
-          />
-          {error && <p className="dash-upload-error">{error}</p>}
+          <input ref={fileInputRef} type="file" accept=".epub" className="hidden"
+            onChange={e => handleFile(e.target.files[0])} />
+          {error && <p className="mt-2 text-xs text-candy-400 text-center">{error}</p>}
         </div>
       </aside>
 
       {/* Main */}
-      <main className="dash-main">
-        <header className="dash-header">
+      <main className="flex-1 min-w-0 p-7 overflow-y-auto max-md:p-5">
+        <header className="flex items-end justify-between mb-8 gap-4 flex-wrap">
           <div>
-            <h1 className="dash-title">Your Library</h1>
-            <p className="dash-subtitle">{books.length} {books.length === 1 ? 'book' : 'books'}</p>
+            <h1 className="text-2xl font-bold tracking-tight bg-gradient-to-r from-forest-50 to-forest-300 bg-clip-text text-transparent">
+              Your Library
+            </h1>
+            <p className="text-sm text-forest-500/60 mt-1">{books.length} {books.length === 1 ? 'book' : 'books'}</p>
           </div>
-          <div className="dash-header-actions">
-            <div className="dash-search">
-              <Search size={16} />
-              <input
-                type="text"
-                placeholder="Search books..."
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-              />
-            </div>
+          <div className="flex items-center gap-2 px-3.5 py-2 rounded-xl border border-forest-500/10 bg-forest-500/[0.04] min-w-[220px]
+            focus-within:border-forest-500/40 focus-within:bg-forest-500/[0.06] focus-within:shadow-[0_0_0_3px_rgba(16,185,129,0.1)] transition-all">
+            <Search size={16} className="text-forest-600 flex-shrink-0" />
+            <input type="text" placeholder="Search books..."
+              className="border-none bg-transparent outline-none text-forest-100 text-sm font-[inherit] w-full placeholder:text-forest-700"
+              value={search} onChange={e => setSearch(e.target.value)} />
           </div>
         </header>
 
         {loading ? (
-          <div className="dash-empty">
-            <div className="loading-spinner" />
+          <div className="flex flex-col items-center justify-center text-center py-20 text-forest-600">
+            <div className="w-6 h-6 border-3 border-forest-200 border-t-forest-500 rounded-full animate-spin mb-4" />
             <p>Loading your library...</p>
           </div>
         ) : filtered.length === 0 ? (
-          <div className="dash-empty">
+          <div className="flex flex-col items-center justify-center text-center py-20">
             {books.length === 0 ? (
               <>
-                <div className="dash-empty-icon">
+                <div className="w-20 h-20 rounded-2xl bg-forest-500/8 flex items-center justify-center text-forest-600 mb-5">
                   <BookOpen size={48} />
                 </div>
-                <h3>No books yet</h3>
-                <p>Upload your first EPUB to get started.</p>
+                <h3 className="text-lg font-semibold text-forest-400 mb-1.5">No books yet</h3>
+                <p className="text-sm text-forest-600 mb-5">Upload your first EPUB to get started.</p>
                 <button
-                  className="dash-empty-upload"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-dashed border-forest-500/30 bg-forest-500/[0.06] text-forest-300 text-sm font-semibold
+                    hover:bg-forest-500/[0.12] hover:border-forest-500/50 hover:text-forest-200 transition-all cursor-pointer font-[inherit]"
                   onClick={() => fileInputRef.current?.click()}
                 >
                   <Upload size={18} />
@@ -142,52 +127,45 @@ export default function Dashboard() {
               </>
             ) : (
               <>
-                <div className="dash-empty-icon">
+                <div className="w-20 h-20 rounded-2xl bg-forest-500/8 flex items-center justify-center text-forest-600 mb-5">
                   <Search size={48} />
                 </div>
-                <h3>No results</h3>
-                <p>No books match "{search}"</p>
+                <h3 className="text-lg font-semibold text-forest-400 mb-1.5">No results</h3>
+                <p className="text-sm text-forest-600">No books match "{search}"</p>
               </>
             )}
           </div>
         ) : (
-          <div className="dash-grid">
+          <div className="grid grid-cols-1 sm:grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-4">
             {filtered.map((book, i) => (
-              <Link
-                key={book._id}
-                to={`/read/${book._id}`}
-                className="dash-card dash-reveal"
-                style={{ transitionDelay: `${i * 50}ms` }}
-              >
-                <div className="dash-card-cover">
+              <Link key={book._id} to={`/read/${book._id}`}
+                className="flex items-stretch no-underline text-inherit rounded-2xl border border-forest-500/8 bg-forest-500/[0.02] overflow-hidden
+                  hover:border-forest-500/25 hover:bg-forest-500/[0.05] hover:-translate-y-0.5 hover:shadow-[0_8px_30px_rgba(0,0,0,0.3),0_0_0_1px_rgba(16,185,129,0.1)]
+                  transition-all duration-300 cursor-pointer group"
+                style={{ animationDelay: `${i * 50}ms` }}>
+                <div className="w-[72px] flex-shrink-0 flex items-center justify-center bg-gradient-to-br from-forest-500/12 to-forest-600/8 text-forest-400 border-r border-forest-500/5 overflow-hidden">
                   {book.cover ? (
-                    <img
-                      src={`/storage/books/${book._id}/assets/${book.cover}`}
-                      alt={book.title}
-                      draggable={false}
-                    />
+                    <img src={`/storage/books/${book._id}/assets/${book.cover}`} alt={book.title} draggable={false} className="w-full h-full object-cover" />
                   ) : (
                     <BookOpen size={28} />
                   )}
                 </div>
-                <div className="dash-card-body">
-                  <div className="dash-card-title">{book.title}</div>
-                  {book.author && (
-                    <div className="dash-card-author">{book.author}</div>
-                  )}
-                  <div className="dash-card-meta">
+                <div className="flex-1 min-w-0 px-4 py-3.5 flex flex-col justify-center gap-0.5">
+                  <div className="text-sm font-semibold text-forest-50 truncate tracking-tight">{book.title}</div>
+                  {book.author && <div className="text-xs text-forest-400/60 truncate">{book.author}</div>}
+                  <div className="text-[11px] text-forest-600 mt-0.5">
                     {book.totalChapters} {book.totalChapters === 1 ? 'chapter' : 'chapters'}
                   </div>
                 </div>
-                <div className="dash-card-actions">
+                <div className="flex flex-col items-center justify-center px-3 gap-2">
                   <button
-                    className="dash-card-delete"
+                    className="flex items-center justify-center w-7 h-7 rounded-lg bg-transparent text-forest-700 hover:bg-red-500/12 hover:text-candy-400 transition-all cursor-pointer border-none"
                     onClick={(e) => handleDelete(e, book._id)}
                     title="Delete book"
                   >
                     <Trash2 size={14} />
                   </button>
-                  <span className="dash-card-arrow">
+                  <span className="text-forest-800 group-hover:text-forest-400 group-hover:translate-x-0.5 transition-all">
                     <ChevronRight size={16} />
                   </span>
                 </div>
