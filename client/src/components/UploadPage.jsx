@@ -694,25 +694,25 @@ export default function UploadPage() {
                     opacity: hoveredStep !== -1 && hoveredStep !== 0 ? 0.35 : 1,
                   }} />
 
-                {/* Segment 2: Generate - Violet */}
+                {/* Segment 2: Generate - Green */}
                 <circle cx="100" cy="100" r="85" fill="none"
                   stroke="url(#grad2)" strokeWidth={hoveredStep === 1 ? 25 : 22} strokeLinecap="round"
                   strokeDasharray={`${(1/3) * 2 * Math.PI * 85 - 12} ${2 * Math.PI * 85}`}
                   strokeDashoffset={`${-(1/3) * 2 * Math.PI * 85}`}
                   className="transition-all duration-500"
                   style={{
-                    filter: hoveredStep === 1 ? 'drop-shadow(0 0 10px rgba(139,92,246,0.25))' : 'drop-shadow(0 0 6px rgba(139,92,246,0.15))',
+                    filter: hoveredStep === 1 ? 'drop-shadow(0 0 10px rgba(16,185,129,0.25))' : 'drop-shadow(0 0 6px rgba(16,185,129,0.15))',
                     opacity: hoveredStep !== -1 && hoveredStep !== 1 ? 0.35 : 1,
                   }} />
 
-                {/* Segment 3: Enjoy - Amber */}
+                {/* Segment 3: Enjoy - Green */}
                 <circle cx="100" cy="100" r="85" fill="none"
                   stroke="url(#grad3)" strokeWidth={hoveredStep === 2 ? 25 : 22} strokeLinecap="round"
                   strokeDasharray={`${(1/3) * 2 * Math.PI * 85 - 12} ${2 * Math.PI * 85}`}
                   strokeDashoffset={`${-(2/3) * 2 * Math.PI * 85}`}
                   className="transition-all duration-500"
                   style={{
-                    filter: hoveredStep === 2 ? 'drop-shadow(0 0 10px rgba(251,191,36,0.25))' : 'drop-shadow(0 0 6px rgba(251,191,36,0.15))',
+                    filter: hoveredStep === 2 ? 'drop-shadow(0 0 10px rgba(16,185,129,0.25))' : 'drop-shadow(0 0 6px rgba(16,185,129,0.15))',
                     opacity: hoveredStep !== -1 && hoveredStep !== 2 ? 0.35 : 1,
                   }} />
 
@@ -749,12 +749,12 @@ export default function UploadPage() {
                     <stop offset="100%" stopColor="#34d399" />
                   </linearGradient>
                   <linearGradient id="grad2" x1="0%" y1="0%" x2="100%" y2="0%">
-                    <stop offset="0%" stopColor="#8b5cf6" />
-                    <stop offset="100%" stopColor="#a78bfa" />
+                    <stop offset="0%" stopColor="#10b981" />
+                    <stop offset="100%" stopColor="#34d399" />
                   </linearGradient>
                   <linearGradient id="grad3" x1="0%" y1="0%" x2="100%" y2="0%">
-                    <stop offset="0%" stopColor="#f59e0b" />
-                    <stop offset="100%" stopColor="#fbbf24" />
+                    <stop offset="0%" stopColor="#10b981" />
+                    <stop offset="100%" stopColor="#34d399" />
                   </linearGradient>
                 </defs>
               </svg>
@@ -794,9 +794,9 @@ export default function UploadPage() {
                   animationDelay: '0.6s',
                   transition: 'transform 0.4s cubic-bezier(0.34,1.56,0.64,1)',
                 }}>
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-violet-500 to-violet-400 flex items-center justify-center text-white font-bold text-sm shadow-lg"
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-forest-500 to-forest-400 flex items-center justify-center text-white font-bold text-sm shadow-lg"
                   style={{
-                    boxShadow: hoveredStep === 1 ? '0 0 12px rgba(139,92,246,0.3)' : '0 4px 10px rgba(139,92,246,0.2)',
+                    boxShadow: hoveredStep === 1 ? '0 0 12px rgba(16,185,129,0.3)' : '0 4px 10px rgba(16,185,129,0.2)',
                     transition: 'box-shadow 0.4s ease',
                   }}>
                   2
@@ -811,9 +811,9 @@ export default function UploadPage() {
                   transform: hoveredStep === 2 ? 'scale(1.15)' : 'scale(1)',
                   transition: 'transform 0.4s cubic-bezier(0.34,1.56,0.64,1)',
                 }}>
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-amber-500 to-amber-400 flex items-center justify-center text-white font-bold text-sm shadow-lg"
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-forest-500 to-forest-400 flex items-center justify-center text-white font-bold text-sm shadow-lg"
                   style={{
-                    boxShadow: hoveredStep === 2 ? '0 0 12px rgba(251,191,36,0.3)' : '0 4px 10px rgba(251,191,36,0.2)',
+                    boxShadow: hoveredStep === 2 ? '0 0 12px rgba(16,185,129,0.3)' : '0 4px 10px rgba(16,185,129,0.2)',
                     transition: 'box-shadow 0.4s ease',
                   }}>
                   3
@@ -826,8 +826,8 @@ export default function UploadPage() {
           <div className="flex flex-col gap-6 lg:gap-5 w-full max-w-[380px]">
             {[
               { num: '1', emoji: '📤', title: 'Upload your EPUB', desc: 'Drop your EPUB file and we parse every chapter, image, and metadata instantly — no config needed.', color: 'from-forest-500 to-forest-400', glow: 'rgba(16,185,129,0.10)', glowActive: 'rgba(16,185,129,0.20)', accent: 'text-forest-400', dot: 'bg-forest-400' },
-              { num: '2', emoji: '🤖', title: 'AI generates audio', desc: 'Our AI creates natural narration and syncs every word to the audio timeline automatically.', color: 'from-violet-500 to-violet-400', glow: 'rgba(139,92,246,0.10)', glowActive: 'rgba(139,92,246,0.20)', accent: 'text-violet-400', dot: 'bg-violet-400' },
-              { num: '3', emoji: '🎉', title: 'Read, listen & export', desc: 'Enjoy word-level highlights as you listen, then export as a standards-compliant EPUB 3 audiobook!', color: 'from-amber-500 to-amber-400', glow: 'rgba(251,191,36,0.10)', glowActive: 'rgba(251,191,36,0.20)', accent: 'text-amber-400', dot: 'bg-amber-400' },
+              { num: '2', emoji: '🤖', title: 'AI generates audio', desc: 'Our AI creates natural narration and syncs every word to the audio timeline automatically.', color: 'from-forest-500 to-forest-400', glow: 'rgba(16,185,129,0.10)', glowActive: 'rgba(16,185,129,0.20)', accent: 'text-forest-400', dot: 'bg-forest-400' },
+              { num: '3', emoji: '🎉', title: 'Read, listen & export', desc: 'Enjoy word-level highlights as you listen, then export as a standards-compliant EPUB 3 audiobook!', color: 'from-forest-500 to-forest-400', glow: 'rgba(16,185,129,0.10)', glowActive: 'rgba(16,185,129,0.20)', accent: 'text-forest-400', dot: 'bg-forest-400' },
             ].map((s, i) => (
               <div key={i} data-reveal-id={`step-${i}`}
                 className={`relative group animate-fade-in-up ${revealCls(`step-${i}`, `delay-[${i * 200}ms]`)}`}
