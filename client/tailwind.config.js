@@ -51,6 +51,10 @@ export default {
         'fade-in-up': 'fadeInUp 0.7s ease-out both',
       },
       keyframes: {
+        shimmer: {
+          '0%': { left: '-2rem' },
+          '100%': { left: '100%' },
+        },
         float: {
           '0%, 100%': { transform: 'translateY(0) rotate(0deg)' },
           '25%': { transform: 'translateY(-12px) rotate(3deg)' },

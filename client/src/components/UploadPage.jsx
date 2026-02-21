@@ -658,241 +658,89 @@ export default function UploadPage() {
           <p className="text-forest-200/50 text-lg max-w-md mx-auto">Three simple steps to your synced audiobook</p>
         </div>
 
-        {/* Circular infographic layout */}
-        <div className="relative z-10 flex flex-col lg:flex-row items-center justify-center gap-16 lg:gap-24">
+        {/* Interconnected graph layout */}
+        <div className="relative z-10 grid grid-cols-1 md:grid-cols-3 gap-0 max-w-5xl mx-auto">
+          {[
+            { num: '1', emoji: '📤', title: 'Upload your EPUB', desc: 'Drop your EPUB file and we parse every chapter, image, and metadata instantly — no config needed.' },
+            { num: '2', emoji: '🤖', title: 'AI generates audio', desc: 'Our AI creates natural narration and syncs every word to the audio timeline automatically.' },
+            { num: '3', emoji: '🎉', title: 'Read, listen & export', desc: 'Enjoy word-level highlights as you listen, then export as a standards-compliant EPUB 3 audiobook!' },
+          ].map((s, i) => (
+            <div key={i} data-reveal-id={`step-${i}`}
+              className={`relative flex flex-col items-center text-center animate-fade-in-up ${revealCls(`step-${i}`, `delay-[${i * 200}ms]`)}`}
+              style={{ animationDelay: `${0.2 + i * 0.2}s` }}
+              onMouseEnter={() => setHoveredStep(i)}
+              onMouseLeave={() => setHoveredStep(-1)}>
 
-          {/* Left: Donut chart / circle */}
-          <div data-reveal-id="circle-chart" className={`relative flex-shrink-0 ${revealCls('circle-chart')}`}>
-            {/* Outer rotating ring */}
-            <div className="absolute -inset-5 rounded-full animate-spin-slow pointer-events-none">
-              <svg width="100%" height="100%" viewBox="0 0 320 320">
-                <circle cx="160" cy="160" r="155" fill="none" stroke="rgba(16,185,129,0.06)" strokeWidth="1" strokeDasharray="8 12" />
-              </svg>
-            </div>
-
-            {/* Orbiting dots on the rotating ring */}
-            <div className="absolute -inset-5 rounded-full animate-spin-slow pointer-events-none" style={{ animationDuration: '25s' }}>
-              <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-forest-400/60" />
-              <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 w-1.5 h-1.5 rounded-full bg-candy-accent/40" />
-              <div className="absolute top-1/2 left-0 -translate-x-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-blue-400/40" />
-            </div>
-
-            {/* Main donut SVG */}
-            <div className="relative w-[260px] h-[260px] sm:w-[300px] sm:h-[300px]" onMouseLeave={() => setHoveredStep(-1)}>
-              <svg viewBox="0 0 200 200" className="w-full h-full -rotate-90">
-                {/* Background circle */}
-                <circle cx="100" cy="100" r="85" fill="none" stroke="rgba(255,255,255,0.03)" strokeWidth="22" />
-
-                {/* Segment 1: Upload - Forest green */}
-                <circle cx="100" cy="100" r="85" fill="none"
-                  stroke="url(#grad1)" strokeWidth={hoveredStep === 0 ? 25 : 22} strokeLinecap="round"
-                  strokeDasharray={`${(1/3) * 2 * Math.PI * 85 - 12} ${2 * Math.PI * 85}`}
-                  strokeDashoffset="0"
-                  className="transition-all duration-500"
-                  style={{
-                    filter: hoveredStep === 0 ? 'drop-shadow(0 0 10px rgba(16,185,129,0.25))' : 'drop-shadow(0 0 6px rgba(16,185,129,0.15))',
-                    opacity: hoveredStep !== -1 && hoveredStep !== 0 ? 0.35 : 1,
-                  }} />
-
-                {/* Segment 2: Generate - Green */}
-                <circle cx="100" cy="100" r="85" fill="none"
-                  stroke="url(#grad2)" strokeWidth={hoveredStep === 1 ? 25 : 22} strokeLinecap="round"
-                  strokeDasharray={`${(1/3) * 2 * Math.PI * 85 - 12} ${2 * Math.PI * 85}`}
-                  strokeDashoffset={`${-(1/3) * 2 * Math.PI * 85}`}
-                  className="transition-all duration-500"
-                  style={{
-                    filter: hoveredStep === 1 ? 'drop-shadow(0 0 10px rgba(16,185,129,0.25))' : 'drop-shadow(0 0 6px rgba(16,185,129,0.15))',
-                    opacity: hoveredStep !== -1 && hoveredStep !== 1 ? 0.35 : 1,
-                  }} />
-
-                {/* Segment 3: Enjoy - Green */}
-                <circle cx="100" cy="100" r="85" fill="none"
-                  stroke="url(#grad3)" strokeWidth={hoveredStep === 2 ? 25 : 22} strokeLinecap="round"
-                  strokeDasharray={`${(1/3) * 2 * Math.PI * 85 - 12} ${2 * Math.PI * 85}`}
-                  strokeDashoffset={`${-(2/3) * 2 * Math.PI * 85}`}
-                  className="transition-all duration-500"
-                  style={{
-                    filter: hoveredStep === 2 ? 'drop-shadow(0 0 10px rgba(16,185,129,0.25))' : 'drop-shadow(0 0 6px rgba(16,185,129,0.15))',
-                    opacity: hoveredStep !== -1 && hoveredStep !== 2 ? 0.35 : 1,
-                  }} />
-
-                {/* Invisible hover hit areas for each segment (wider stroke, transparent) */}
-                {/* Segment 1 hit area */}
-                <circle cx="100" cy="100" r="85" fill="none"
-                  stroke="transparent" strokeWidth="36"
-                  strokeDasharray={`${(1/3) * 2 * Math.PI * 85} ${2 * Math.PI * 85}`}
-                  strokeDashoffset="0"
-                  className="cursor-pointer"
-                  style={{ pointerEvents: 'stroke' }}
-                  onMouseEnter={() => setHoveredStep(0)} />
-                {/* Segment 2 hit area */}
-                <circle cx="100" cy="100" r="85" fill="none"
-                  stroke="transparent" strokeWidth="36"
-                  strokeDasharray={`${(1/3) * 2 * Math.PI * 85} ${2 * Math.PI * 85}`}
-                  strokeDashoffset={`${-(1/3) * 2 * Math.PI * 85}`}
-                  className="cursor-pointer"
-                  style={{ pointerEvents: 'stroke' }}
-                  onMouseEnter={() => setHoveredStep(1)} />
-                {/* Segment 3 hit area */}
-                <circle cx="100" cy="100" r="85" fill="none"
-                  stroke="transparent" strokeWidth="36"
-                  strokeDasharray={`${(1/3) * 2 * Math.PI * 85} ${2 * Math.PI * 85}`}
-                  strokeDashoffset={`${-(2/3) * 2 * Math.PI * 85}`}
-                  className="cursor-pointer"
-                  style={{ pointerEvents: 'stroke' }}
-                  onMouseEnter={() => setHoveredStep(2)} />
-
-                {/* Gradient definitions */}
-                <defs>
-                  <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="0%">
-                    <stop offset="0%" stopColor="#10b981" />
-                    <stop offset="100%" stopColor="#34d399" />
-                  </linearGradient>
-                  <linearGradient id="grad2" x1="0%" y1="0%" x2="100%" y2="0%">
-                    <stop offset="0%" stopColor="#10b981" />
-                    <stop offset="100%" stopColor="#34d399" />
-                  </linearGradient>
-                  <linearGradient id="grad3" x1="0%" y1="0%" x2="100%" y2="0%">
-                    <stop offset="0%" stopColor="#10b981" />
-                    <stop offset="100%" stopColor="#34d399" />
-                  </linearGradient>
-                </defs>
-              </svg>
-
-              {/* Center content */}
-              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                <div className="w-28 h-28 sm:w-32 sm:h-32 rounded-full bg-forest-950/90 border border-white/[0.06] flex flex-col items-center justify-center gap-1.5 shadow-xl">
-                  <BookOpen size={28} className="text-forest-400" />
-                  <span className="text-forest-100 font-bold text-sm tracking-tight">VoxBook</span>
-                  <span className="text-[10px] text-forest-300/50">3 Steps</span>
-                </div>
-              </div>
-
-              {/* Step number badges — positioned at midpoint of each arc segment */}
-              {/* Step 1: 60° from top => right side */}
-              <div className="absolute animate-scale-in cursor-pointer"
-                onMouseEnter={() => setHoveredStep(0)}
-                style={{
-                  top: '14%', right: '1%',
-                  animationDelay: '0.3s',
-                  transform: hoveredStep === 0 ? 'scale(1.15)' : 'scale(1)',
-                  transition: 'transform 0.4s cubic-bezier(0.34,1.56,0.64,1)',
-                }}>
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-forest-500 to-forest-400 flex items-center justify-center text-white font-bold text-sm shadow-lg"
-                  style={{
-                    boxShadow: hoveredStep === 0 ? '0 0 12px rgba(16,185,129,0.3)' : '0 4px 10px rgba(16,185,129,0.2)',
-                    transition: 'box-shadow 0.4s ease',
-                  }}>
-                  1
-                </div>
-              </div>
-              {/* Step 2: 180° from top => bottom center */}
-              <div className="absolute animate-scale-in cursor-pointer"
-                onMouseEnter={() => setHoveredStep(1)}
-                style={{
-                  bottom: '-2%', left: '50%', transform: `translateX(-50%) ${hoveredStep === 1 ? 'scale(1.15)' : 'scale(1)'}`,
-                  animationDelay: '0.6s',
-                  transition: 'transform 0.4s cubic-bezier(0.34,1.56,0.64,1)',
-                }}>
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-forest-500 to-forest-400 flex items-center justify-center text-white font-bold text-sm shadow-lg"
-                  style={{
-                    boxShadow: hoveredStep === 1 ? '0 0 12px rgba(16,185,129,0.3)' : '0 4px 10px rgba(16,185,129,0.2)',
-                    transition: 'box-shadow 0.4s ease',
-                  }}>
-                  2
-                </div>
-              </div>
-              {/* Step 3: 300° from top => left side */}
-              <div className="absolute animate-scale-in cursor-pointer"
-                onMouseEnter={() => setHoveredStep(2)}
-                style={{
-                  top: '14%', left: '1%',
-                  animationDelay: '0.9s',
-                  transform: hoveredStep === 2 ? 'scale(1.15)' : 'scale(1)',
-                  transition: 'transform 0.4s cubic-bezier(0.34,1.56,0.64,1)',
-                }}>
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-forest-500 to-forest-400 flex items-center justify-center text-white font-bold text-sm shadow-lg"
-                  style={{
-                    boxShadow: hoveredStep === 2 ? '0 0 12px rgba(16,185,129,0.3)' : '0 4px 10px rgba(16,185,129,0.2)',
-                    transition: 'box-shadow 0.4s ease',
-                  }}>
-                  3
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Right: Step cards connected with lines */}
-          <div className="flex flex-col gap-6 lg:gap-5 w-full max-w-[380px]">
-            {[
-              { num: '1', emoji: '📤', title: 'Upload your EPUB', desc: 'Drop your EPUB file and we parse every chapter, image, and metadata instantly — no config needed.', color: 'from-forest-500 to-forest-400', glow: 'rgba(16,185,129,0.10)', glowActive: 'rgba(16,185,129,0.20)', accent: 'text-forest-400', dot: 'bg-forest-400' },
-              { num: '2', emoji: '🤖', title: 'AI generates audio', desc: 'Our AI creates natural narration and syncs every word to the audio timeline automatically.', color: 'from-forest-500 to-forest-400', glow: 'rgba(16,185,129,0.10)', glowActive: 'rgba(16,185,129,0.20)', accent: 'text-forest-400', dot: 'bg-forest-400' },
-              { num: '3', emoji: '🎉', title: 'Read, listen & export', desc: 'Enjoy word-level highlights as you listen, then export as a standards-compliant EPUB 3 audiobook!', color: 'from-forest-500 to-forest-400', glow: 'rgba(16,185,129,0.10)', glowActive: 'rgba(16,185,129,0.20)', accent: 'text-forest-400', dot: 'bg-forest-400' },
-            ].map((s, i) => (
-              <div key={i} data-reveal-id={`step-${i}`}
-                className={`relative group animate-fade-in-up ${revealCls(`step-${i}`, `delay-[${i * 200}ms]`)}`}
-                style={{ animationDelay: `${0.2 + i * 0.2}s` }}>
-
-                {/* Connector line (vertical) between cards */}
-                {i < 2 && (
-                  <div className="hidden lg:block absolute left-[23px] top-full w-[2px] h-5 z-0"
-                    style={{ background: `linear-gradient(to bottom, ${s.glow}, transparent)` }} />
-                )}
-
-                <div className={`relative flex gap-4 items-start p-5 rounded-2xl border transition-all duration-400 cursor-default overflow-hidden`}
-                  style={{
-                    borderColor: hoveredStep === i ? s.glowActive : 'rgba(255,255,255,0.06)',
-                    background: hoveredStep === i
-                      ? `radial-gradient(circle at 0% 50%, ${s.glowActive} 0%, transparent 60%), rgba(255,255,255,0.03)`
-                      : `radial-gradient(circle at 0% 50%, ${s.glow} 0%, transparent 60%), rgba(255,255,255,0.02)`,
-                    boxShadow: hoveredStep === i ? `0 8px 30px -10px ${s.glowActive}` : 'none',
-                    transform: hoveredStep === i ? 'translateY(-2px)' : 'translateY(0)',
-                  }}
-                >
-                  {/* Shimmer overlay on hover */}
-                  <div className="absolute inset-0 transition-opacity duration-500 pointer-events-none"
-                    style={{
-                      background: `linear-gradient(135deg, ${s.glow.replace('0.10','0.05')} 0%, transparent 50%)`,
-                      opacity: hoveredStep === i ? 1 : 0,
-                    }} />
-
-                  {/* Number circle with icon */}
-                  <div className="flex-shrink-0 relative z-10">
-                    <div className={`w-[46px] h-[46px] rounded-xl bg-gradient-to-br ${s.color} flex items-center justify-center shadow-lg transition-all duration-300`}
-                      style={{
-                        boxShadow: hoveredStep === i ? `0 4px 16px ${s.glowActive}` : `0 4px 12px ${s.glow}`,
-                        transform: hoveredStep === i ? 'scale(1.05)' : 'scale(1)',
-                      }}>
-                      <span className="text-xl">{s.emoji}</span>
+              {/* Connector line between nodes (horizontal on md+, vertical on mobile) */}
+              {i < 2 && (
+                <>
+                  {/* Horizontal connector (md+) */}
+                  <div className="hidden md:flex absolute top-[36px] left-[calc(50%+36px)] items-center z-0"
+                    style={{ width: 'calc(100% - 72px)' }}>
+                    <div className="flex-1 h-[2px] relative overflow-hidden"
+                      style={{ background: 'linear-gradient(to right, rgba(16,185,129,0.4), rgba(16,185,129,0.15))' }}>
+                      {/* Animated pulse along line */}
+                      <div className="absolute inset-y-0 w-8 animate-[shimmer_2s_ease-in-out_infinite]"
+                        style={{
+                          background: 'linear-gradient(to right, transparent, rgba(16,185,129,0.6), transparent)',
+                          animationDelay: `${i * 0.5}s`,
+                        }} />
                     </div>
-                    {/* Step number badge */}
-                    <div className={`absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-gradient-to-br ${s.color} flex items-center justify-center
-                      text-[10px] font-bold text-white shadow-md border-2 border-forest-950`}>
-                      {s.num}
-                    </div>
+                    {/* Arrow */}
+                    <svg width="10" height="12" viewBox="0 0 10 12" className="flex-shrink-0 -ml-px">
+                      <path d="M0 0 L10 6 L0 12" fill="none" stroke="rgba(16,185,129,0.4)" strokeWidth="2" />
+                    </svg>
                   </div>
+                  {/* Vertical connector (mobile) */}
+                  <div className="md:hidden absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-full flex flex-col items-center z-0 h-8">
+                    <div className="flex-1 w-[2px]"
+                      style={{ background: 'linear-gradient(to bottom, rgba(16,185,129,0.4), rgba(16,185,129,0.15))' }} />
+                    <svg width="12" height="10" viewBox="0 0 12 10" className="flex-shrink-0 -mt-px">
+                      <path d="M0 0 L6 10 L12 0" fill="none" stroke="rgba(16,185,129,0.4)" strokeWidth="2" />
+                    </svg>
+                  </div>
+                </>
+              )}
 
-                  {/* Text content */}
-                  <div className="flex-1 relative z-10 min-w-0">
-                    <h3 className={`text-base font-semibold text-forest-50 mb-1.5 flex items-center gap-2`}>
-                      {s.title}
-                      <span className={`w-1.5 h-1.5 rounded-full ${s.dot} animate-pulse`} />
-                    </h3>
-                    <p className="text-sm text-forest-200/50 leading-relaxed">{s.desc}</p>
+              {/* Node circle */}
+              <div className="relative mb-5">
+                {/* Glow ring */}
+                <div className="absolute -inset-3 rounded-full transition-all duration-500"
+                  style={{
+                    background: hoveredStep === i ? 'radial-gradient(circle, rgba(16,185,129,0.15) 0%, transparent 70%)' : 'none',
+                  }} />
+                <div className="relative w-[72px] h-[72px] rounded-full bg-gradient-to-br from-forest-500 to-forest-400 flex items-center justify-center shadow-lg transition-all duration-400 cursor-default"
+                  style={{
+                    boxShadow: hoveredStep === i ? '0 0 24px rgba(16,185,129,0.35), 0 8px 20px rgba(16,185,129,0.2)' : '0 4px 14px rgba(16,185,129,0.15)',
+                    transform: hoveredStep === i ? 'scale(1.1)' : 'scale(1)',
+                  }}>
+                  <span className="text-2xl">{s.emoji}</span>
+                  {/* Step number badge */}
+                  <div className="absolute -top-1 -right-1 w-6 h-6 rounded-full bg-forest-950 border-2 border-forest-400 flex items-center justify-center text-[11px] font-bold text-forest-300">
+                    {s.num}
                   </div>
                 </div>
               </div>
-            ))}
 
-            {/* CTA below steps */}
-            <div data-reveal-id="steps-cta" className={`mt-2 ${revealCls('steps-cta', 'delay-[700ms]')}`}>
-              <a href="/dashboard"
-                className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-gradient-to-r from-forest-500 to-forest-400 text-forest-950 font-semibold text-sm no-underline
-                  hover:scale-105 hover:shadow-[0_8px_30px_rgba(16,185,129,0.3)] transition-all duration-300">
-                Get Started Now <ChevronRight size={16} />
-              </a>
+              {/* Card body */}
+              <div className="relative px-4 pb-10 md:pb-4 max-w-[280px]">
+                <h3 className="text-lg font-semibold text-forest-50 mb-2 flex items-center justify-center gap-2">
+                  {s.title}
+                  <span className="w-1.5 h-1.5 rounded-full bg-forest-400 animate-pulse" />
+                </h3>
+                <p className="text-sm text-forest-200/50 leading-relaxed">{s.desc}</p>
+              </div>
             </div>
-          </div>
+          ))}
+        </div>
+
+        {/* CTA below steps */}
+        <div data-reveal-id="steps-cta" className={`mt-12 text-center ${revealCls('steps-cta', 'delay-[700ms]')}`}>
+          <a href="/dashboard"
+            className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-gradient-to-r from-forest-500 to-forest-400 text-forest-950 font-semibold text-sm no-underline
+              hover:scale-105 hover:shadow-[0_8px_30px_rgba(16,185,129,0.3)] transition-all duration-300">
+            Get Started Now <ChevronRight size={16} />
+          </a>
         </div>
       </section>
 
