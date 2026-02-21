@@ -1,6 +1,9 @@
 import { useState, useRef, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { Upload, BookOpen } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import {
+  Upload, BookOpen, Headphones, Wand2, Download,
+  ChevronRight, Sparkles, AudioLines, Globe,
+} from 'lucide-react';
 import useBookStore from '../store/bookStore';
 import Library from './Library';
 
@@ -13,9 +16,19 @@ export default function UploadPage() {
   const navigate = useNavigate();
   const { uploadBook, fetchBooks, books } = useBookStore();
 
+  useEffect(() => { fetchBooks(); }, [fetchBooks]);
+
+  // Scroll reveal
   useEffect(() => {
-    fetchBooks();
-  }, [fetchBooks]);
+    const observer = new IntersectionObserver(
+      entries => entries.forEach(e => {
+        if (e.isIntersecting) e.target.classList.add('revealed');
+      }),
+      { threshold: 0.15 }
+    );
+    document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+    return () => observer.disconnect();
+  }, [books]);
 
   const handleFile = async (file) => {
     if (!file || !file.name.endsWith('.epub')) {
@@ -37,69 +50,157 @@ export default function UploadPage() {
   const handleDrop = (e) => {
     e.preventDefault();
     setDragOver(false);
-    const file = e.dataTransfer.files[0];
-    handleFile(file);
+    handleFile(e.dataTransfer.files[0]);
   };
 
-  const handleDragOver = (e) => {
-    e.preventDefault();
-    setDragOver(true);
-  };
-
-  const handleDragLeave = () => setDragOver(false);
+  const features = [
+    {
+      icon: <Headphones size={28} />,
+      title: 'Audio Narration',
+      desc: 'Generate natural TTS audio or upload your own narration for every chapter.',
+    },
+    {
+      icon: <Wand2 size={28} />,
+      title: 'Word-Level Sync',
+      desc: 'Automatic word-by-word alignment between text and audio powered by WhisperX.',
+    },
+    {
+      icon: <AudioLines size={28} />,
+      title: 'Timeline Editor',
+      desc: 'Fine-tune word timings with a visual drag-and-drop timeline editor.',
+    },
+    {
+      icon: <Globe size={28} />,
+      title: '50+ Voices',
+      desc: 'Choose from dozens of natural-sounding voices across multiple languages.',
+    },
+    {
+      icon: <Download size={28} />,
+      title: 'EPUB 3 Export',
+      desc: 'Export your synced audiobook as a standards-compliant EPUB 3 with media overlays.',
+    },
+    {
+      icon: <Sparkles size={28} />,
+      title: 'Beautiful Reader',
+      desc: 'Light, sepia, and dark themes with smooth word-level highlighting as you listen.',
+    },
+  ];
 
   return (
-    <div className="upload-page">
-      <div className="upload-header">
-        <h1>
-          <BookOpen size={32} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 12 }} />
-          EPUB Reader
-        </h1>
-        <p>Upload an EPUB file to start reading</p>
-      </div>
-
-      <div
-        className={`upload-zone ${dragOver ? 'drag-over' : ''} ${uploading ? 'uploading' : ''}`}
-        onClick={() => !uploading && fileInputRef.current?.click()}
-        onDrop={handleDrop}
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
-      >
-        <div className="upload-icon">
-          <Upload size={40} />
+    <div className="landing">
+      {/* ---- Navbar ---- */}
+      <nav className="landing-nav">
+        <div className="landing-nav-inner">
+          <a href="/" className="landing-logo">
+            <BookOpen size={22} />
+            <span>VoxBook</span>
+          </a>
+          <div className="landing-nav-links">
+            <a href="#features">Features</a>
+            <a href="#upload">Get Started</a>
+            {books.length > 0 && <a href="#library">Library</a>}
+          </div>
+          <div className="landing-nav-actions">
+            <button className="landing-btn-ghost" disabled title="Coming soon">Log in</button>
+            <button className="landing-btn-primary" disabled title="Coming soon">Sign up</button>
+          </div>
         </div>
-        <div className="upload-text">
-          <strong>Click to upload</strong> or drag and drop
-        </div>
-        <div className="upload-hint">EPUB files up to 100MB</div>
+      </nav>
 
-        {uploading && (
-          <div className="upload-progress">
-            <div className="upload-progress-bar">
-              <div
-                className="upload-progress-fill"
-                style={{ width: `${progress}%` }}
-              />
+      {/* ---- Hero ---- */}
+      <section className="landing-hero">
+        <div className="landing-hero-glow" />
+        <div className="landing-hero-content reveal">
+          <p className="landing-badge">
+            <Sparkles size={14} />
+            <span>Audio-first EPUB experience</span>
+          </p>
+          <h1>
+            Read. Listen.<br />
+            <span className="gradient-text">Feel every word.</span>
+          </h1>
+          <p className="landing-hero-sub">
+            Transform any EPUB into a synced audiobook with AI-powered narration,
+            word-level highlighting, and a timeline editor — then export as EPUB 3.
+          </p>
+          <div className="landing-hero-cta">
+            <a href="#upload" className="landing-btn-large">
+              Get Started
+              <ChevronRight size={18} />
+            </a>
+          </div>
+        </div>
+      </section>
+
+      {/* ---- Features ---- */}
+      <section className="landing-features" id="features">
+        <div className="landing-section-header reveal">
+          <h2>Everything you need to create<br /><span className="gradient-text">synced audiobooks</span></h2>
+          <p>From upload to export — a complete production toolkit in your browser.</p>
+        </div>
+        <div className="landing-features-grid">
+          {features.map((f, i) => (
+            <div key={i} className="landing-feature-card reveal" style={{ transitionDelay: `${i * 80}ms` }}>
+              <div className="landing-feature-icon">{f.icon}</div>
+              <h3>{f.title}</h3>
+              <p>{f.desc}</p>
             </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ---- Upload CTA ---- */}
+      <section className="landing-upload-section" id="upload">
+        <div className="landing-section-header reveal">
+          <h2>Start with your EPUB</h2>
+          <p>Drop a file below and we'll take care of the rest.</p>
+        </div>
+        <div
+          className={`landing-upload-zone reveal ${dragOver ? 'drag-over' : ''} ${uploading ? 'uploading' : ''}`}
+          onClick={() => !uploading && fileInputRef.current?.click()}
+          onDrop={handleDrop}
+          onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+          onDragLeave={() => setDragOver(false)}
+        >
+          <div className="landing-upload-icon">
+            <Upload size={36} />
           </div>
-        )}
+          <p className="landing-upload-text">
+            <strong>Click to upload</strong> or drag and drop
+          </p>
+          <span className="landing-upload-hint">EPUB files up to 100 MB</span>
 
-        {error && (
-          <div style={{ color: '#ef4444', marginTop: 12, fontSize: '0.88rem' }}>
-            {error}
-          </div>
-        )}
+          {uploading && (
+            <div className="landing-progress">
+              <div className="landing-progress-bar">
+                <div className="landing-progress-fill" style={{ width: `${progress}%` }} />
+              </div>
+            </div>
+          )}
 
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept=".epub"
-          style={{ display: 'none' }}
-          onChange={(e) => handleFile(e.target.files[0])}
-        />
-      </div>
+          {error && <p className="landing-upload-error">{error}</p>}
 
-      {books.length > 0 && <Library />}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".epub"
+            style={{ display: 'none' }}
+            onChange={e => handleFile(e.target.files[0])}
+          />
+        </div>
+      </section>
+
+      {/* ---- Library ---- */}
+      {books.length > 0 && (
+        <section className="landing-library" id="library">
+          <Library />
+        </section>
+      )}
+
+      {/* ---- Footer ---- */}
+      <footer className="landing-footer">
+        <p>VoxBook &mdash; Open-source EPUB audiobook toolkit</p>
+      </footer>
     </div>
   );
 }

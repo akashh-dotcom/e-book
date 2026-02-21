@@ -1,14 +1,12 @@
 import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { BookOpen, Trash2 } from 'lucide-react';
+import { BookOpen, Trash2, ChevronRight } from 'lucide-react';
 import useBookStore from '../store/bookStore';
 
 export default function Library() {
   const { books, fetchBooks, deleteBook } = useBookStore();
 
-  useEffect(() => {
-    fetchBooks();
-  }, [fetchBooks]);
+  useEffect(() => { fetchBooks(); }, [fetchBooks]);
 
   const handleDelete = async (e, id) => {
     e.preventDefault();
@@ -24,32 +22,36 @@ export default function Library() {
     <div className="library-section">
       <h2 className="library-title">Your Library</h2>
       <div className="library-grid">
-        {books.map(book => (
+        {books.map((book, i) => (
           <Link
             key={book._id}
             to={`/read/${book._id}`}
-            className="book-card"
+            className="book-card reveal"
+            style={{ transitionDelay: `${i * 60}ms` }}
           >
-            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
-              <BookOpen size={20} style={{ color: '#2563eb', flexShrink: 0, marginTop: 2 }} />
-              <div style={{ flex: 1 }}>
+            <div className="book-card-top">
+              <div className="book-card-icon">
+                <BookOpen size={20} />
+              </div>
+              <div className="book-card-info">
                 <div className="book-card-title">{book.title}</div>
                 {book.author && (
-                  <div className="book-card-author">by {book.author}</div>
+                  <div className="book-card-author">{book.author}</div>
                 )}
               </div>
             </div>
-            <div className="book-card-meta">
-              {book.totalChapters} chapters
-            </div>
-            <div className="book-card-actions">
-              <button
-                className="book-card-delete"
-                onClick={(e) => handleDelete(e, book._id)}
-                title="Delete book"
-              >
-                <Trash2 size={14} />
-              </button>
+            <div className="book-card-bottom">
+              <span className="book-card-meta">{book.totalChapters} chapters</span>
+              <div className="book-card-row">
+                <button
+                  className="book-card-delete"
+                  onClick={(e) => handleDelete(e, book._id)}
+                  title="Delete book"
+                >
+                  <Trash2 size={14} />
+                </button>
+                <span className="book-card-arrow"><ChevronRight size={16} /></span>
+              </div>
             </div>
           </Link>
         ))}
