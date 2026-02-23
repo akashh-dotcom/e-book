@@ -141,12 +141,14 @@ export default function ReaderPage() {
               hasSyncData={audio.hasSyncData}
               onUpload={audio.uploadAudio}
               onAutoSync={async (mode) => {
-                const result = await audio.runAutoSync(mode);
+                const lang = reader.translatedLang || undefined;
+                const result = await audio.runAutoSync(mode, { lang });
                 reader.reloadChapter();
                 return result;
               }}
               onGenerate={async (voice) => {
-                await audio.generateAudio(voice);
+                const lang = reader.translatedLang || undefined;
+                await audio.generateAudio(voice, { lang });
               }}
               bookId={bookId}
               chapterIndex={reader.chapterIndex}

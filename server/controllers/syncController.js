@@ -9,12 +9,15 @@ const smilGenerator = require('../services/smilGenerator');
 /**
  * Auto-align audio to chapter text using WhisperX.
  * POST /api/sync/:bookId/:chapterIndex/auto
- * Body: { mode: "word" | "sentence", modelSize: "tiny"|"base"|"small"|"medium"|"large-v2" }
+ * Body: { mode: "word" | "sentence", modelSize: "tiny"|"base"|"small"|"medium"|"large-v2", lang?: string }
+ *
+ * When lang is provided (e.g. "kn"), aligns against the translated chapter
+ * so that sync data matches the translated word spans.
  */
 exports.autoAlign = async (req, res) => {
   try {
     const { bookId, chapterIndex } = req.params;
-    const { mode = 'word', modelSize = 'base' } = req.body;
+    const { mode = 'word', modelSize = 'base', lang } = req.body;
 
     const book = await Book.findById(bookId);
     if (!book) return res.status(404).json({ error: 'Book not found' });
@@ -27,9 +30,28 @@ exports.autoAlign = async (req, res) => {
     }
 
     // Step 1: Read chapter HTML and wrap words
-    const chapterPath = path.join(
-      book.storagePath, 'chapters', `${chapterIndex}.html`
-    );
+    // Use translated chapter if lang is provided
+    const bookLang = (book.language || 'en').split('-')[0];
+    let chapterPath;
+    let whisperLang;
+
+    if (lang && lang !== bookLang) {
+      chapterPath = path.join(
+        book.storagePath, 'chapters', `${chapterIndex}_${lang}.html`
+      );
+      whisperLang = lang;
+      try {
+        await fs.access(chapterPath);
+      } catch {
+        return res.status(400).json({ error: `No ${lang} translation found. Translate the chapter first.` });
+      }
+    } else {
+      chapterPath = path.join(
+        book.storagePath, 'chapters', `${chapterIndex}.html`
+      );
+      whisperLang = book.language || 'en';
+    }
+
     const rawHtml = await fs.readFile(chapterPath, 'utf-8');
     const wrapped = wordWrapper.wrap(rawHtml);
 
@@ -48,13 +70,13 @@ exports.autoAlign = async (req, res) => {
         audioPath,
         wrapped.plainText,
         wrapped.wordIds,
-        { language: book.language || 'en', modelSize }
+        { language: whisperLang, modelSize }
       );
     } else {
       const timestamps = await whisperxAligner.alignWords(
         audioPath,
         wrapped.words,
-        { language: book.language || 'en', modelSize }
+        { language: whisperLang, modelSize }
       );
       syncData = whisperxAligner.buildSyncData(timestamps, wrapped.wordIds);
     }

@@ -47,8 +47,8 @@ export function useAudioPlayer(bookId, chapterIndex) {
     return res.data;
   }, [bookId, chapterIndex]);
 
-  const runAutoSync = useCallback(async (mode = 'word') => {
-    const res = await api.post(`/sync/${bookId}/${chapterIndex}/auto`, { mode });
+  const runAutoSync = useCallback(async (mode = 'word', { lang } = {}) => {
+    const res = await api.post(`/sync/${bookId}/${chapterIndex}/auto`, { mode, lang });
     // Reload sync data
     const syncRes = await api.get(`/sync/${bookId}/${chapterIndex}`);
     setSyncData(syncRes.data.syncData);
@@ -78,8 +78,8 @@ export function useAudioPlayer(bookId, chapterIndex) {
     setAudioUrl(`/api/audio/${bookId}/${chapterIndex}/stream?t=${ts}`);
   }, [bookId, chapterIndex]);
 
-  const generateAudio = useCallback(async (voice = 'en-US-AriaNeural') => {
-    const res = await api.post(`/audio/${bookId}/${chapterIndex}/generate`, { voice });
+  const generateAudio = useCallback(async (voice = 'en-US-AriaNeural', { lang } = {}) => {
+    const res = await api.post(`/audio/${bookId}/${chapterIndex}/generate`, { voice, lang });
     setAudioUrl(`/api/audio/${bookId}/${chapterIndex}/stream`);
     setHasAudio(true);
     return res.data;

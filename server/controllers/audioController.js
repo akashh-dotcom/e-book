@@ -358,17 +358,34 @@ exports.listVoices = async (req, res) => {
 /**
  * Auto-generate audio from chapter text using edge-tts.
  * POST /api/audio/:bookId/:chapterIndex/generate
- * Body: { voice?: string }
+ * Body: { voice?: string, lang?: string }
+ *
+ * When lang is provided (e.g. "kn"), reads from the translated chapter file
+ * so that the generated audio matches the displayed translation.
  */
 exports.generateAudio = async (req, res) => {
   try {
     const { bookId, chapterIndex } = req.params;
-    const { voice = 'en-US-AriaNeural' } = req.body;
+    const { voice = 'en-US-AriaNeural', lang } = req.body;
 
     const book = await Book.findById(bookId);
     if (!book) return res.status(404).json({ error: 'Book not found' });
 
-    const chapterPath = path.join(book.storagePath, 'chapters', `${chapterIndex}.html`);
+    // Use translated chapter if lang is provided and translation exists
+    let chapterPath;
+    const bookLang = (book.language || 'en').split('-')[0];
+    if (lang && lang !== bookLang) {
+      const translatedPath = path.join(book.storagePath, 'chapters', `${chapterIndex}_${lang}.html`);
+      try {
+        await fs.access(translatedPath);
+        chapterPath = translatedPath;
+      } catch {
+        return res.status(400).json({ error: `No ${lang} translation found. Translate the chapter first.` });
+      }
+    } else {
+      chapterPath = path.join(book.storagePath, 'chapters', `${chapterIndex}.html`);
+    }
+
     const html = await fs.readFile(chapterPath, 'utf-8');
 
     // Strip HTML tags to get plain text
