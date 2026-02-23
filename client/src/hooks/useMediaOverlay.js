@@ -13,6 +13,7 @@ export function useMediaOverlay(syncData, audioUrl) {
   const syncDataRef = useRef(syncData);
   syncDataRef.current = syncData;
   const playbackRateRef = useRef(1);
+  const activeWordRef = useRef(null);
 
   // Original sync data — the alignment before any word-edge drags.
   // Resets when word IDs change (e.g. after re-sync from aeneas).
@@ -92,6 +93,13 @@ export function useMediaOverlay(syncData, audioUrl) {
   // ---- Audio element setup ----
 
   useEffect(() => {
+    // Clear stale highlights from previous audio/sync
+    clearHighlights();
+    activeWordRef.current = null;
+    setActiveWordId(null);
+    setCurrentTime(0);
+    setIsPlaying(false);
+
     if (!audioUrl) {
       audioRef.current = null;
       return;
@@ -103,6 +111,7 @@ export function useMediaOverlay(syncData, audioUrl) {
     audio.addEventListener('ended', () => {
       setIsPlaying(false);
       clearHighlights();
+      activeWordRef.current = null;
     });
     audio.src = audioUrl;
     audio.load();
@@ -141,7 +150,6 @@ export function useMediaOverlay(syncData, audioUrl) {
         newActive = entry.id;
         el.classList.add('-epub-media-overlay-active');
         el.classList.remove('mo-spoken');
-        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
       } else if (vt >= entry.clipEnd) {
         el.classList.remove('-epub-media-overlay-active');
         el.classList.add('mo-spoken');
@@ -149,7 +157,15 @@ export function useMediaOverlay(syncData, audioUrl) {
         el.classList.remove('-epub-media-overlay-active', 'mo-spoken');
       }
     }
-    setActiveWordId(newActive);
+    // Only scroll when the active word changes to avoid jittery 40ms scrolling
+    if (newActive !== activeWordRef.current) {
+      activeWordRef.current = newActive;
+      setActiveWordId(newActive);
+      if (newActive) {
+        const el = document.getElementById(newActive);
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
   }, []);
 
   const clearHighlights = () => {
@@ -223,8 +239,9 @@ export function useMediaOverlay(syncData, audioUrl) {
 
   const setSpeed = useCallback((r) => {
     playbackRateRef.current = r;
-    if (audioRef.current) audioRef.current.playbackRate = r;
     setPlaybackRate(r);
+    // Don't set audio.playbackRate directly — the timer applies
+    // wordRate * playbackRateRef.current on the next tick.
   }, []);
 
   return {
