@@ -79,17 +79,32 @@ exports.autoAlign = async (req, res) => {
 
     let syncData;
 
-    if (mode === 'sentence') {
-      syncData = await whisperxAligner.alignSentencesThenDistribute(
-        audioPath, wrapped.plainText, wrapped.wordIds,
-        { language: whisperLang, modelSize, onProgress }
-      );
-    } else {
-      const timestamps = await whisperxAligner.alignWords(
-        audioPath, wrapped.words,
-        { language: whisperLang, modelSize, onProgress }
-      );
-      syncData = whisperxAligner.buildSyncData(timestamps, wrapped.wordIds);
+    // Try edge-tts VTT timing first (instant, perfect for TTS-generated audio)
+    const vttPath = audioPath.replace(/\.mp3$/, '.vtt');
+    let usedVtt = false;
+    try {
+      await fs.access(vttPath);
+      send('progress', { step: 'vtt_found', message: 'Using TTS word timing (fast path)...' });
+      syncData = await whisperxAligner.buildSyncFromVtt(vttPath, wrapped.words, wrapped.wordIds);
+      if (syncData) usedVtt = true;
+    } catch {
+      // No VTT file — fall back to WhisperX
+    }
+
+    if (!syncData) {
+      // Fallback: WhisperX alignment (for uploaded/non-TTS audio)
+      if (mode === 'sentence') {
+        syncData = await whisperxAligner.alignSentencesThenDistribute(
+          audioPath, wrapped.plainText, wrapped.wordIds,
+          { language: whisperLang, modelSize, onProgress }
+        );
+      } else {
+        const timestamps = await whisperxAligner.alignWords(
+          audioPath, wrapped.words,
+          { language: whisperLang, modelSize, onProgress }
+        );
+        syncData = whisperxAligner.buildSyncData(timestamps, wrapped.wordIds);
+      }
     }
 
     send('progress', { step: 'saving', message: 'Saving sync data...' });
@@ -112,7 +127,7 @@ exports.autoAlign = async (req, res) => {
         chapterIndex: parseInt(chapterIndex),
         lang: syncLang,
         syncData,
-        engine: `whisperx-${mode}`,
+        engine: usedVtt ? 'edge-tts-vtt' : `whisperx-${mode}`,
         wordCount: wrapped.wordCount,
         duration: audioInfo.duration,
         status: 'complete',

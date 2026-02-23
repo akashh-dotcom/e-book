@@ -425,9 +425,11 @@ exports.generateAudio = async (req, res) => {
     const tmpTextPath = path.join(audioDir, `_tmp_text_${chapterIndex}.txt`);
     await fs.writeFile(tmpTextPath, plainText, 'utf-8');
 
+    // Generate audio AND word-level subtitles from edge-tts
+    const vttPath = audioPath.replace(/\.mp3$/, '.vtt');
     const { execSync } = require('child_process');
     execSync(
-      `edge-tts --voice "${voice}" --file "${tmpTextPath}" --write-media "${audioPath}"`,
+      `edge-tts --voice "${voice}" --file "${tmpTextPath}" --write-media "${audioPath}" --write-subtitles "${vttPath}"`,
       { timeout: 600000 }
     );
 
