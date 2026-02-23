@@ -178,9 +178,19 @@ export function useMediaOverlay(syncData, audioUrl) {
   }, [updateHighlights, audioToVirtual, getRateForAudioPos]);
 
   const play = useCallback(() => {
-    audioRef.current?.play();
-    setIsPlaying(true);
-    startTimer();
+    const p = audioRef.current?.play();
+    if (p && typeof p.then === 'function') {
+      p.then(() => {
+        setIsPlaying(true);
+        startTimer();
+      }).catch((err) => {
+        console.error('Audio play failed:', err.message);
+        setIsPlaying(false);
+      });
+    } else {
+      setIsPlaying(true);
+      startTimer();
+    }
   }, [startTimer]);
 
   const pause = useCallback(() => {
