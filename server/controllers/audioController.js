@@ -410,8 +410,9 @@ exports.generateAudio = async (req, res) => {
 
     const html = await fs.readFile(chapterPath, 'utf-8');
 
-    // Strip HTML tags to get plain text
-    const plainText = html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+    // Strip HTML tags to get plain text (using wordWrapper to match sync flow)
+    const wordWrapper = require('../services/wordWrapper');
+    const plainText = wordWrapper.getPlainText(html);
     if (!plainText) return res.status(400).json({ error: 'Chapter has no text content' });
 
     const audioDir = path.join(book.storagePath, 'audio');

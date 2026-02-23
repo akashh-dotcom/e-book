@@ -133,23 +133,46 @@ export function useMediaOverlay(syncData, audioUrl) {
   const updateHighlights = useCallback((vt) => {
     const data = syncDataRef.current;
     if (!data?.length) return;
-    let newActive = null;
-    for (const entry of data) {
+
+    // Find the active word: the word whose [clipBegin, clipEnd) contains vt,
+    // OR the last word whose clipEnd <= vt but the NEXT word hasn't started yet
+    // (this keeps the last word highlighted during sentence/paragraph pauses).
+    let activeIdx = -1;
+    for (let i = 0; i < data.length; i++) {
+      const entry = data[i];
+      if (entry.clipBegin === null) continue;
+      if (vt >= entry.clipBegin && vt < entry.clipEnd) {
+        activeIdx = i;
+        break;
+      }
+      if (vt >= entry.clipEnd) {
+        // Check if we're in a gap before the next word
+        const next = data[i + 1];
+        if (!next || next.clipBegin === null || vt < next.clipBegin) {
+          activeIdx = i; // Stay on this word during the gap
+        }
+      }
+    }
+
+    const activeId = activeIdx >= 0 ? data[activeIdx].id : null;
+
+    for (let i = 0; i < data.length; i++) {
+      const entry = data[i];
       const el = document.getElementById(entry.id);
       if (!el || entry.clipBegin === null) continue;
-      if (vt >= entry.clipBegin && vt < entry.clipEnd) {
-        newActive = entry.id;
+
+      if (i === activeIdx) {
         el.classList.add('-epub-media-overlay-active');
         el.classList.remove('mo-spoken');
         el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      } else if (vt >= entry.clipEnd) {
+      } else if (activeIdx >= 0 && i < activeIdx) {
         el.classList.remove('-epub-media-overlay-active');
         el.classList.add('mo-spoken');
       } else {
         el.classList.remove('-epub-media-overlay-active', 'mo-spoken');
       }
     }
-    setActiveWordId(newActive);
+    setActiveWordId(activeId);
   }, []);
 
   const clearHighlights = () => {
