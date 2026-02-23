@@ -122,8 +122,9 @@ def translate_text(text, src_lang, tgt_lang, max_length=512):
 
     translated_chunks = []
     tokenizer.src_lang = src_lang
+    total_chunks = len(chunks)
 
-    for chunk in chunks:
+    for idx, chunk in enumerate(chunks):
         inputs = tokenizer(chunk, return_tensors="pt", truncation=True, max_length=max_length)
         translated_tokens = model.generate(
             **inputs,
@@ -132,6 +133,10 @@ def translate_text(text, src_lang, tgt_lang, max_length=512):
         )
         result = tokenizer.batch_decode(translated_tokens, skip_special_tokens=True)[0]
         translated_chunks.append(result)
+
+        # Report progress to stderr so Node can read it in real-time
+        pct = round(((idx + 1) / total_chunks) * 100)
+        print(f"PROGRESS:{idx + 1}/{total_chunks}/{pct}", file=sys.stderr, flush=True)
 
     return ' '.join(translated_chunks)
 

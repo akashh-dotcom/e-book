@@ -1,6 +1,6 @@
 const path = require('path');
 const fs = require('fs').promises;
-const { execSync } = require('child_process');
+const { execSync, spawn } = require('child_process');
 const cheerio = require('cheerio');
 const wordWrapper = require('./wordWrapper');
 
@@ -72,9 +72,10 @@ function isRTL(lang) {
  * @param {string} srcLang - Source language code (e.g. "en", "en-US")
  * @param {string} tgtLang - Target language code (e.g. "ja", "ja-JP")
  * @param {string} tmpDir - Directory for temp files
+ * @param {function} [onProgress] - Optional callback: onProgress({ current, total, percent })
  * @returns {string} Translated text
  */
-async function translateText(text, srcLang, tgtLang, tmpDir) {
+async function translateText(text, srcLang, tgtLang, tmpDir, onProgress) {
   const ts = Date.now();
   const inputPath = path.join(tmpDir, `_translate_in_${ts}.txt`);
   const outputPath = path.join(tmpDir, `_translate_out_${ts}.txt`);
@@ -84,10 +85,47 @@ async function translateText(text, srcLang, tgtLang, tmpDir) {
   const scriptPath = path.join(__dirname, '..', 'scripts', 'nllb_translate.py');
 
   try {
-    const result = execSync(
-      `${getPythonCmd()} "${scriptPath}" --input "${inputPath}" --output "${outputPath}" --src "${srcLang}" --tgt "${tgtLang}"`,
-      { timeout: 600000 } // 10 min timeout for large chapters
-    ).toString();
+    const result = await new Promise((resolve, reject) => {
+      const proc = spawn(getPythonCmd(), [
+        scriptPath,
+        '--input', inputPath,
+        '--output', outputPath,
+        '--src', srcLang,
+        '--tgt', tgtLang,
+      ], { timeout: 600000 });
+
+      let stdout = '';
+      let stderrBuf = '';
+
+      proc.stdout.on('data', (data) => { stdout += data.toString(); });
+
+      proc.stderr.on('data', (data) => {
+        stderrBuf += data.toString();
+        // Parse progress lines: PROGRESS:current/total/percent
+        const lines = stderrBuf.split('\n');
+        stderrBuf = lines.pop(); // keep incomplete line in buffer
+        for (const line of lines) {
+          const match = line.match(/PROGRESS:(\d+)\/(\d+)\/(\d+)/);
+          if (match && onProgress) {
+            onProgress({
+              current: parseInt(match[1]),
+              total: parseInt(match[2]),
+              percent: parseInt(match[3]),
+            });
+          }
+        }
+      });
+
+      proc.on('close', (code) => {
+        if (code !== 0) {
+          reject(new Error(`Translation script exited with code ${code}`));
+        } else {
+          resolve(stdout);
+        }
+      });
+
+      proc.on('error', reject);
+    });
 
     const parsed = JSON.parse(result.trim().split('\n').pop());
     if (parsed.error) throw new Error(parsed.error);
@@ -108,9 +146,10 @@ async function translateText(text, srcLang, tgtLang, tmpDir) {
  * @param {string} srcLang - Source language code
  * @param {string} tgtLang - Target language code
  * @param {string} tmpDir - Temp directory for files
+ * @param {function} [onProgress] - Optional callback: onProgress({ current, total, percent })
  * @returns {{ html: string, wordCount: number, words: string[], wordIds: string[], plainText: string }}
  */
-async function translateChapterHtml(html, srcLang, tgtLang, tmpDir) {
+async function translateChapterHtml(html, srcLang, tgtLang, tmpDir, onProgress) {
   const $ = cheerio.load(html, { xmlMode: false });
 
   // Remove existing word spans — unwrap them back to plain text
@@ -137,7 +176,7 @@ async function translateChapterHtml(html, srcLang, tgtLang, tmpDir) {
   const separator = '\n|||PARA|||\n';
   const allText = textNodes.map(n => n.text).join(separator);
 
-  const translatedAll = await translateText(allText, srcLang, tgtLang, tmpDir);
+  const translatedAll = await translateText(allText, srcLang, tgtLang, tmpDir, onProgress);
 
   // Split back into paragraphs
   const translatedParts = translatedAll.split(/\|\|\|PARA\|\|\|/).map(s => s.trim());

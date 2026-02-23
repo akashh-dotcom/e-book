@@ -56,6 +56,7 @@ export default function TranslatePanel({
   bookLanguage,
   translatedLang,
   translating,
+  translateProgress = 0,
   onTranslate,
   onShowOriginal,
   onClose,
@@ -95,7 +96,15 @@ export default function TranslatePanel({
         {translating ? (
           <div className="translate-status-row active">
             <Loader size={14} className="spin" />
-            <span>Translating...</span>
+            <span>Translating... {translateProgress > 0 ? `${translateProgress}%` : ''}</span>
+            {translateProgress > 0 && (
+              <div className="translation-progress-bar" style={{ flex: 1, marginLeft: 8 }}>
+                <div
+                  className="translation-progress-fill"
+                  style={{ width: `${translateProgress}%` }}
+                />
+              </div>
+            )}
           </div>
         ) : activeLang ? (
           <div className="translate-status-row active">

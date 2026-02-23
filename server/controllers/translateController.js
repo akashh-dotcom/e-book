@@ -5,12 +5,14 @@ const wordWrapper = require('../services/wordWrapper');
 const translation = require('../services/translationService');
 
 /**
- * Translate a chapter to a target language.
+ * Translate a chapter to a target language (with SSE progress streaming).
  * POST /api/translate/:bookId/:chapterIndex
  * Body: { targetLang: "ja-JP" }
  *
- * Translates the original chapter text, re-wraps words, and stores as a
- * separate file (e.g. 0_ja.html). Original file is never modified.
+ * Streams progress events as SSE, then the final result.
+ * Events:
+ *   data: {"progress":30,"current":3,"total":10}
+ *   data: {"done":true,"html":"...","translated":true,...}
  */
 exports.translateChapter = async (req, res) => {
   try {
@@ -28,7 +30,6 @@ exports.translateChapter = async (req, res) => {
 
     // Check if same language
     if (translation.isSameLanguage(srcLang, targetLang)) {
-      // No translation needed — return original chapter
       const chapterPath = path.join(book.storagePath, 'chapters', `${chapterIndex}.html`);
       const html = await fs.readFile(chapterPath, 'utf-8');
       const assetBase = `/storage/books/${book._id}/assets`;
@@ -45,7 +46,7 @@ exports.translateChapter = async (req, res) => {
       book.storagePath, chapterIndex, targetLang
     );
 
-    // Check cache
+    // Check cache — return immediately (no streaming needed)
     const cached = await translation.hasTranslation(book.storagePath, chapterIndex, targetLang);
     if (cached) {
       let html = await fs.readFile(translatedPath, 'utf-8');
@@ -59,13 +60,26 @@ exports.translateChapter = async (req, res) => {
       });
     }
 
+    // --- SSE streaming for progress ---
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no');
+    res.flushHeaders();
+
+    // Send initial event
+    res.write(`data: ${JSON.stringify({ progress: 0, current: 0, total: 0, status: 'starting' })}\n\n`);
+
     // Read original chapter HTML
     const originalPath = path.join(book.storagePath, 'chapters', `${chapterIndex}.html`);
     const originalHtml = await fs.readFile(originalPath, 'utf-8');
 
-    // Translate
+    // Translate with progress callback
     const result = await translation.translateChapterHtml(
-      originalHtml, srcLang, targetLang, book.storagePath
+      originalHtml, srcLang, targetLang, book.storagePath,
+      ({ current, total, percent }) => {
+        res.write(`data: ${JSON.stringify({ progress: percent, current, total, status: 'translating' })}\n\n`);
+      }
     );
 
     // Save translated chapter
@@ -75,16 +89,26 @@ exports.translateChapter = async (req, res) => {
     const assetBase = `/storage/books/${book._id}/assets`;
     const resolvedHtml = result.html.replace(/__ASSET__/g, assetBase);
 
-    res.json({
+    // Send final result
+    res.write(`data: ${JSON.stringify({
+      done: true,
       html: resolvedHtml,
       translated: true,
       language: tgtShort,
       cached: false,
       wordCount: result.wordCount,
-    });
+    })}\n\n`);
+
+    res.end();
   } catch (err) {
     console.error('Translation error:', err);
-    res.status(500).json({ error: err.message });
+    // If headers already sent (SSE mode), send error as event
+    if (res.headersSent) {
+      res.write(`data: ${JSON.stringify({ error: err.message })}\n\n`);
+      res.end();
+    } else {
+      res.status(500).json({ error: err.message });
+    }
   }
 };
 

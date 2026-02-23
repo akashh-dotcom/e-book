@@ -1203,6 +1203,21 @@ body {
 }
 .translation-bar.translating {
   opacity: 0.8;
+  flex-wrap: wrap;
+}
+.translation-progress-bar {
+  width: 100%;
+  height: 4px;
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-top: 2px;
+}
+.translation-progress-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 2px;
+  transition: width 0.3s ease;
 }
 .translation-bar-btn {
   display: flex;

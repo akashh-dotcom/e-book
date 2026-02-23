@@ -174,7 +174,15 @@ export default function ReaderPage() {
             {reader.translating && (
               <div className="translation-bar translating">
                 <Loader size={14} className="spin" />
-                <span>Translating chapter...</span>
+                <span>Translating chapter... {reader.translateProgress > 0 ? `${reader.translateProgress}%` : ''}</span>
+                {reader.translateProgress > 0 && (
+                  <div className="translation-progress-bar">
+                    <div
+                      className="translation-progress-fill"
+                      style={{ width: `${reader.translateProgress}%` }}
+                    />
+                  </div>
+                )}
               </div>
             )}
 
@@ -236,6 +244,7 @@ export default function ReaderPage() {
             bookLanguage={reader.book.language}
             translatedLang={reader.translatedLang}
             translating={reader.translating}
+            translateProgress={reader.translateProgress}
             onTranslate={reader.translateTo}
             onShowOriginal={reader.showOriginal}
             onClose={() => setTranslateOpen(false)}
