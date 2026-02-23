@@ -1,5 +1,16 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import api from '../services/api';
+
+/**
+ * Fetch audio stream via authenticated api and return a blob URL.
+ * This avoids 401 errors when the <audio> element makes direct requests.
+ */
+async function fetchAudioBlobUrl(streamPath) {
+  // streamPath is like /api/audio/.../stream?lang=hi — strip /api prefix
+  const apiPath = streamPath.replace(/^\/api/, '');
+  const res = await api.get(apiPath, { responseType: 'blob' });
+  return URL.createObjectURL(res.data);
+}
 
 /**
  * Hook to manage audio & sync data loading for a chapter.
@@ -10,20 +21,33 @@ export function useAudioPlayer(bookId, chapterIndex, lang) {
   const [syncData, setSyncData] = useState(null);
   const [hasAudio, setHasAudio] = useState(false);
   const [hasSyncData, setHasSyncData] = useState(false);
+  const blobUrlRef = useRef(null);
 
   const langQuery = lang ? `?lang=${lang}` : '';
 
+  // Revoke previous blob URL to avoid memory leaks
+  const setBlobAudioUrl = useCallback((blobUrl) => {
+    if (blobUrlRef.current) URL.revokeObjectURL(blobUrlRef.current);
+    blobUrlRef.current = blobUrl;
+    setAudioUrl(blobUrl);
+  }, []);
+
   useEffect(() => {
     if (!bookId || chapterIndex === undefined) return;
-    setAudioUrl(null);
+    setBlobAudioUrl(null);
     setSyncData(null);
     setHasAudio(false);
     setHasSyncData(false);
 
-    // Check for audio
+    let cancelled = false;
+
+    // Check for audio — fetch the stream as a blob
     api.get(`/audio/${bookId}/${chapterIndex}${langQuery}`)
-      .then(res => {
-        setAudioUrl(res.data.url);
+      .then(async (res) => {
+        if (cancelled) return;
+        const blobUrl = await fetchAudioBlobUrl(res.data.url);
+        if (cancelled) { URL.revokeObjectURL(blobUrl); return; }
+        setBlobAudioUrl(blobUrl);
         setHasAudio(true);
       })
       .catch(() => {});
@@ -31,10 +55,14 @@ export function useAudioPlayer(bookId, chapterIndex, lang) {
     // Check for sync data
     api.get(`/sync/${bookId}/${chapterIndex}${langQuery}`)
       .then(res => {
-        setSyncData(res.data.syncData);
-        setHasSyncData(true);
+        if (!cancelled) {
+          setSyncData(res.data.syncData);
+          setHasSyncData(true);
+        }
       })
       .catch(() => {});
+
+    return () => { cancelled = true; };
   }, [bookId, chapterIndex, lang]);
 
   const uploadAudio = useCallback(async (file) => {
@@ -45,10 +73,12 @@ export function useAudioPlayer(bookId, chapterIndex, lang) {
       formData,
       { headers: { 'Content-Type': 'multipart/form-data' } }
     );
-    setAudioUrl(`/api/audio/${bookId}/${chapterIndex}/stream${langQuery}`);
+    const streamPath = `/api/audio/${bookId}/${chapterIndex}/stream${langQuery}`;
+    const blobUrl = await fetchAudioBlobUrl(streamPath);
+    setBlobAudioUrl(blobUrl);
     setHasAudio(true);
     return res.data;
-  }, [bookId, chapterIndex, langQuery]);
+  }, [bookId, chapterIndex, langQuery, setBlobAudioUrl]);
 
   const runAutoSync = useCallback(async (mode = 'word', { lang: syncLang } = {}) => {
     const effectiveLang = syncLang || lang;
@@ -77,21 +107,31 @@ export function useAudioPlayer(bookId, chapterIndex, lang) {
       });
   }, [bookId, chapterIndex, langQuery]);
 
-  const reloadAudio = useCallback(() => {
-    // Force audio element to reload by appending cache-buster
+  const reloadAudio = useCallback(async () => {
     const ts = Date.now();
     const sep = langQuery ? '&' : '?';
-    setAudioUrl(`/api/audio/${bookId}/${chapterIndex}/stream${langQuery}${sep}t=${ts}`);
-  }, [bookId, chapterIndex, langQuery]);
+    const streamPath = `/api/audio/${bookId}/${chapterIndex}/stream${langQuery}${sep}t=${ts}`;
+    const blobUrl = await fetchAudioBlobUrl(streamPath);
+    setBlobAudioUrl(blobUrl);
+  }, [bookId, chapterIndex, langQuery, setBlobAudioUrl]);
 
   const generateAudio = useCallback(async (voice = 'en-US-AriaNeural', { lang: genLang } = {}) => {
     const effectiveLang = genLang || lang;
     const res = await api.post(`/audio/${bookId}/${chapterIndex}/generate`, { voice, lang: effectiveLang });
     const lq = effectiveLang ? `?lang=${effectiveLang}` : '';
-    setAudioUrl(`/api/audio/${bookId}/${chapterIndex}/stream${lq}`);
+    const streamPath = `/api/audio/${bookId}/${chapterIndex}/stream${lq}`;
+    const blobUrl = await fetchAudioBlobUrl(streamPath);
+    setBlobAudioUrl(blobUrl);
     setHasAudio(true);
     return res.data;
-  }, [bookId, chapterIndex, lang]);
+  }, [bookId, chapterIndex, lang, setBlobAudioUrl]);
+
+  // Cleanup blob URL on unmount
+  useEffect(() => {
+    return () => {
+      if (blobUrlRef.current) URL.revokeObjectURL(blobUrlRef.current);
+    };
+  }, []);
 
   return {
     audioUrl,
