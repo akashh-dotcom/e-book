@@ -175,22 +175,29 @@ def main():
     result = model.transcribe(audio, batch_size=16, language=language)
 
     # Step 2: Align with wav2vec2 for word-level timestamps
-    model_a, metadata = whisperx.load_align_model(language_code=language, device=device)
-    result = whisperx.align(result["segments"], model_a, metadata, audio, device, return_char_alignments=False)
-
-    # Extract word segments from WhisperX output
+    # WhisperX only supports alignment for ~30 languages. For unsupported
+    # languages, fall back to distributing segment-level timestamps evenly.
     transcribed_words = []
-    for seg in result.get("segments", []):
-        for w in seg.get("words", []):
-            if "start" in w and "end" in w:
-                transcribed_words.append({
-                    "word": w["word"].strip(),
-                    "start": w["start"],
-                    "end": w["end"],
-                })
+    try:
+        model_a, metadata = whisperx.load_align_model(language_code=language, device=device)
+        result = whisperx.align(result["segments"], model_a, metadata, audio, device, return_char_alignments=False)
+
+        # Extract word segments from WhisperX output
+        for seg in result.get("segments", []):
+            for w in seg.get("words", []):
+                if "start" in w and "end" in w:
+                    transcribed_words.append({
+                        "word": w["word"].strip(),
+                        "start": w["start"],
+                        "end": w["end"],
+                    })
+    except ValueError as e:
+        # No alignment model for this language — fall back to segment-level
+        print(f"Alignment model not available for '{language}': {e}", file=sys.stderr)
+        print(f"Falling back to segment-level timestamp distribution.", file=sys.stderr)
 
     if not transcribed_words:
-        # Fallback: if no word-level timestamps, use segment-level
+        # Fallback: use segment-level timestamps, distribute evenly per word
         for seg in result.get("segments", []):
             words_in_seg = seg.get("text", "").split()
             if not words_in_seg:
