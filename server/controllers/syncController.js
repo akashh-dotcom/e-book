@@ -79,16 +79,16 @@ exports.autoAlign = async (req, res) => {
 
     let syncData;
 
-    // Try edge-tts VTT timing first (instant, perfect for TTS-generated audio)
-    const vttPath = audioPath.replace(/\.mp3$/, '.vtt');
-    let usedVtt = false;
+    // Try edge-tts per-word timing JSON first (instant, exact for TTS-generated audio)
+    const timingPath = audioPath.replace(/\.mp3$/, '_timing.json');
+    let usedTtsTiming = false;
     try {
-      await fs.access(vttPath);
-      send('progress', { step: 'vtt_found', message: 'Using TTS word timing (fast path)...' });
-      syncData = await whisperxAligner.buildSyncFromVtt(vttPath, wrapped.words, wrapped.wordIds);
-      if (syncData) usedVtt = true;
+      await fs.access(timingPath);
+      send('progress', { step: 'tts_timing_found', message: 'Using TTS per-word timing...' });
+      syncData = await whisperxAligner.buildSyncFromTiming(timingPath, wrapped.words, wrapped.wordIds);
+      if (syncData) usedTtsTiming = true;
     } catch {
-      // No VTT file — fall back to WhisperX
+      // No timing file — fall back to WhisperX
     }
 
     if (!syncData) {
@@ -127,7 +127,7 @@ exports.autoAlign = async (req, res) => {
         chapterIndex: parseInt(chapterIndex),
         lang: syncLang,
         syncData,
-        engine: usedVtt ? 'edge-tts-vtt' : `whisperx-${mode}`,
+        engine: usedTtsTiming ? 'edge-tts-word-boundary' : `whisperx-${mode}`,
         wordCount: wrapped.wordCount,
         duration: audioInfo.duration,
         status: 'complete',

@@ -421,15 +421,19 @@ exports.generateAudio = async (req, res) => {
     const filename = lang ? `chapter_${chapterIndex}_${lang}.mp3` : `chapter_${chapterIndex}.mp3`;
     const audioPath = path.join(audioDir, filename);
 
-    // Write text to a temp file for edge-tts (avoids shell escaping issues)
+    // Write text to a temp file for edge-tts
     const tmpTextPath = path.join(audioDir, `_tmp_text_${chapterIndex}.txt`);
     await fs.writeFile(tmpTextPath, plainText, 'utf-8');
 
-    // Generate audio AND word-level subtitles from edge-tts
-    const vttPath = audioPath.replace(/\.mp3$/, '.vtt');
+    // Generate audio + per-word timing via Python edge-tts API
+    // This captures WordBoundary events for exact per-word timestamps
+    const timingPath = audioPath.replace(/\.mp3$/, '_timing.json');
+    const PYTHON = process.env.PYTHON_PATH
+      || (process.platform === 'win32' ? 'python' : 'python3');
+    const scriptPath = path.join(__dirname, '..', 'scripts', 'edge_tts_generate.py');
     const { execSync } = require('child_process');
     execSync(
-      `edge-tts --voice "${voice}" --file "${tmpTextPath}" --write-media "${audioPath}" --write-subtitles "${vttPath}"`,
+      `${PYTHON} "${scriptPath}" "${tmpTextPath}" "${audioPath}" "${timingPath}" "${voice}"`,
       { timeout: 600000 }
     );
 

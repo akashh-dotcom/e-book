@@ -72,143 +72,156 @@ function runPythonWithProgress(args, { timeout = 900000, onProgress } = {}) {
 }
 
 
-/**
- * Parse a WebVTT file into an array of cues: { start, end, text }
- */
-function parseVtt(vttContent) {
-  const cues = [];
-  const blocks = vttContent.split(/\n\n+/);
-  for (const block of blocks) {
-    const lines = block.trim().split('\n');
-    // Find the timestamp line (contains " --> ")
-    let tsLineIdx = -1;
-    for (let i = 0; i < lines.length; i++) {
-      if (lines[i].includes('-->')) { tsLineIdx = i; break; }
-    }
-    if (tsLineIdx < 0) continue;
-
-    const tsMatch = lines[tsLineIdx].match(
-      /(\d{2}):(\d{2}):(\d{2})\.(\d{3})\s*-->\s*(\d{2}):(\d{2}):(\d{2})\.(\d{3})/
-    );
-    if (!tsMatch) continue;
-
-    const start = +tsMatch[1] * 3600 + +tsMatch[2] * 60 + +tsMatch[3] + +tsMatch[4] / 1000;
-    const end = +tsMatch[5] * 3600 + +tsMatch[6] * 60 + +tsMatch[7] + +tsMatch[8] / 1000;
-    const text = lines.slice(tsLineIdx + 1).join(' ').trim();
-    if (text) cues.push({ start, end, text });
-  }
-  return cues;
-}
-
-
 class WhisperXAligner {
 
   /**
-   * Build sync data from an edge-tts VTT subtitle file.
-   * Each VTT cue covers a small phrase with exact TTS timing.
-   * We distribute the cue's time range across the words in that cue,
-   * then map sequentially to the chapter's word IDs.
+   * Build sync data from edge-tts per-word timing JSON.
+   * The timing JSON contains exact WordBoundary events from the TTS engine:
+   *   [{ "word": "Hello", "start": 0.05, "end": 0.275 }, ...]
    *
-   * @param {string} vttPath - Path to the .vtt file
+   * These are mapped to the chapter's word IDs. When word counts match,
+   * we get a perfect 1:1 mapping. When they differ (HTML splitting
+   * differs from TTS word splitting), we use a greedy text-matching
+   * alignment to preserve timing accuracy.
+   *
+   * @param {string} timingPath - Path to the _timing.json file
    * @param {string[]} expectedWords - Words from the chapter HTML
    * @param {string[]} wordIds - Corresponding span IDs (w00001, w00002, ...)
    * @returns {Array<{ id, word, clipBegin, clipEnd }>}
    */
-  async buildSyncFromVtt(vttPath, expectedWords, wordIds) {
-    const vttContent = await fs.readFile(vttPath, 'utf-8');
-    const cues = parseVtt(vttContent);
+  async buildSyncFromTiming(timingPath, expectedWords, wordIds) {
+    const raw = await fs.readFile(timingPath, 'utf-8');
+    const ttsWords = JSON.parse(raw);
 
-    if (!cues.length) return null;
+    if (!ttsWords.length) return null;
 
-    // Build flat word-level timestamps from VTT cues
-    const vttWords = [];
-    for (const cue of cues) {
-      const words = cue.text.split(/\s+/).filter(Boolean);
-      if (!words.length) continue;
-      const wordDur = (cue.end - cue.start) / words.length;
-      for (let i = 0; i < words.length; i++) {
-        vttWords.push({
-          word: words[i],
-          start: Math.round((cue.start + i * wordDur) * 1000) / 1000,
-          end: Math.round((cue.start + (i + 1) * wordDur) * 1000) / 1000,
-        });
-      }
-    }
-
-    // Map VTT words → expected chapter words sequentially.
-    // VTT words come from plainText (HTML stripped), expected words come from
-    // the same text but via wordWrapper. They should match 1:1 in order.
-    const syncData = [];
     const totalExpected = expectedWords.length;
-    const totalVtt = vttWords.length;
+    const totalTts = ttsWords.length;
+    const syncData = [];
 
-    if (totalVtt === totalExpected) {
-      // Perfect 1:1 match — use VTT timing directly
+    if (totalTts === totalExpected) {
+      // Perfect 1:1 match — use TTS timing directly
       for (let i = 0; i < totalExpected; i++) {
         syncData.push({
           id: wordIds[i] || 'w' + String(i + 1).padStart(5, '0'),
           word: expectedWords[i],
-          clipBegin: vttWords[i].start,
-          clipEnd: vttWords[i].end,
+          clipBegin: ttsWords[i].start,
+          clipEnd: ttsWords[i].end,
         });
       }
-    } else {
-      // Word counts differ — distribute VTT timeline proportionally
-      // Build timeline from VTT: total audio span is vttWords[0].start to vttWords[last].end
-      // Assign each expected word a proportional slice of the VTT timeline
-      const audioStart = vttWords[0].start;
-      const audioEnd = vttWords[totalVtt - 1].end;
+      return syncData;
+    }
 
-      // Group VTT words into segments by proximity (gap > 0.3s = new segment)
-      const segments = [];
-      let seg = { start: vttWords[0].start, end: vttWords[0].end, wordCount: 1 };
-      for (let i = 1; i < totalVtt; i++) {
-        if (vttWords[i].start - vttWords[i - 1].end > 0.3) {
-          segments.push(seg);
-          seg = { start: vttWords[i].start, end: vttWords[i].end, wordCount: 1 };
-        } else {
-          seg.end = vttWords[i].end;
-          seg.wordCount++;
-        }
+    // Word counts differ — align by greedy text matching.
+    // Both lists come from the same source text, but may split differently
+    // (e.g. "don't" vs ["don", "'t"], or punctuation handling).
+    // Walk both lists, consuming TTS words as they match expected words.
+    let ttsIdx = 0;
+    let expIdx = 0;
+
+    while (expIdx < totalExpected && ttsIdx < totalTts) {
+      const expWord = expectedWords[expIdx];
+      const ttsWord = ttsWords[ttsIdx];
+
+      // Simple case: words match (possibly with punctuation differences)
+      const expNorm = expWord.replace(/[^\p{L}\p{N}]/gu, '').toLowerCase();
+      const ttsNorm = ttsWord.word.replace(/[^\p{L}\p{N}]/gu, '').toLowerCase();
+
+      if (expNorm === ttsNorm || expNorm.startsWith(ttsNorm) || ttsNorm.startsWith(expNorm)) {
+        // Direct match — use this TTS word's timing
+        syncData.push({
+          id: wordIds[expIdx] || 'w' + String(expIdx + 1).padStart(5, '0'),
+          word: expWord,
+          clipBegin: ttsWord.start,
+          clipEnd: ttsWord.end,
+        });
+        expIdx++;
+        ttsIdx++;
+        continue;
       }
-      segments.push(seg);
 
-      const totalSegWords = segments.reduce((s, g) => s + g.wordCount, 0);
-      let expIdx = 0;
-
-      for (let si = 0; si < segments.length; si++) {
-        const s = segments[si];
-        let nWords;
-        if (si === segments.length - 1) {
-          nWords = totalExpected - expIdx;
-        } else {
-          nWords = Math.max(1, Math.round((s.wordCount / totalSegWords) * totalExpected));
-          nWords = Math.min(nWords, totalExpected - expIdx);
-        }
-        if (nWords <= 0) continue;
-        const wDur = (s.end - s.start) / nWords;
-        for (let k = 0; k < nWords; k++) {
+      // Check if the expected word spans multiple TTS words (e.g. expected="don't", tts=["don", "'t"])
+      let combined = ttsNorm;
+      let lookAhead = ttsIdx + 1;
+      let matched = false;
+      while (lookAhead < totalTts && combined.length < expNorm.length + 5) {
+        combined += ttsWords[lookAhead].word.replace(/[^\p{L}\p{N}]/gu, '').toLowerCase();
+        if (combined === expNorm || combined.startsWith(expNorm)) {
+          // Expected word spans ttsIdx..lookAhead
           syncData.push({
             id: wordIds[expIdx] || 'w' + String(expIdx + 1).padStart(5, '0'),
-            word: expectedWords[expIdx],
-            clipBegin: Math.round((s.start + k * wDur) * 1000) / 1000,
-            clipEnd: Math.round((s.start + (k + 1) * wDur) * 1000) / 1000,
+            word: expWord,
+            clipBegin: ttsWords[ttsIdx].start,
+            clipEnd: ttsWords[lookAhead].end,
           });
           expIdx++;
+          ttsIdx = lookAhead + 1;
+          matched = true;
+          break;
         }
+        lookAhead++;
       }
+      if (matched) continue;
 
-      // Fill any remaining
-      while (expIdx < totalExpected) {
-        const lastEnd = syncData.length ? syncData[syncData.length - 1].clipEnd : 0;
+      // Check if the TTS word spans multiple expected words (e.g. tts="don't", expected=["don", "'t"])
+      let expCombined = expNorm;
+      let expLookAhead = expIdx + 1;
+      matched = false;
+      while (expLookAhead < totalExpected && expCombined.length < ttsNorm.length + 5) {
+        expCombined += expectedWords[expLookAhead].replace(/[^\p{L}\p{N}]/gu, '').toLowerCase();
+        if (expCombined === ttsNorm || expCombined.startsWith(ttsNorm)) {
+          // TTS word covers expIdx..expLookAhead
+          const count = expLookAhead - expIdx + 1;
+          const dur = (ttsWord.end - ttsWord.start) / count;
+          for (let k = 0; k < count; k++) {
+            syncData.push({
+              id: wordIds[expIdx + k] || 'w' + String(expIdx + k + 1).padStart(5, '0'),
+              word: expectedWords[expIdx + k],
+              clipBegin: Math.round((ttsWord.start + k * dur) * 1000) / 1000,
+              clipEnd: Math.round((ttsWord.start + (k + 1) * dur) * 1000) / 1000,
+            });
+          }
+          expIdx = expLookAhead + 1;
+          ttsIdx++;
+          matched = true;
+          break;
+        }
+        expLookAhead++;
+      }
+      if (matched) continue;
+
+      // No match found — assign this TTS word's timing to the expected word and advance both
+      syncData.push({
+        id: wordIds[expIdx] || 'w' + String(expIdx + 1).padStart(5, '0'),
+        word: expWord,
+        clipBegin: ttsWord.start,
+        clipEnd: ttsWord.end,
+      });
+      expIdx++;
+      ttsIdx++;
+    }
+
+    // Fill any remaining expected words from the last known timestamp
+    while (expIdx < totalExpected) {
+      const lastEnd = syncData.length ? syncData[syncData.length - 1].clipEnd : 0;
+      // If there are remaining TTS words, use them
+      if (ttsIdx < totalTts) {
+        syncData.push({
+          id: wordIds[expIdx] || 'w' + String(expIdx + 1).padStart(5, '0'),
+          word: expectedWords[expIdx],
+          clipBegin: ttsWords[ttsIdx].start,
+          clipEnd: ttsWords[ttsIdx].end,
+        });
+        ttsIdx++;
+      } else {
         syncData.push({
           id: wordIds[expIdx] || 'w' + String(expIdx + 1).padStart(5, '0'),
           word: expectedWords[expIdx],
           clipBegin: lastEnd,
-          clipEnd: Math.round((lastEnd + 0.3) * 1000) / 1000,
+          clipEnd: Math.round((lastEnd + 0.15) * 1000) / 1000,
         });
-        expIdx++;
       }
+      expIdx++;
     }
 
     return syncData;
