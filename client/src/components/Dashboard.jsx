@@ -2,12 +2,14 @@ import { useEffect, useState, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   BookOpen, Trash2, ChevronRight, Upload, Plus,
-  LayoutDashboard, Search, Loader,
+  LayoutDashboard, Search, Loader, LogOut,
 } from 'lucide-react';
 import useBookStore from '../store/bookStore';
+import useAuthStore from '../store/authStore';
 
 export default function Dashboard() {
   const { books, fetchBooks, deleteBook, uploadBook } = useBookStore();
+  const { user, logout } = useAuthStore();
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [uploading, setUploading] = useState(false);
@@ -81,6 +83,14 @@ export default function Dashboard() {
           <input ref={fileInputRef} type="file" accept=".epub" className="hidden"
             onChange={e => handleFile(e.target.files[0])} />
           {error && <p className="mt-2 text-xs text-candy-400 text-center">{error}</p>}
+          {user && (
+            <button onClick={() => { logout(); navigate('/login'); }}
+              className="flex items-center justify-center gap-2 w-full mt-3 px-4 py-2 rounded-xl bg-white/[0.04] border border-white/[0.06] text-forest-200/60 text-sm
+                hover:bg-white/[0.06] hover:text-forest-50 transition-all cursor-pointer font-[inherit]">
+              <LogOut size={16} />
+              Logout
+            </button>
+          )}
         </div>
       </aside>
 

@@ -252,14 +252,14 @@ export default function UploadPage() {
             )}
           </div>
           <div className="flex gap-2.5">
-            <button disabled title="Coming soon"
-              className="px-4 py-1.5 rounded-full border border-forest-500/25 bg-transparent text-forest-100 text-xs font-medium disabled:opacity-40 cursor-default">
+            <Link to="/login"
+              className="px-4 py-1.5 rounded-full border border-forest-500/25 bg-transparent text-forest-100 text-xs font-medium no-underline hover:bg-forest-500/10 transition-colors">
               Log in
-            </button>
-            <button disabled title="Coming soon"
-              className="px-4 py-1.5 rounded-full border-none bg-gradient-to-r from-forest-500 to-forest-400 text-forest-950 text-xs font-semibold disabled:opacity-40 cursor-default">
+            </Link>
+            <Link to="/signup"
+              className="px-4 py-1.5 rounded-full border-none bg-gradient-to-r from-forest-500 to-forest-400 text-forest-950 text-xs font-semibold no-underline hover:shadow-[0_4px_16px_rgba(16,185,129,0.3)] transition-all">
               Sign up
-            </button>
+            </Link>
           </div>
         </div>
       </nav>
