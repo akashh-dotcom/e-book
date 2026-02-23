@@ -1,5 +1,6 @@
 const path = require('path');
 const fs = require('fs').promises;
+const cheerio = require('cheerio');
 const Book = require('../models/Book');
 const SyncData = require('../models/SyncData');
 const wordWrapper = require('../services/wordWrapper');
@@ -66,7 +67,18 @@ exports.autoAlign = async (req, res) => {
     }
 
     const rawHtml = await fs.readFile(chapterPath, 'utf-8');
-    const wrapped = wordWrapper.wrap(rawHtml);
+
+    // Strip existing word spans to prevent double-wrapping when the
+    // translated chapter was already word-wrapped by the translation service.
+    const $ = cheerio.load(rawHtml, { xmlMode: false });
+    $('span[id^="w"]').each((_, el) => {
+      $(el).replaceWith($(el).text());
+    });
+    const cleanHtml = $.html();
+
+    const wrapped = wordWrapper.wrap(cleanHtml);
+
+    // Save word-wrapped HTML back
     await fs.writeFile(chapterPath, wrapped.html);
 
     send('progress', { step: 'wrapping_done', message: 'Text prepared. Starting WhisperX...' });
