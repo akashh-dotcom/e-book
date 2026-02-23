@@ -5,8 +5,11 @@ import {
   ChevronRight, ChevronLeft, Sparkles, AudioLines, Globe, LayoutDashboard,
   Zap, Shield, Star, Music, Play, Pause, SkipBack, SkipForward,
   PenTool, Search, Settings, Bookmark, Menu, List, Check, Crown, Infinity,
+  LogOut, ChevronDown,
 } from 'lucide-react';
 import useBookStore from '../store/bookStore';
+import useAuthStore from '../store/authStore';
+import ProfilePanel from './ProfilePanel';
 
 export default function UploadPage() {
   const [dragOver, setDragOver] = useState(false);
@@ -18,12 +21,27 @@ export default function UploadPage() {
   const [editorVisible, setEditorVisible] = useState(false);
   const [hoveredStep, setHoveredStep] = useState(-1);
   const [billingCycle, setBillingCycle] = useState('monthly');
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
   const fileInputRef = useRef(null);
   const editorSectionRef = useRef(null);
+  const userMenuRef = useRef(null);
   const navigate = useNavigate();
   const { uploadBook, fetchBooks, books } = useBookStore();
+  const { user, logout } = useAuthStore();
 
   useEffect(() => { fetchBooks(); }, [fetchBooks]);
+
+  // Close user menu on outside click
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target)) {
+        setUserMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   // Intersection observer for reveal
   useEffect(() => {
@@ -251,16 +269,75 @@ export default function UploadPage() {
               </Link>
             )}
           </div>
-          <div className="flex gap-2.5">
-            <Link to="/login"
-              className="px-4 py-1.5 rounded-full border border-forest-500/25 bg-transparent text-forest-100 text-xs font-medium no-underline hover:bg-forest-500/10 transition-colors">
-              Log in
-            </Link>
-            <Link to="/signup"
-              className="px-4 py-1.5 rounded-full border-none bg-gradient-to-r from-forest-500 to-forest-400 text-forest-950 text-xs font-semibold no-underline hover:shadow-[0_4px_16px_rgba(16,185,129,0.3)] transition-all">
-              Sign up
-            </Link>
-          </div>
+          {user ? (
+            <div className="relative" ref={userMenuRef}>
+              <button onClick={() => setUserMenuOpen(!userMenuOpen)}
+                className="flex items-center gap-2 px-2 py-1.5 rounded-full border border-white/[0.08] bg-white/[0.03]
+                  hover:bg-white/[0.06] transition-all cursor-pointer font-[inherit]">
+                {user.avatar ? (
+                  <img src={user.avatar} alt="" className="w-7 h-7 rounded-full object-cover border border-forest-400/20" />
+                ) : (
+                  <div className="w-7 h-7 rounded-full bg-gradient-to-br from-forest-500 to-forest-400 flex items-center justify-center text-[11px] font-bold text-white">
+                    {user.username?.charAt(0)?.toUpperCase()}
+                  </div>
+                )}
+                <span className="text-sm font-medium text-forest-100 max-w-[100px] truncate hidden sm:block">{user.username}</span>
+                <ChevronDown size={14} className={`text-forest-200/40 transition-transform ${userMenuOpen ? 'rotate-180' : ''}`} />
+              </button>
+
+              {/* Dropdown */}
+              {userMenuOpen && (
+                <div className="absolute right-0 mt-2 w-56 rounded-xl border border-white/[0.08] bg-forest-950/95 backdrop-blur-xl shadow-2xl shadow-black/50 overflow-hidden z-[60]">
+                  {/* User info */}
+                  <div className="px-4 py-3 border-b border-white/[0.06]">
+                    <p className="text-sm font-semibold text-forest-50 truncate">{user.username}</p>
+                    <p className="text-[11px] text-forest-200/40 truncate">{user.email}</p>
+                  </div>
+
+                  <div className="py-1.5">
+                    <button onClick={() => { setUserMenuOpen(false); setProfileOpen(true); }}
+                      className="flex items-center gap-2.5 w-full px-4 py-2 text-sm text-forest-200/70 hover:bg-white/[0.04] hover:text-forest-50
+                        transition-all cursor-pointer bg-transparent border-none font-[inherit] text-left">
+                      <div className="w-5 h-5 rounded-md bg-forest-500/10 flex items-center justify-center">
+                        <Settings size={12} className="text-forest-400" />
+                      </div>
+                      Profile Settings
+                    </button>
+                    <Link to="/dashboard" onClick={() => setUserMenuOpen(false)}
+                      className="flex items-center gap-2.5 w-full px-4 py-2 text-sm text-forest-200/70 hover:bg-white/[0.04] hover:text-forest-50
+                        transition-all no-underline">
+                      <div className="w-5 h-5 rounded-md bg-forest-500/10 flex items-center justify-center">
+                        <LayoutDashboard size={12} className="text-forest-400" />
+                      </div>
+                      Dashboard
+                    </Link>
+                  </div>
+
+                  <div className="border-t border-white/[0.06] py-1.5">
+                    <button onClick={() => { setUserMenuOpen(false); logout(); navigate('/login'); }}
+                      className="flex items-center gap-2.5 w-full px-4 py-2 text-sm text-red-400/70 hover:bg-red-500/[0.06] hover:text-red-400
+                        transition-all cursor-pointer bg-transparent border-none font-[inherit] text-left">
+                      <div className="w-5 h-5 rounded-md bg-red-500/10 flex items-center justify-center">
+                        <LogOut size={12} className="text-red-400" />
+                      </div>
+                      Log out
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="flex gap-2.5">
+              <Link to="/login"
+                className="px-4 py-1.5 rounded-full border border-forest-500/25 bg-transparent text-forest-100 text-xs font-medium no-underline hover:bg-forest-500/10 transition-colors">
+                Log in
+              </Link>
+              <Link to="/signup"
+                className="px-4 py-1.5 rounded-full border-none bg-gradient-to-r from-forest-500 to-forest-400 text-forest-950 text-xs font-semibold no-underline hover:shadow-[0_4px_16px_rgba(16,185,129,0.3)] transition-all">
+                Sign up
+              </Link>
+            </div>
+          )}
         </div>
       </nav>
 
@@ -977,6 +1054,9 @@ export default function UploadPage() {
       <footer className="border-t border-forest-500/8 text-center py-8 px-6 text-forest-500/40 text-sm">
         <p>VoxBook &mdash; Open-source EPUB audiobook toolkit</p>
       </footer>
+
+      {/* Profile modal */}
+      <ProfilePanel open={profileOpen} onClose={() => setProfileOpen(false)} />
     </div>
   );
 }
