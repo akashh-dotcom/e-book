@@ -66,21 +66,22 @@ function isRTL(lang) {
 }
 
 /**
- * Translate plain text using NLLB via Python script.
+ * Translate an array of paragraphs using NLLB via Python script (JSON mode).
+ * Loads the model ONCE and translates all paragraphs in a single process.
  *
- * @param {string} text - Plain text to translate
+ * @param {string[]} paragraphs - Array of plain text paragraphs
  * @param {string} srcLang - Source language code (e.g. "en", "en-US")
  * @param {string} tgtLang - Target language code (e.g. "ja", "ja-JP")
  * @param {string} tmpDir - Directory for temp files
  * @param {function} [onProgress] - Optional callback: onProgress({ current, total, percent })
- * @returns {string} Translated text
+ * @returns {string[]} Array of translated paragraphs
  */
-async function translateText(text, srcLang, tgtLang, tmpDir, onProgress) {
+async function translateParagraphs(paragraphs, srcLang, tgtLang, tmpDir, onProgress) {
   const ts = Date.now();
-  const inputPath = path.join(tmpDir, `_translate_in_${ts}.txt`);
-  const outputPath = path.join(tmpDir, `_translate_out_${ts}.txt`);
+  const inputPath = path.join(tmpDir, `_translate_in_${ts}.json`);
+  const outputPath = path.join(tmpDir, `_translate_out_${ts}.json`);
 
-  await fs.writeFile(inputPath, text, 'utf-8');
+  await fs.writeFile(inputPath, JSON.stringify(paragraphs), 'utf-8');
 
   const scriptPath = path.join(__dirname, '..', 'scripts', 'nllb_translate.py');
 
@@ -92,6 +93,7 @@ async function translateText(text, srcLang, tgtLang, tmpDir, onProgress) {
         '--output', outputPath,
         '--src', srcLang,
         '--tgt', tgtLang,
+        '--json',
       ], { timeout: 600000 });
 
       let stdout = '';
@@ -130,7 +132,7 @@ async function translateText(text, srcLang, tgtLang, tmpDir, onProgress) {
     const parsed = JSON.parse(result.trim().split('\n').pop());
     if (parsed.error) throw new Error(parsed.error);
 
-    const translated = await fs.readFile(outputPath, 'utf-8');
+    const translated = JSON.parse(await fs.readFile(outputPath, 'utf-8'));
     return translated;
   } finally {
     await fs.unlink(inputPath).catch(() => {});
@@ -172,33 +174,16 @@ async function translateChapterHtml(html, srcLang, tgtLang, tmpDir, onProgress) 
     return wordWrapper.wrap($.html());
   }
 
-  // Batch all text for translation (joined with newlines as separators)
-  const separator = '\n|||PARA|||\n';
-  const allText = textNodes.map(n => n.text).join(separator);
-
-  const translatedAll = await translateText(allText, srcLang, tgtLang, tmpDir, onProgress);
-
-  // Split back into paragraphs
-  const translatedParts = translatedAll.split(/\|\|\|PARA\|\|\|/).map(s => s.trim());
+  // Collect all paragraph texts and translate in one Python process
+  const paragraphTexts = textNodes.map(n => n.text);
+  const translatedParts = await translateParagraphs(
+    paragraphTexts, srcLang, tgtLang, tmpDir, onProgress
+  );
 
   // Replace text in HTML
   textNodes.forEach((node, i) => {
     const translated = translatedParts[i] || node.text;
-    // Set the element's text content (preserves child elements like <em>, <strong>)
-    // For simplicity, replace entire text content
-    const $el = $(node.el);
-    // Clear existing children's text and set new
-    $el.contents().filter(function() { return this.type === 'text'; }).each(function() {
-      // Replace first text node with full translation, remove rest
-      if (i < translatedParts.length) {
-        $(this).replaceWith(translated);
-        i = Infinity; // Only replace once
-      }
-    });
-    if (i !== Infinity) {
-      // Fallback: set entire text
-      $el.text(translated);
-    }
+    $(node.el).text(translated);
   });
 
   // Add RTL direction if needed
@@ -233,7 +218,7 @@ async function hasTranslation(storagePath, chapterIndex, targetLang) {
 }
 
 module.exports = {
-  translateText,
+  translateParagraphs,
   translateChapterHtml,
   getTranslatedChapterPath,
   hasTranslation,

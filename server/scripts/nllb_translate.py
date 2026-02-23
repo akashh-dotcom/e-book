@@ -3,8 +3,12 @@
 NLLB Translation Script for VoxBook.
 Translates text from a source language to a target language using Meta's NLLB-200 model.
 
-Usage:
-  python nllb_translate.py --input input.txt --output output.txt --src eng_Latn --tgt jpn_Jpan
+Supports two modes:
+  Single text:
+    python nllb_translate.py --input input.txt --output output.txt --src en --tgt ja
+
+  Multiple paragraphs (JSON array):
+    python nllb_translate.py --input paras.json --output out.json --src en --tgt ja --json
 
 The model is downloaded on first run (~1.2GB) and cached locally.
 """
@@ -12,6 +16,7 @@ The model is downloaded on first run (~1.2GB) and cached locally.
 import argparse
 import sys
 import json
+
 
 def get_nllb_code(lang_code):
     """Map ISO 639-1 / locale codes to NLLB flores-200 codes."""
@@ -92,16 +97,14 @@ def get_nllb_code(lang_code):
     return mapping.get(lang_code, lang_code)
 
 
-def translate_text(text, src_lang, tgt_lang, max_length=512):
-    """Translate text using NLLB-200-distilled-600M."""
-    from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
-
-    model_name = "facebook/nllb-200-distilled-600M"
-    tokenizer = AutoTokenizer.from_pretrained(model_name)
-    model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
-
-    # Split into sentences to handle long text
+def translate_one(text, tokenizer, model, src_lang, tgt_lang, max_length=512):
+    """Translate a single paragraph. Splits into sentence chunks if too long."""
     import re
+
+    text = text.strip()
+    if not text:
+        return ''
+
     sentences = re.split(r'(?<=[.!?])\s+', text)
 
     # Batch sentences into chunks that fit max_length
@@ -122,9 +125,8 @@ def translate_text(text, src_lang, tgt_lang, max_length=512):
 
     translated_chunks = []
     tokenizer.src_lang = src_lang
-    total_chunks = len(chunks)
 
-    for idx, chunk in enumerate(chunks):
+    for chunk in chunks:
         inputs = tokenizer(chunk, return_tensors="pt", truncation=True, max_length=max_length)
         translated_tokens = model.generate(
             **inputs,
@@ -134,19 +136,16 @@ def translate_text(text, src_lang, tgt_lang, max_length=512):
         result = tokenizer.batch_decode(translated_tokens, skip_special_tokens=True)[0]
         translated_chunks.append(result)
 
-        # Report progress to stderr so Node can read it in real-time
-        pct = round(((idx + 1) / total_chunks) * 100)
-        print(f"PROGRESS:{idx + 1}/{total_chunks}/{pct}", file=sys.stderr, flush=True)
-
     return ' '.join(translated_chunks)
 
 
 def main():
     parser = argparse.ArgumentParser(description='Translate text using NLLB-200')
-    parser.add_argument('--input', required=True, help='Input text file')
-    parser.add_argument('--output', required=True, help='Output text file')
+    parser.add_argument('--input', required=True, help='Input text file (or JSON array in --json mode)')
+    parser.add_argument('--output', required=True, help='Output text file (or JSON array in --json mode)')
     parser.add_argument('--src', required=True, help='Source language code (ISO 639-1 or NLLB code)')
     parser.add_argument('--tgt', required=True, help='Target language code (ISO 639-1 or NLLB code)')
+    parser.add_argument('--json', action='store_true', help='JSON mode: input/output are JSON arrays of paragraphs')
 
     args = parser.parse_args()
 
@@ -154,28 +153,59 @@ def main():
     src_nllb = get_nllb_code(args.src)
     tgt_nllb = get_nllb_code(args.tgt)
 
-    # Read input
-    with open(args.input, 'r', encoding='utf-8') as f:
-        text = f.read().strip()
+    # Load model once
+    print("LOADING_MODEL", file=sys.stderr, flush=True)
+    from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
+    model_name = "facebook/nllb-200-distilled-600M"
+    tokenizer = AutoTokenizer.from_pretrained(model_name)
+    model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
+    print("MODEL_READY", file=sys.stderr, flush=True)
 
-    if not text:
-        print(json.dumps({"error": "Empty input text"}))
-        sys.exit(1)
+    if args.json:
+        # JSON mode: translate array of paragraphs individually
+        with open(args.input, 'r', encoding='utf-8') as f:
+            paragraphs = json.load(f)
 
-    # Translate
-    translated = translate_text(text, src_nllb, tgt_nllb)
+        total = len(paragraphs)
+        translated = []
 
-    # Write output
-    with open(args.output, 'w', encoding='utf-8') as f:
-        f.write(translated)
+        for idx, para in enumerate(paragraphs):
+            result = translate_one(para, tokenizer, model, src_nllb, tgt_nllb)
+            translated.append(result)
 
-    print(json.dumps({
-        "success": True,
-        "src": src_nllb,
-        "tgt": tgt_nllb,
-        "input_length": len(text),
-        "output_length": len(translated),
-    }))
+            pct = round(((idx + 1) / total) * 100)
+            print(f"PROGRESS:{idx + 1}/{total}/{pct}", file=sys.stderr, flush=True)
+
+        with open(args.output, 'w', encoding='utf-8') as f:
+            json.dump(translated, f, ensure_ascii=False)
+
+        print(json.dumps({
+            "success": True,
+            "src": src_nllb,
+            "tgt": tgt_nllb,
+            "paragraphs": total,
+        }))
+    else:
+        # Legacy single-text mode
+        with open(args.input, 'r', encoding='utf-8') as f:
+            text = f.read().strip()
+
+        if not text:
+            print(json.dumps({"error": "Empty input text"}))
+            sys.exit(1)
+
+        translated = translate_one(text, tokenizer, model, src_nllb, tgt_nllb)
+
+        with open(args.output, 'w', encoding='utf-8') as f:
+            f.write(translated)
+
+        print(json.dumps({
+            "success": True,
+            "src": src_nllb,
+            "tgt": tgt_nllb,
+            "input_length": len(text),
+            "output_length": len(translated),
+        }))
 
 
 if __name__ == '__main__':
