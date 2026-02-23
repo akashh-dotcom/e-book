@@ -4,7 +4,7 @@ export function useMediaOverlay(syncData, audioUrl) {
   const audioRef = useRef(null);
   const timerRef = useRef(null);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [currentTime, setCurrentTime] = useState(0);
+  const [currentTime, setCurrentTime] = useState(0);  // virtual time
   const [duration, setDuration] = useState(0);
   const [activeWordId, setActiveWordId] = useState(null);
   const [playbackRate, setPlaybackRate] = useState(1);
@@ -14,25 +14,80 @@ export function useMediaOverlay(syncData, audioUrl) {
   syncDataRef.current = syncData;
   const playbackRateRef = useRef(1);
 
-  // Original sync data — always kept in sync with the latest server data.
-  // Previously this only reset when word IDs changed, which caused a critical
-  // bug: after re-syncing (same IDs, new timestamps), originalSyncRef retained
-  // stale timestamps, making getRateForAudioPos() return wrong values and
-  // modifying audio playback speed incorrectly.
+  // Original sync data — the alignment before any word-edge drags.
+  // Resets when word IDs change (e.g. after re-sync from aeneas).
   const originalSyncRef = useRef(null);
 
   useEffect(() => {
-    if (!syncData?.length) {
-      originalSyncRef.current = null;
-      return;
+    if (!syncData?.length) return;
+    const newIds = syncData.map(w => w.id).join(',');
+    const origIds = originalSyncRef.current?.map(w => w.id).join(',');
+    if (!originalSyncRef.current || newIds !== origIds) {
+      originalSyncRef.current = syncData.map(w => ({
+        id: w.id,
+        clipBegin: w.clipBegin,
+        clipEnd: w.clipEnd,
+      }));
     }
-    // Always update to match current sync data
-    originalSyncRef.current = syncData.map(w => ({
-      id: w.id,
-      clipBegin: w.clipBegin,
-      clipEnd: w.clipEnd,
-    }));
   }, [syncData]);
+
+  // ---- Time mapping: audio position <-> virtual timeline ----
+
+  /** Map audio file position → virtual timeline position */
+  const audioToVirtual = useCallback((audioTime) => {
+    const orig = originalSyncRef.current;
+    const cur = syncDataRef.current;
+    if (!orig?.length || !cur?.length) return audioTime;
+    for (const o of orig) {
+      if (o.clipBegin === null || o.clipEnd === null) continue;
+      const origDur = o.clipEnd - o.clipBegin;
+      if (origDur <= 0) continue;
+      if (audioTime >= o.clipBegin && audioTime < o.clipEnd) {
+        const c = cur.find(w => w.id === o.id);
+        if (!c || c.clipBegin === null) continue;
+        const fraction = (audioTime - o.clipBegin) / origDur;
+        return c.clipBegin + fraction * (c.clipEnd - c.clipBegin);
+      }
+    }
+    return audioTime; // gap — pass through
+  }, []);
+
+  /** Map virtual timeline position → audio file position */
+  const virtualToAudio = useCallback((vTime) => {
+    const orig = originalSyncRef.current;
+    const cur = syncDataRef.current;
+    if (!orig?.length || !cur?.length) return vTime;
+    for (const c of cur) {
+      if (c.clipBegin === null || c.clipEnd === null) continue;
+      const newDur = c.clipEnd - c.clipBegin;
+      if (newDur <= 0) continue;
+      if (vTime >= c.clipBegin && vTime < c.clipEnd) {
+        const o = orig.find(w => w.id === c.id);
+        if (!o || o.clipBegin === null) continue;
+        const fraction = (vTime - c.clipBegin) / newDur;
+        return o.clipBegin + fraction * (o.clipEnd - o.clipBegin);
+      }
+    }
+    return vTime;
+  }, []);
+
+  /** Per-word playback rate at a given audio position */
+  const getRateForAudioPos = useCallback((audioTime) => {
+    const orig = originalSyncRef.current;
+    const cur = syncDataRef.current;
+    if (!orig?.length || !cur?.length) return 1;
+    for (const o of orig) {
+      if (o.clipBegin === null || o.clipEnd === null) continue;
+      if (audioTime >= o.clipBegin && audioTime < o.clipEnd) {
+        const c = cur.find(w => w.id === o.id);
+        if (!c || c.clipBegin === null) continue;
+        const origDur = o.clipEnd - o.clipBegin;
+        const newDur = c.clipEnd - c.clipBegin;
+        return (origDur > 0 && newDur > 0) ? origDur / newDur : 1;
+      }
+    }
+    return 1;
+  }, []);
 
   // ---- Audio element setup ----
 
@@ -47,7 +102,6 @@ export function useMediaOverlay(syncData, audioUrl) {
     audio.addEventListener('loadedmetadata', () => setDuration(audio.duration));
     audio.addEventListener('ended', () => {
       setIsPlaying(false);
-      stopTimer();
       clearHighlights();
     });
     audio.src = audioUrl;
@@ -60,10 +114,7 @@ export function useMediaOverlay(syncData, audioUrl) {
   }, [audioUrl]);
 
   const stopTimer = () => {
-    if (timerRef.current) {
-      cancelAnimationFrame(timerRef.current);
-      timerRef.current = null;
-    }
+    if (timerRef.current) clearInterval(timerRef.current);
   };
 
   // Mark skipped words in the DOM
@@ -77,51 +128,28 @@ export function useMediaOverlay(syncData, audioUrl) {
     }
   }, [syncData]);
 
-  // ---- Highlights: directly match audio.currentTime to sync data ----
+  // ---- Highlights use virtual time against current sync data ----
 
-  const updateHighlights = useCallback((audioTime) => {
+  const updateHighlights = useCallback((vt) => {
     const data = syncDataRef.current;
     if (!data?.length) return;
-
-    // Find the active word: the word whose [clipBegin, clipEnd) contains audioTime,
-    // OR the last word whose clipEnd <= audioTime but the NEXT word hasn't started yet
-    // (this keeps the last word highlighted during sentence/paragraph pauses).
-    let activeIdx = -1;
-    for (let i = 0; i < data.length; i++) {
-      const entry = data[i];
-      if (entry.clipBegin === null || entry.clipEnd === null) continue;
-      if (audioTime >= entry.clipBegin && audioTime < entry.clipEnd) {
-        activeIdx = i;
-        break;
-      }
-      if (audioTime >= entry.clipEnd) {
-        // Check if we're in a gap before the next word
-        const next = data.slice(i + 1).find(e => e.clipBegin !== null);
-        if (!next || audioTime < next.clipBegin) {
-          activeIdx = i; // Stay on this word during the gap
-        }
-      }
-    }
-
-    const activeId = activeIdx >= 0 ? data[activeIdx].id : null;
-
-    for (let i = 0; i < data.length; i++) {
-      const entry = data[i];
+    let newActive = null;
+    for (const entry of data) {
       const el = document.getElementById(entry.id);
       if (!el || entry.clipBegin === null) continue;
-
-      if (i === activeIdx) {
+      if (vt >= entry.clipBegin && vt < entry.clipEnd) {
+        newActive = entry.id;
         el.classList.add('-epub-media-overlay-active');
         el.classList.remove('mo-spoken');
         el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      } else if (activeIdx >= 0 && i < activeIdx) {
+      } else if (vt >= entry.clipEnd) {
         el.classList.remove('-epub-media-overlay-active');
         el.classList.add('mo-spoken');
       } else {
         el.classList.remove('-epub-media-overlay-active', 'mo-spoken');
       }
     }
-    setActiveWordId(activeId);
+    setActiveWordId(newActive);
   }, []);
 
   const clearHighlights = () => {
@@ -129,22 +157,24 @@ export function useMediaOverlay(syncData, audioUrl) {
       .forEach(el => el.classList.remove('-epub-media-overlay-active', 'mo-spoken'));
   };
 
-  // ---- Playback timer: uses requestAnimationFrame for smooth updates ----
-  // Directly reads audio.currentTime and matches against sync data.
-  // No virtual time mapping or rate adjustment — the TTS per-word timing
-  // in the sync data already matches the actual audio exactly.
+  // ---- Playback timer: adjusts rate per word, maps to virtual time ----
 
   const startTimer = useCallback(() => {
     stopTimer();
-    const tick = () => {
+    timerRef.current = setInterval(() => {
       if (!audioRef.current) return;
       const audioTime = audioRef.current.currentTime;
-      setCurrentTime(audioTime);
-      updateHighlights(audioTime);
-      timerRef.current = requestAnimationFrame(tick);
-    };
-    timerRef.current = requestAnimationFrame(tick);
-  }, [updateHighlights]);
+
+      // Adjust audio speed for the current word
+      const wordRate = getRateForAudioPos(audioTime);
+      audioRef.current.playbackRate = wordRate * playbackRateRef.current;
+
+      // Map audio position → virtual timeline position
+      const vt = audioToVirtual(audioTime);
+      setCurrentTime(vt);
+      updateHighlights(vt);
+    }, 40);
+  }, [updateHighlights, audioToVirtual, getRateForAudioPos]);
 
   const play = useCallback(() => {
     const p = audioRef.current?.play();
@@ -172,13 +202,15 @@ export function useMediaOverlay(syncData, audioUrl) {
     isPlaying ? pause() : play();
   }, [isPlaying, play, pause]);
 
-  const seek = useCallback((time) => {
+  // Seek accepts virtual time and converts to audio position
+  const seek = useCallback((vt) => {
     if (audioRef.current) {
-      audioRef.current.currentTime = time;
-      setCurrentTime(time);
-      updateHighlights(time);
+      const audioTime = virtualToAudio(vt);
+      audioRef.current.currentTime = audioTime;
+      setCurrentTime(vt);
+      updateHighlights(vt);
     }
-  }, [updateHighlights]);
+  }, [updateHighlights, virtualToAudio]);
 
   const seekToWord = useCallback((wordId) => {
     const data = syncDataRef.current;
