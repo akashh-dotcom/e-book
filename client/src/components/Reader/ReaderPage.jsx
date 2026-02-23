@@ -145,13 +145,11 @@ export default function ReaderPage() {
                 reader.reloadChapter();
                 return result;
               }}
-              onGenerate={async (voice, opts) => {
-                await audio.generateAudio(voice, opts);
+              onGenerate={async (voice) => {
+                await audio.generateAudio(voice);
               }}
               bookId={bookId}
               chapterIndex={reader.chapterIndex}
-              bookLanguage={reader.book.language}
-              onTranslate={reader.translateTo}
             />
 
             {/* Translation indicator bar */}

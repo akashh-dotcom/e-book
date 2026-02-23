@@ -78,8 +78,8 @@ export function useAudioPlayer(bookId, chapterIndex) {
     setAudioUrl(`/api/audio/${bookId}/${chapterIndex}/stream?t=${ts}`);
   }, [bookId, chapterIndex]);
 
-  const generateAudio = useCallback(async (voice = 'en-US-AriaNeural', { useTranslation = false } = {}) => {
-    const res = await api.post(`/audio/${bookId}/${chapterIndex}/generate`, { voice, useTranslation });
+  const generateAudio = useCallback(async (voice = 'en-US-AriaNeural') => {
+    const res = await api.post(`/audio/${bookId}/${chapterIndex}/generate`, { voice });
     setAudioUrl(`/api/audio/${bookId}/${chapterIndex}/stream`);
     setHasAudio(true);
     return res.data;
