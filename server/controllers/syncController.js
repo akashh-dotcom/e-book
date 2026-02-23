@@ -29,7 +29,7 @@ exports.autoAlign = async (req, res) => {
 
   try {
     const { bookId, chapterIndex } = req.params;
-    const { mode = 'word', modelSize = 'base', lang } = req.body;
+    const { mode = 'word', modelSize = 'tiny', lang } = req.body;
 
     send('progress', { step: 'preparing', message: 'Preparing chapter...' });
 

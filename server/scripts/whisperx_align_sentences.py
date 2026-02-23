@@ -24,6 +24,14 @@ import whisperx
 import torch
 
 
+# Languages that have reliable wav2vec2 alignment models in WhisperX
+ALIGN_SUPPORTED_LANGS = {
+    "en", "fr", "de", "es", "it", "ja", "zh", "nl", "uk", "pt",
+    "ar", "cs", "ru", "pl", "hu", "fi", "fa", "el", "tr", "da",
+    "he", "vi", "ko", "ur", "te", "hi", "ca", "ml", "no", "nn",
+}
+
+
 def normalize(text):
     """Normalize text for comparison."""
     return re.sub(r'[^\w\s]', '', text.lower()).strip()
@@ -104,6 +112,43 @@ def match_segments_to_sentences(segments, sentences):
     return result
 
 
+def distribute_segments_to_sentences(segments, sentences):
+    """
+    Distribute segment timestamps proportionally across expected sentences.
+    Used for non-Latin languages where word-level matching is unreliable.
+    """
+    if not segments or not sentences:
+        return [
+            {"id": f"s{str(i + 1).zfill(6)}", "text": s, "start": 0, "end": 0}
+            for i, s in enumerate(sentences)
+        ]
+
+    # Total audio duration
+    audio_start = segments[0].get("start", 0)
+    audio_end = segments[-1].get("end", 0)
+    total_dur = audio_end - audio_start
+
+    # Weight each sentence by its word count
+    sent_word_counts = [max(len(s.split()), 1) for s in sentences]
+    total_words = sum(sent_word_counts)
+
+    result = []
+    cursor = audio_start
+
+    for i, sentence in enumerate(sentences):
+        ratio = sent_word_counts[i] / total_words
+        sent_dur = total_dur * ratio
+        result.append({
+            "id": f"s{str(i + 1).zfill(6)}",
+            "text": sentence,
+            "start": round(cursor, 3),
+            "end": round(cursor + sent_dur, 3),
+        })
+        cursor += sent_dur
+
+    return result
+
+
 def main():
     audio_path = sys.argv[1]
     text_path = sys.argv[2]
@@ -125,16 +170,26 @@ def main():
     print(json.dumps({"progress": "transcribing", "message": "Transcribing audio..."}), flush=True)
     result = model.transcribe(audio, batch_size=16, language=language)
 
-    # Step 2: Get word-level alignment
-    print(json.dumps({"progress": "aligning", "message": "Aligning words to audio..."}), flush=True)
-    model_a, metadata = whisperx.load_align_model(language_code=language, device=device)
-    result = whisperx.align(result["segments"], model_a, metadata, audio, device, return_char_alignments=False)
-
     segments = result.get("segments", [])
+
+    # Step 2: Get word-level alignment (only for supported languages)
+    if language in ALIGN_SUPPORTED_LANGS:
+        print(json.dumps({"progress": "aligning", "message": "Aligning words to audio..."}), flush=True)
+        try:
+            model_a, metadata = whisperx.load_align_model(language_code=language, device=device)
+            result = whisperx.align(result["segments"], model_a, metadata, audio, device, return_char_alignments=False)
+            segments = result.get("segments", [])
+        except ValueError as e:
+            print(f"Alignment model not available for '{language}': {e}", file=sys.stderr)
 
     # Step 3: Map transcription segments to expected sentences
     print(json.dumps({"progress": "matching", "message": "Matching sentences to text..."}), flush=True)
-    sentence_timestamps = match_segments_to_sentences(segments, sentences)
+
+    # For supported languages, try word-level matching; otherwise distribute proportionally
+    if language in ALIGN_SUPPORTED_LANGS:
+        sentence_timestamps = match_segments_to_sentences(segments, sentences)
+    else:
+        sentence_timestamps = distribute_segments_to_sentences(segments, sentences)
 
     # Write output
     with open(output_path, "w", encoding="utf-8") as f:
