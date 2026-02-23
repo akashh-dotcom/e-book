@@ -32,4 +32,7 @@ mongoose.connect(process.env.MONGO_URI)
   .catch(err => console.error('MongoDB connection error:', err));
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Server: http://localhost:${PORT}`));
+const server = app.listen(PORT, () => console.log(`Server: http://localhost:${PORT}`));
+// Allow long-running translation requests (10 minutes)
+server.timeout = 600000;
+server.keepAliveTimeout = 600000;

@@ -94,15 +94,18 @@ async function translateParagraphs(paragraphs, srcLang, tgtLang, tmpDir, onProgr
         '--src', srcLang,
         '--tgt', tgtLang,
         '--json',
-      ], { timeout: 600000 });
+      ]);
 
       let stdout = '';
       let stderrBuf = '';
+      let stderrFull = '';
 
       proc.stdout.on('data', (data) => { stdout += data.toString(); });
 
       proc.stderr.on('data', (data) => {
-        stderrBuf += data.toString();
+        const chunk = data.toString();
+        stderrBuf += chunk;
+        stderrFull += chunk;
         // Parse progress lines: PROGRESS:current/total/percent
         const lines = stderrBuf.split('\n');
         stderrBuf = lines.pop(); // keep incomplete line in buffer
@@ -120,7 +123,7 @@ async function translateParagraphs(paragraphs, srcLang, tgtLang, tmpDir, onProgr
 
       proc.on('close', (code) => {
         if (code !== 0) {
-          reject(new Error(`Translation script exited with code ${code}`));
+          reject(new Error(`Translation script exited with code ${code}. stderr: ${stderrFull.slice(-500)}`));
         } else {
           resolve(stdout);
         }

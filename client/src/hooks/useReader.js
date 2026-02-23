@@ -174,7 +174,7 @@ export default function useReader(bookId) {
       const res = await api.post(`/translate/${bookId}/${chapterIndex}`, {
         targetLang,
         force: true,
-      });
+      }, { timeout: 600000 }); // 10 min for large chapters
 
       // Stop polling
       clearInterval(pollInterval);
