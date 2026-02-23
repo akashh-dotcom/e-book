@@ -17,7 +17,7 @@ const translation = require('../services/translationService');
 exports.translateChapter = async (req, res) => {
   try {
     const { bookId, chapterIndex } = req.params;
-    const { targetLang } = req.body;
+    const { targetLang, force } = req.body;
 
     if (!targetLang) {
       return res.status(400).json({ error: 'targetLang is required' });
@@ -46,8 +46,13 @@ exports.translateChapter = async (req, res) => {
       book.storagePath, chapterIndex, targetLang
     );
 
+    // Delete old cache if force re-translate requested
+    if (force) {
+      await fs.unlink(translatedPath).catch(() => {});
+    }
+
     // Check cache — return immediately (no streaming needed)
-    const cached = await translation.hasTranslation(book.storagePath, chapterIndex, targetLang);
+    const cached = !force && await translation.hasTranslation(book.storagePath, chapterIndex, targetLang);
     if (cached) {
       let html = await fs.readFile(translatedPath, 'utf-8');
       const assetBase = `/storage/books/${book._id}/assets`;

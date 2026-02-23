@@ -141,7 +141,7 @@ export default function useReader(bookId) {
   }, [book, bookId, chapterIndex, translatedLang]);
 
   // Translate current chapter to a language (with SSE progress)
-  const translateTo = useCallback(async (targetLang) => {
+  const translateTo = useCallback(async (targetLang, { force = true } = {}) => {
     if (!targetLang) {
       setTranslatedLang(null);
       return;
@@ -157,7 +157,7 @@ export default function useReader(bookId) {
           'Content-Type': 'application/json',
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        body: JSON.stringify({ targetLang }),
+        body: JSON.stringify({ targetLang, force }),
       });
 
       const contentType = response.headers.get('content-type') || '';
