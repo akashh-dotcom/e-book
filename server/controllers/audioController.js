@@ -410,9 +410,13 @@ exports.generateAudio = async (req, res) => {
 
     const html = await fs.readFile(chapterPath, 'utf-8');
 
-    // Strip HTML tags to get plain text (using wordWrapper to match sync flow)
+    // Wrap HTML first — this produces the SAME word list that sync uses.
+    // Using wrapped.plainText for TTS ensures exact consistency between
+    // the audio content and the word-level sync data.
     const wordWrapper = require('../services/wordWrapper');
-    const plainText = wordWrapper.getPlainText(html);
+    const wrapped = wordWrapper.wrap(html);
+    await fs.writeFile(chapterPath, wrapped.html);
+    const plainText = wrapped.plainText;
     if (!plainText) return res.status(400).json({ error: 'Chapter has no text content' });
 
     const audioDir = path.join(book.storagePath, 'audio');

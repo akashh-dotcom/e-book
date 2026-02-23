@@ -84,10 +84,18 @@ exports.autoAlign = async (req, res) => {
     let usedTtsTiming = false;
     try {
       await fs.access(timingPath);
-      send('progress', { step: 'tts_timing_found', message: 'Using TTS per-word timing...' });
+      const timingRaw = JSON.parse(await fs.readFile(timingPath, 'utf-8'));
+      console.log(`[Sync] Found TTS timing: ${timingRaw.length} TTS words, ${wrapped.words.length} wrapped words`);
+      send('progress', { step: 'tts_timing_found', message: `Using TTS per-word timing (${timingRaw.length} TTS words, ${wrapped.words.length} text words)...` });
       syncData = await whisperxAligner.buildSyncFromTiming(timingPath, wrapped.words, wrapped.wordIds);
-      if (syncData) usedTtsTiming = true;
-    } catch {
+      if (syncData) {
+        usedTtsTiming = true;
+        // Log sample of sync data to verify gaps exist at sentence boundaries
+        const sample = syncData.slice(0, 10).map(s => `${s.word}:${s.clipBegin}-${s.clipEnd}`).join(', ');
+        console.log(`[Sync] TTS sync sample: ${sample}`);
+      }
+    } catch (timingErr) {
+      console.log(`[Sync] No TTS timing file at ${timingPath}: ${timingErr.message}`);
       // No timing file — fall back to WhisperX
     }
 

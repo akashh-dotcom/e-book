@@ -127,6 +127,25 @@ class WhisperXAligner {
       const expNorm = expWord.replace(/[^\p{L}\p{N}]/gu, '').toLowerCase();
       const ttsNorm = ttsWord.word.replace(/[^\p{L}\p{N}]/gu, '').toLowerCase();
 
+      // Skip expected words that are purely punctuation (empty after normalization).
+      // These have no corresponding TTS word, so assign null timing and advance.
+      if (!expNorm) {
+        syncData.push({
+          id: wordIds[expIdx] || 'w' + String(expIdx + 1).padStart(5, '0'),
+          word: expWord,
+          clipBegin: null,
+          clipEnd: null,
+        });
+        expIdx++;
+        continue;
+      }
+
+      // Skip TTS words that are purely punctuation
+      if (!ttsNorm) {
+        ttsIdx++;
+        continue;
+      }
+
       if (expNorm === ttsNorm || expNorm.startsWith(ttsNorm) || ttsNorm.startsWith(expNorm)) {
         // Direct match — use this TTS word's timing
         syncData.push({

@@ -13,6 +13,8 @@ class WordWrapper {
   /**
    * Wrap each word in chapter HTML with <span id="wXXXXX">.
    * Automatically strips existing wrapping first to prevent double-wrapping.
+   * Punctuation-only tokens (no letters/digits) are NOT wrapped — they stay
+   * as plain text so they don't create phantom word IDs that TTS won't speak.
    *
    * @param {string} html - Raw chapter HTML (may already be wrapped)
    * @param {number} startIndex - Starting word index (default 0)
@@ -46,6 +48,10 @@ class WordWrapper {
           const parts = text.split(/(\s+)/);
           const wrapped = parts.map(part => {
             if (!part.trim()) return part; // preserve whitespace
+            // Skip wrapping tokens that are purely punctuation/symbols
+            // (no letters or digits). TTS won't speak these as separate words,
+            // so they shouldn't get word IDs.
+            if (!/[\p{L}\p{N}]/u.test(part)) return part;
             wordIndex++;
             const id = 'w' + String(wordIndex).padStart(5, '0');
             words.push(part);
@@ -73,12 +79,25 @@ class WordWrapper {
   }
 
   /**
-   * Get plain text from HTML (same method used by audio generation).
+   * Get plain text from HTML using the same cheerio-based extraction as wrap().
    * This ensures TTS text and wrapper text are identical.
    */
   getPlainText(html) {
     const cleanHtml = this.unwrap(html);
-    return cleanHtml.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+    const $ = cheerio.load(cleanHtml, { xmlMode: false });
+    const parts = [];
+
+    const textElements =
+      'p, h1, h2, h3, h4, h5, h6, li, td, th, ' +
+      'blockquote, figcaption, dt, dd, em, strong, a';
+
+    $(textElements).each((_, el) => {
+      if ($(el).parents(textElements).length > 0) return;
+      const text = $(el).text().trim();
+      if (text) parts.push(text);
+    });
+
+    return parts.join(' ');
   }
 }
 

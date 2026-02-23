@@ -23,7 +23,7 @@ import edge_tts
 
 
 async def generate(text, voice, audio_path, timing_path):
-    communicate = edge_tts.Communicate(text, voice, boundary="WordBoundary")
+    communicate = edge_tts.Communicate(text, voice)
 
     word_timings = []
 
