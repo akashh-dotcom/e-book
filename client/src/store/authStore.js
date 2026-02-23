@@ -14,6 +14,12 @@ const useAuthStore = create((set, get) => ({
     set({ user, token, error: null });
   },
 
+  // Update user in state + localStorage (keeps existing token)
+  setUser: (user) => {
+    localStorage.setItem('voxbook_user', JSON.stringify(user));
+    set({ user, error: null });
+  },
+
   clearAuth: () => {
     localStorage.removeItem('voxbook_user');
     localStorage.removeItem('voxbook_token');
@@ -68,6 +74,83 @@ const useAuthStore = create((set, get) => ({
 
   logout: () => {
     get().clearAuth();
+  },
+
+  // Profile actions
+  updateProfile: async ({ username, email, phone }) => {
+    set({ loading: true, error: null });
+    try {
+      const { data } = await api.put('/auth/profile', { username, email, phone });
+      get().setUser(data.user);
+      return data.user;
+    } catch (err) {
+      const msg = err.response?.data?.error || 'Update failed';
+      set({ error: msg });
+      throw new Error(msg);
+    } finally {
+      set({ loading: false });
+    }
+  },
+
+  changePassword: async ({ currentPassword, newPassword }) => {
+    set({ loading: true, error: null });
+    try {
+      await api.put('/auth/profile/password', { currentPassword, newPassword });
+    } catch (err) {
+      const msg = err.response?.data?.error || 'Password change failed';
+      set({ error: msg });
+      throw new Error(msg);
+    } finally {
+      set({ loading: false });
+    }
+  },
+
+  uploadAvatar: async (file) => {
+    set({ loading: true, error: null });
+    try {
+      const form = new FormData();
+      form.append('avatar', file);
+      const { data } = await api.post('/auth/profile/avatar', form, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      get().setUser(data.user);
+      return data.user;
+    } catch (err) {
+      const msg = err.response?.data?.error || 'Upload failed';
+      set({ error: msg });
+      throw new Error(msg);
+    } finally {
+      set({ loading: false });
+    }
+  },
+
+  removeAvatar: async () => {
+    set({ loading: true, error: null });
+    try {
+      const { data } = await api.delete('/auth/profile/avatar');
+      get().setUser(data.user);
+      return data.user;
+    } catch (err) {
+      const msg = err.response?.data?.error || 'Failed to remove avatar';
+      set({ error: msg });
+      throw new Error(msg);
+    } finally {
+      set({ loading: false });
+    }
+  },
+
+  deleteAccount: async () => {
+    set({ loading: true, error: null });
+    try {
+      await api.delete('/auth/profile');
+      get().clearAuth();
+    } catch (err) {
+      const msg = err.response?.data?.error || 'Delete failed';
+      set({ error: msg });
+      throw new Error(msg);
+    } finally {
+      set({ loading: false });
+    }
   },
 
   // Hydrate token on app start

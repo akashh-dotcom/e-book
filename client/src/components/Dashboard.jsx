@@ -2,14 +2,16 @@ import { useEffect, useState, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   BookOpen, Trash2, ChevronRight, Upload, Plus,
-  LayoutDashboard, Search, Loader, LogOut, ArrowLeft,
+  LayoutDashboard, Search, Loader, LogOut, ArrowLeft, User,
 } from 'lucide-react';
 import useBookStore from '../store/bookStore';
 import useAuthStore from '../store/authStore';
+import ProfilePanel from './ProfilePanel';
 
 export default function Dashboard() {
   const { books, fetchBooks, deleteBook, uploadBook } = useBookStore();
   const { user, logout } = useAuthStore();
+  const [profileOpen, setProfileOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [uploading, setUploading] = useState(false);
@@ -75,6 +77,25 @@ export default function Dashboard() {
         </nav>
 
         <div className="mt-auto pt-4 border-t border-forest-500/8 max-md:mt-0 max-md:ml-auto max-md:pt-0 max-md:border-0">
+          {/* User profile pill */}
+          {user && (
+            <button onClick={() => setProfileOpen(true)}
+              className="flex items-center gap-2.5 w-full px-3 py-2.5 mb-3 rounded-xl bg-white/[0.03] border border-white/[0.06] text-left
+                hover:bg-white/[0.06] transition-all cursor-pointer font-[inherit]">
+              {user.avatar ? (
+                <img src={user.avatar} alt="" className="w-8 h-8 rounded-full object-cover border border-forest-400/20 flex-shrink-0" />
+              ) : (
+                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-forest-500 to-forest-400 flex items-center justify-center text-xs font-bold text-white flex-shrink-0">
+                  {user.username?.charAt(0)?.toUpperCase()}
+                </div>
+              )}
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium text-forest-50 truncate">{user.username}</p>
+                <p className="text-[11px] text-forest-200/35 truncate">{user.email}</p>
+              </div>
+            </button>
+          )}
+
           <button
             className="flex items-center justify-center gap-2 w-full px-4 py-2.5 rounded-xl bg-gradient-to-r from-forest-500 to-forest-400 text-forest-950 text-sm font-semibold
               shadow-[0_2px_12px_rgba(16,185,129,0.3)] hover:-translate-y-0.5 hover:shadow-[0_4px_20px_rgba(16,185,129,0.45)] active:translate-y-0
@@ -189,6 +210,9 @@ export default function Dashboard() {
           </div>
         )}
       </main>
+
+      {/* Profile modal */}
+      <ProfilePanel open={profileOpen} onClose={() => setProfileOpen(false)} />
     </div>
   );
 }
