@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   BookOpen, Trash2, ChevronRight, Upload, Plus,
   LayoutDashboard, Search, Loader, LogOut, ArrowLeft, User,
@@ -19,6 +19,19 @@ export default function Dashboard() {
   const [error, setError] = useState('');
   const fileInputRef = useRef(null);
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [paymentSuccess, setPaymentSuccess] = useState(false);
+
+  // Show success banner after Stripe checkout redirect
+  useEffect(() => {
+    if (searchParams.get('payment') === 'success') {
+      setPaymentSuccess(true);
+      searchParams.delete('payment');
+      setSearchParams(searchParams, { replace: true });
+      const t = setTimeout(() => setPaymentSuccess(false), 5000);
+      return () => clearTimeout(t);
+    }
+  }, []);
 
   useEffect(() => {
     fetchBooks().finally(() => setLoading(false));
@@ -122,6 +135,11 @@ export default function Dashboard() {
 
       {/* Main */}
       <main className="flex-1 min-w-0 p-7 overflow-y-auto max-md:p-5">
+        {paymentSuccess && (
+          <div className="mb-5 px-4 py-3 rounded-xl bg-forest-500/15 border border-forest-500/25 text-forest-300 text-sm font-medium flex items-center gap-2 animate-fade-in-up">
+            <span className="text-lg">🎉</span> Payment successful! Your plan has been upgraded.
+          </div>
+        )}
         <header className="flex items-end justify-between mb-8 gap-4 flex-wrap">
           <div>
             <h1 className="text-2xl font-bold tracking-tight bg-gradient-to-r from-forest-50 to-forest-300 bg-clip-text text-transparent">

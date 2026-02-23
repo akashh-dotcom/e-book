@@ -8,6 +8,14 @@ const userSchema = new mongoose.Schema({
   password: { type: String, required: true, minlength: 6 },
   role:     { type: String, enum: ['user', 'admin'], default: 'user' },
   avatar:   { type: String, default: '' }, // filename in storage/avatars/
+
+  // Stripe subscription fields
+  plan:                 { type: String, enum: ['starter', 'pro', 'enterprise'], default: 'starter' },
+  stripeCustomerId:     { type: String, default: '' },
+  stripeSubscriptionId: { type: String, default: '' },
+  subscriptionStatus:   { type: String, default: '' }, // e.g. active, trialing, past_due, canceled
+  currentPeriodEnd:     { type: Date, default: null },
+
   createdAt: { type: Date, default: Date.now },
 });
 

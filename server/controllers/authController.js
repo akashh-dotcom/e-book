@@ -7,6 +7,9 @@ const { signToken } = require('../middleware/auth');
 const userResponse = (u) => ({
   id: u._id, username: u.username, email: u.email, phone: u.phone, role: u.role,
   avatar: u.avatar ? `/storage/avatars/${u.avatar}` : '',
+  plan: u.plan || 'starter',
+  subscriptionStatus: u.subscriptionStatus || '',
+  currentPeriodEnd: u.currentPeriodEnd || null,
 });
 
 // POST /api/auth/signup — users only

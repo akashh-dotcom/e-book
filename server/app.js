@@ -11,9 +11,15 @@ const audioRoutes = require('./routes/audioRoutes');
 const syncRoutes = require('./routes/syncRoutes');
 const authRoutes = require('./routes/authRoutes');
 const translateRoutes = require('./routes/translateRoutes');
+const paymentRoutes = require('./routes/paymentRoutes');
+const { handleWebhook } = require('./controllers/paymentController');
 
 const app = express();
 app.use(cors());
+
+// Stripe webhook needs the raw body — must be before express.json()
+app.post('/api/payment/webhook', express.raw({ type: 'application/json' }), handleWebhook);
+
 app.use(express.json({ limit: '50mb' }));
 
 // Serve book assets (CSS, images, fonts)
@@ -25,6 +31,7 @@ app.use('/api/books', bookRoutes);
 app.use('/api/audio', audioRoutes);
 app.use('/api/sync', syncRoutes);
 app.use('/api/translate', translateRoutes);
+app.use('/api/payment', paymentRoutes);
 
 // MongoDB
 mongoose.connect(process.env.MONGO_URI)
