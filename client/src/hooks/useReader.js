@@ -16,6 +16,8 @@ export default function useReader(bookId) {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [bookmarksOpen, setBookmarksOpen] = useState(false);
   const [bookmarks, setBookmarks] = useState([]);
+  const [translatedLang, setTranslatedLang] = useState(null); // null = original
+  const [translating, setTranslating] = useState(false);
   const chapterRef = useRef(null);
 
   // Load book
@@ -30,17 +32,33 @@ export default function useReader(bookId) {
       .catch(() => setLoading(false));
   }, [bookId]);
 
-  // Load chapter
+  // Load chapter (original or translated)
   useEffect(() => {
     if (!book) return;
     setChapterLoading(true);
-    api.get(`/books/${bookId}/chapters/${chapterIndex}`)
-      .then(r => {
-        setChapterHtml(r.data.html);
-        setChapterLoading(false);
-      })
-      .catch(() => setChapterLoading(false));
-  }, [book, bookId, chapterIndex]);
+
+    if (translatedLang) {
+      // Load translated chapter
+      api.post(`/translate/${bookId}/${chapterIndex}`, { targetLang: translatedLang })
+        .then(r => {
+          setChapterHtml(r.data.html);
+          setChapterLoading(false);
+        })
+        .catch(() => {
+          // Fallback to original on error
+          api.get(`/books/${bookId}/chapters/${chapterIndex}`)
+            .then(r => { setChapterHtml(r.data.html); setChapterLoading(false); })
+            .catch(() => setChapterLoading(false));
+        });
+    } else {
+      api.get(`/books/${bookId}/chapters/${chapterIndex}`)
+        .then(r => {
+          setChapterHtml(r.data.html);
+          setChapterLoading(false);
+        })
+        .catch(() => setChapterLoading(false));
+    }
+  }, [book, bookId, chapterIndex, translatedLang]);
 
   // Load bookmarks
   useEffect(() => {
@@ -101,17 +119,48 @@ export default function useReader(bookId) {
     return () => window.removeEventListener('keydown', handler);
   }, [goNext, goPrev]);
 
-  // Paginated mode page turn
+  // Reload chapter (respects current translation state)
   const reloadChapter = useCallback(() => {
     if (!book || !bookId) return;
     setChapterLoading(true);
-    api.get(`/books/${bookId}/chapters/${chapterIndex}`)
-      .then(r => {
-        setChapterHtml(r.data.html);
-        setChapterLoading(false);
-      })
-      .catch(() => setChapterLoading(false));
-  }, [book, bookId, chapterIndex]);
+
+    if (translatedLang) {
+      api.post(`/translate/${bookId}/${chapterIndex}`, { targetLang: translatedLang })
+        .then(r => { setChapterHtml(r.data.html); setChapterLoading(false); })
+        .catch(() => {
+          api.get(`/books/${bookId}/chapters/${chapterIndex}`)
+            .then(r => { setChapterHtml(r.data.html); setChapterLoading(false); })
+            .catch(() => setChapterLoading(false));
+        });
+    } else {
+      api.get(`/books/${bookId}/chapters/${chapterIndex}`)
+        .then(r => { setChapterHtml(r.data.html); setChapterLoading(false); })
+        .catch(() => setChapterLoading(false));
+    }
+  }, [book, bookId, chapterIndex, translatedLang]);
+
+  // Translate current chapter to a language
+  const translateTo = useCallback(async (targetLang) => {
+    if (!targetLang) {
+      setTranslatedLang(null);
+      return;
+    }
+    setTranslating(true);
+    try {
+      const res = await api.post(`/translate/${bookId}/${chapterIndex}`, { targetLang });
+      setChapterHtml(res.data.html);
+      setTranslatedLang(targetLang);
+    } catch {
+      // Stay on original
+    } finally {
+      setTranslating(false);
+    }
+  }, [bookId, chapterIndex]);
+
+  // Show original
+  const showOriginal = useCallback(() => {
+    setTranslatedLang(null);
+  }, []);
 
   const turnPage = useCallback((direction) => {
     const container = chapterRef.current;
@@ -154,5 +203,10 @@ export default function useReader(bookId) {
     chapterRef,
     turnPage,
     reloadChapter,
+    // Translation
+    translatedLang,
+    translating,
+    translateTo,
+    showOriginal,
   };
 }

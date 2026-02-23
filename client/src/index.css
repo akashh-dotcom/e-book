@@ -1013,6 +1013,63 @@ body {
   outline: 1px solid var(--accent);
 }
 
+/* Translate toggle in audio generate row */
+.translate-toggle {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--accent);
+  cursor: pointer;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 25%, transparent);
+  white-space: nowrap;
+  user-select: none;
+}
+.translate-toggle input[type="checkbox"] {
+  accent-color: var(--accent);
+  width: 13px;
+  height: 13px;
+  margin: 0;
+  cursor: pointer;
+}
+
+/* Translation indicator bar */
+.translation-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  margin-bottom: 8px;
+  border-radius: 8px;
+  font-size: 12px;
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 20%, transparent);
+  color: var(--accent);
+}
+.translation-bar.translating {
+  opacity: 0.8;
+}
+.translation-bar-btn {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  margin-left: auto;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--fg) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--fg) 15%, transparent);
+  color: var(--fg);
+  font-size: 11px;
+  cursor: pointer;
+  font-family: inherit;
+}
+.translation-bar-btn:hover {
+  background: color-mix(in srgb, var(--fg) 15%, transparent);
+}
+
 .sync-options {
   display: flex;
   gap: 8px;

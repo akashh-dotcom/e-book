@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
+import { Languages, X, Loader } from 'lucide-react';
 import useReader from '../../hooks/useReader';
 import { useAudioPlayer } from '../../hooks/useAudioPlayer';
 import { useMediaOverlay } from '../../hooks/useMediaOverlay';
@@ -134,12 +135,38 @@ export default function ReaderPage() {
                 reader.reloadChapter();
                 return result;
               }}
-              onGenerate={async (voice) => {
-                await audio.generateAudio(voice);
+              onGenerate={async (voice, opts) => {
+                await audio.generateAudio(voice, opts);
               }}
               bookId={bookId}
               chapterIndex={reader.chapterIndex}
+              bookLanguage={reader.book.language}
+              onTranslate={reader.translateTo}
             />
+
+            {/* Translation indicator bar */}
+            {reader.translatedLang && (
+              <div className="translation-bar">
+                <Languages size={14} />
+                <span>
+                  Translated to <strong>{reader.translatedLang.toUpperCase()}</strong>
+                </span>
+                <button
+                  className="translation-bar-btn"
+                  onClick={reader.showOriginal}
+                  title="Show original text"
+                >
+                  <X size={12} /> Original
+                </button>
+              </div>
+            )}
+
+            {reader.translating && (
+              <div className="translation-bar translating">
+                <Loader size={14} className="spin" />
+                <span>Translating chapter...</span>
+              </div>
+            )}
 
             <ChapterView
               html={reader.chapterHtml}

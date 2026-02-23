@@ -10,6 +10,7 @@ const bookRoutes = require('./routes/bookRoutes');
 const audioRoutes = require('./routes/audioRoutes');
 const syncRoutes = require('./routes/syncRoutes');
 const authRoutes = require('./routes/authRoutes');
+const translateRoutes = require('./routes/translateRoutes');
 
 const app = express();
 app.use(cors());
@@ -23,6 +24,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/books', bookRoutes);
 app.use('/api/audio', audioRoutes);
 app.use('/api/sync', syncRoutes);
+app.use('/api/translate', translateRoutes);
 
 // MongoDB
 mongoose.connect(process.env.MONGO_URI)

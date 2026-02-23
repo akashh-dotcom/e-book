@@ -1,6 +1,14 @@
 import { useState, useRef } from 'react';
-import { Upload, Mic, Loader, Wand2, Volume2 } from 'lucide-react';
+import { Upload, Mic, Loader, Wand2, Volume2, Languages } from 'lucide-react';
 import VoiceSelector, { DEFAULT_VOICE } from '../VoiceSelector';
+
+/**
+ * Extract the 2-letter language code from an Edge-TTS voice name.
+ * e.g. "ja-JP-NanamiNeural" → "ja"
+ */
+function voiceLang(voiceName) {
+  return voiceName?.split('-')[0] || 'en';
+}
 
 export default function ChapterAudioUpload({
   hasAudio,
@@ -10,13 +18,20 @@ export default function ChapterAudioUpload({
   onGenerate,
   bookId,
   chapterIndex,
+  bookLanguage,
+  onTranslate,
 }) {
   const [uploading, setUploading] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [selectedVoice, setSelectedVoice] = useState(DEFAULT_VOICE);
+  const [translateEnabled, setTranslateEnabled] = useState(true);
   const [error, setError] = useState('');
   const fileRef = useRef(null);
+
+  const srcLang = (bookLanguage || 'en').split('-')[0];
+  const tgtLang = voiceLang(selectedVoice);
+  const isDifferentLang = srcLang !== tgtLang;
 
   const handleUpload = async (file) => {
     if (!file) return;
@@ -45,7 +60,14 @@ export default function ChapterAudioUpload({
     setGenerating(true);
     setError('');
     try {
-      await onGenerate(selectedVoice);
+      const useTranslation = isDifferentLang && translateEnabled;
+      await onGenerate(selectedVoice, { useTranslation });
+
+      // If translated, also switch the reader to show translated text
+      if (useTranslation && onTranslate) {
+        const voiceLocale = selectedVoice.split('-').slice(0, 2).join('-');
+        onTranslate(voiceLocale);
+      }
     } catch (err) {
       setError(err.response?.data?.error || 'Audio generation failed');
     }
@@ -78,13 +100,29 @@ export default function ChapterAudioUpload({
                 value={selectedVoice}
                 onChange={setSelectedVoice}
               />
+
+              {isDifferentLang && (
+                <label className="translate-toggle" title="Translate text to match the voice language">
+                  <input
+                    type="checkbox"
+                    checked={translateEnabled}
+                    onChange={e => setTranslateEnabled(e.target.checked)}
+                  />
+                  <Languages size={14} />
+                  <span>Translate to {tgtLang.toUpperCase()}</span>
+                </label>
+              )}
+
               <button
                 className="audio-upload-btn generate"
                 onClick={handleGenerate}
                 disabled={generating}
               >
                 {generating ? <Loader size={14} className="spin" /> : <Volume2 size={14} />}
-                {generating ? 'Generating...' : 'Generate'}
+                {generating
+                  ? (isDifferentLang && translateEnabled ? 'Translating & Generating...' : 'Generating...')
+                  : 'Generate'
+                }
               </button>
             </div>
           )}

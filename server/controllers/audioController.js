@@ -337,18 +337,42 @@ exports.listVoices = async (req, res) => {
 /**
  * Auto-generate audio from chapter text using edge-tts.
  * POST /api/audio/:bookId/:chapterIndex/generate
- * Body: { voice?: string }
+ * Body: { voice?: string, useTranslation?: boolean }
+ *
+ * When useTranslation is true and the voice language differs from the book
+ * language, reads from the translated chapter file instead of the original.
  */
 exports.generateAudio = async (req, res) => {
   try {
     const { bookId, chapterIndex } = req.params;
-    const { voice = 'en-US-AriaNeural' } = req.body;
+    const { voice = 'en-US-AriaNeural', useTranslation = false } = req.body;
 
     const book = await Book.findById(bookId);
     if (!book) return res.status(404).json({ error: 'Book not found' });
 
-    // Read chapter text
-    const chapterPath = path.join(book.storagePath, 'chapters', `${chapterIndex}.html`);
+    const translationSvc = require('../services/translationService');
+    const voiceLang = translationSvc.voiceLocaleToLang(voice);
+    const bookLang = book.language || 'en';
+    const needsTranslation = useTranslation && !translationSvc.isSameLanguage(bookLang, voiceLang);
+
+    let chapterPath;
+    if (needsTranslation) {
+      chapterPath = translationSvc.getTranslatedChapterPath(
+        book.storagePath, chapterIndex, voiceLang
+      );
+      const exists = await translationSvc.hasTranslation(book.storagePath, chapterIndex, voiceLang);
+      if (!exists) {
+        const originalPath = path.join(book.storagePath, 'chapters', `${chapterIndex}.html`);
+        const originalHtml = await fs.readFile(originalPath, 'utf-8');
+        const result = await translationSvc.translateChapterHtml(
+          originalHtml, bookLang, voiceLang, book.storagePath
+        );
+        await fs.writeFile(chapterPath, result.html, 'utf-8');
+      }
+    } else {
+      chapterPath = path.join(book.storagePath, 'chapters', `${chapterIndex}.html`);
+    }
+
     const html = await fs.readFile(chapterPath, 'utf-8');
 
     // Strip HTML tags to get plain text
@@ -390,6 +414,8 @@ exports.generateAudio = async (req, res) => {
       filename,
       duration,
       voice,
+      translated: needsTranslation,
+      translatedLang: needsTranslation ? translationSvc.shortLang(voiceLang) : null,
       chapterIndex: parseInt(chapterIndex),
     });
   } catch (err) {
