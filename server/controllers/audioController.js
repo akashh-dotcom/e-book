@@ -99,7 +99,7 @@ exports.getChapterAudio = async (req, res) => {
     let audioInfo = book?.audioFiles?.get(audioKey);
     // Fallback: if lang-specific audio not found, try the base key
     if (!audioInfo && lang) audioInfo = book?.audioFiles?.get(String(req.params.chapterIndex));
-    if (!audioInfo) return res.status(404).json({ error: 'No audio' });
+    if (!audioInfo) return res.json({ exists: false });
     const langQuery = lang ? `?lang=${lang}` : '';
     res.json({
       ...audioInfo,
@@ -410,8 +410,13 @@ exports.generateAudio = async (req, res) => {
 
     const html = await fs.readFile(chapterPath, 'utf-8');
 
-    // Strip HTML tags to get plain text
-    const plainText = html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+    // Wrap HTML first — this produces the SAME word list that sync uses.
+    // Using wrapped.plainText for TTS ensures exact consistency between
+    // the audio content and the word-level sync data.
+    const wordWrapper = require('../services/wordWrapper');
+    const wrapped = wordWrapper.wrap(html);
+    await fs.writeFile(chapterPath, wrapped.html);
+    const plainText = wrapped.plainText;
     if (!plainText) return res.status(400).json({ error: 'Chapter has no text content' });
 
     const audioDir = path.join(book.storagePath, 'audio');
@@ -421,13 +426,19 @@ exports.generateAudio = async (req, res) => {
     const filename = lang ? `chapter_${chapterIndex}_${lang}.mp3` : `chapter_${chapterIndex}.mp3`;
     const audioPath = path.join(audioDir, filename);
 
-    // Write text to a temp file for edge-tts (avoids shell escaping issues)
+    // Write text to a temp file for edge-tts
     const tmpTextPath = path.join(audioDir, `_tmp_text_${chapterIndex}.txt`);
     await fs.writeFile(tmpTextPath, plainText, 'utf-8');
 
+    // Generate audio + per-word timing via Python edge-tts API
+    // This captures WordBoundary events for exact per-word timestamps
+    const timingPath = audioPath.replace(/\.mp3$/, '_timing.json');
+    const PYTHON = process.env.PYTHON_PATH
+      || (process.platform === 'win32' ? 'python' : 'python3');
+    const scriptPath = path.join(__dirname, '..', 'scripts', 'edge_tts_generate.py');
     const { execSync } = require('child_process');
     execSync(
-      `edge-tts --voice "${voice}" --file "${tmpTextPath}" --write-media "${audioPath}"`,
+      `${PYTHON} "${scriptPath}" "${tmpTextPath}" "${audioPath}" "${timingPath}" "${voice}"`,
       { timeout: 600000 }
     );
 

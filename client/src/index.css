@@ -1240,12 +1240,81 @@ body {
 .sync-options {
   display: flex;
   gap: 8px;
+  flex-wrap: wrap;
+}
+
+.sync-progress-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  font-size: 0.82rem;
+  color: #6366f1;
+  padding: 4px 0;
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 .sync-ready {
   font-size: 0.84rem;
   color: #16a34a;
   font-weight: 500;
+}
+
+.sync-done-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.audio-upload-btn.regenerate {
+  background: #7c3aed;
+  color: white;
+  border-color: #7c3aed;
+}
+
+.audio-upload-btn.regenerate:hover {
+  opacity: 0.9;
+}
+
+.regen-progress {
+  width: 100%;
+  margin-top: 6px;
+}
+
+.regen-progress-info {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.82rem;
+  color: var(--text-muted, #888);
+  margin-bottom: 4px;
+}
+
+.regen-pct {
+  margin-left: auto;
+  font-weight: 600;
+  color: #7c3aed;
+}
+
+.regen-progress-bar {
+  width: 100%;
+  height: 4px;
+  background: var(--border, #e5e7eb);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.regen-progress-fill {
+  height: 100%;
+  background: #7c3aed;
+  border-radius: 2px;
+  transition: width 0.4s ease;
 }
 
 .audio-error {
@@ -2371,6 +2440,19 @@ body {
 .ed-sync-action-btn:hover {
   background: linear-gradient(135deg, rgba(59,130,246,0.22), rgba(37,99,235,0.15));
   box-shadow: 0 0 12px rgba(59,130,246,0.15);
+}
+
+.ed-sync-progress {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: rgba(99, 102, 241, 0.08);
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  color: #a5b4fc;
+  font-size: 0.78rem;
+  animation: fadeIn 0.3s ease;
 }
 
 .ed-audio-ready {

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import {
   BookOpen, Upload, Volume2, Wand2, Mic, Loader, ChevronRight, ChevronDown,
-  Music, FileAudio,
+  Music, FileAudio, RefreshCw,
 } from 'lucide-react';
 import VoiceSelector, { DEFAULT_VOICE } from '../VoiceSelector';
 
@@ -14,12 +14,15 @@ export default function EditorSidebar({
   onUpload,
   onGenerate,
   onAutoSync,
+  onRegenerate,
   bookId,
+  syncProgress,
 }) {
   const [activeTab, setActiveTab] = useState('chapters');
   const [uploading, setUploading] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [regenerating, setRegenerating] = useState(false);
   const [selectedVoice, setSelectedVoice] = useState(DEFAULT_VOICE);
   const [error, setError] = useState('');
 
@@ -46,6 +49,14 @@ export default function EditorSidebar({
     try { await onAutoSync('word'); }
     catch (err) { setError(err.response?.data?.error || 'Sync failed'); }
     setSyncing(false);
+  };
+
+  const handleRegenerate = async () => {
+    setRegenerating(true);
+    setError('');
+    try { await onRegenerate(selectedVoice); }
+    catch (err) { setError(err.response?.data?.error || 'Re-generate failed'); }
+    setRegenerating(false);
   };
 
   const chapters = book?.chapters || [];
@@ -140,12 +151,42 @@ export default function EditorSidebar({
                   <Mic size={14} />
                   <span>Manual Sync</span>
                 </a>
+                {syncing && syncProgress && (
+                  <div className="ed-sync-progress">
+                    <Loader size={12} className="spin" />
+                    <span>{syncProgress.message}</span>
+                  </div>
+                )}
               </div>
             )}
 
             {hasAudio && hasSyncData && (
               <div className="ed-audio-ready">
                 Audio is synced and ready for editing. Use the timeline below to trim.
+                {onRegenerate && (
+                  <div className="ed-audio-actions" style={{ marginTop: 8 }}>
+                    <VoiceSelector
+                      value={selectedVoice}
+                      onChange={setSelectedVoice}
+                      className="ed-voice-select"
+                      disabled={regenerating}
+                    />
+                    <button
+                      className="ed-audio-action-btn ed-generate-btn"
+                      onClick={handleRegenerate}
+                      disabled={regenerating}
+                    >
+                      {regenerating ? <Loader size={14} className="spin" /> : <RefreshCw size={14} />}
+                      <span>{regenerating ? 'Re-generating...' : 'Re-generate & Sync'}</span>
+                    </button>
+                    {regenerating && syncProgress && (
+                      <div className="ed-sync-progress">
+                        <Loader size={12} className="spin" />
+                        <span>{syncProgress.message}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
 

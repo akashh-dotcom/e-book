@@ -48,7 +48,13 @@ export default function EditorMode({
             reader.reloadChapter();
             return result;
           }}
+          onRegenerate={async (voice) => {
+            await audio.generateAudio(voice);
+            await audio.runAutoSync('word');
+            reader.reloadChapter();
+          }}
           bookId={bookId}
+          syncProgress={audio.syncProgress}
         />
 
         {/* Canvas area - the EPUB content */}

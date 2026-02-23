@@ -28,7 +28,19 @@ app.use('/api/translate', translateRoutes);
 
 // MongoDB
 mongoose.connect(process.env.MONGO_URI)
-  .then(() => console.log('MongoDB connected'))
+  .then(async () => {
+    console.log('MongoDB connected');
+    // Drop stale 2-field unique index if it exists (replaced by 3-field index including lang)
+    try {
+      const col = mongoose.connection.collection('syncdatas');
+      const indexes = await col.indexes();
+      const stale = indexes.find(i => i.name === 'bookId_1_chapterIndex_1');
+      if (stale) {
+        await col.dropIndex('bookId_1_chapterIndex_1');
+        console.log('Dropped stale index bookId_1_chapterIndex_1');
+      }
+    } catch (_) { /* index may not exist */ }
+  })
   .catch(err => console.error('MongoDB connection error:', err));
 
 const PORT = process.env.PORT || 5000;
