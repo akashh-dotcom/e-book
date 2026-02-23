@@ -99,7 +99,7 @@ exports.getChapterAudio = async (req, res) => {
     let audioInfo = book?.audioFiles?.get(audioKey);
     // Fallback: if lang-specific audio not found, try the base key
     if (!audioInfo && lang) audioInfo = book?.audioFiles?.get(String(req.params.chapterIndex));
-    if (!audioInfo) return res.status(404).json({ error: 'No audio' });
+    if (!audioInfo) return res.json({ exists: false });
     const langQuery = lang ? `?lang=${lang}` : '';
     res.json({
       ...audioInfo,

@@ -188,7 +188,7 @@ exports.getSyncData = async (req, res) => {
         lang: { $in: [null, undefined] },
       });
     }
-    if (!sync) return res.status(404).json({ error: 'No sync data' });
+    if (!sync) return res.json({ exists: false });
     res.json(sync);
   } catch (err) {
     res.status(500).json({ error: err.message });

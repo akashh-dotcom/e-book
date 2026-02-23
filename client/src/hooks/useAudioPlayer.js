@@ -44,7 +44,7 @@ export function useAudioPlayer(bookId, chapterIndex, lang) {
     // Check for audio — fetch the stream as a blob
     api.get(`/audio/${bookId}/${chapterIndex}${langQuery}`)
       .then(async (res) => {
-        if (cancelled) return;
+        if (cancelled || !res.data?.url) return;
         const blobUrl = await fetchAudioBlobUrl(res.data.url);
         if (cancelled) { URL.revokeObjectURL(blobUrl); return; }
         setBlobAudioUrl(blobUrl);
@@ -55,7 +55,7 @@ export function useAudioPlayer(bookId, chapterIndex, lang) {
     // Check for sync data
     api.get(`/sync/${bookId}/${chapterIndex}${langQuery}`)
       .then(res => {
-        if (!cancelled) {
+        if (!cancelled && res.data?.syncData) {
           setSyncData(res.data.syncData);
           setHasSyncData(true);
         }
