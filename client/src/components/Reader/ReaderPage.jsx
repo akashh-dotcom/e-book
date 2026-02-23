@@ -11,6 +11,7 @@ import BottomBar from './BottomBar';
 import SearchPanel from './SearchPanel';
 import SettingsPanel from './SettingsPanel';
 import BookmarksPanel from './BookmarksPanel';
+import TranslatePanel from './TranslatePanel';
 import AudioBar from './AudioBar';
 import ChapterAudioUpload from '../AudioUpload/ChapterAudioUpload';
 import EditorMode from '../Editor/EditorMode';
@@ -24,6 +25,7 @@ export default function ReaderPage() {
   const overlay = useMediaOverlay(audio.syncData, audio.audioUrl);
   const [reSyncing, setReSyncing] = useState(false);
   const [editorMode, setEditorMode] = useState(false);
+  const [translateOpen, setTranslateOpen] = useState(false);
 
   const handleReSync = useCallback(async () => {
     setReSyncing(true);
@@ -39,11 +41,9 @@ export default function ReaderPage() {
 
   const handleTrimDone = useCallback((result) => {
     if (result?.syncData) {
-      // Word-based trim — update sync data in place
       audio.updateSyncData(result.syncData);
       reader.reloadChapter();
     } else {
-      // Direct trim or restore — reload everything
       audio.reloadAudio();
       audio.reloadSync();
     }
@@ -95,17 +95,27 @@ export default function ReaderPage() {
           reader.setSearchOpen(!reader.searchOpen);
           reader.setSettingsOpen(false);
           reader.setBookmarksOpen(false);
+          setTranslateOpen(false);
         }}
         onToggleSettings={() => {
           reader.setSettingsOpen(!reader.settingsOpen);
           reader.setSearchOpen(false);
           reader.setBookmarksOpen(false);
+          setTranslateOpen(false);
         }}
         onToggleBookmarks={() => {
           reader.setBookmarksOpen(!reader.bookmarksOpen);
           reader.setSearchOpen(false);
           reader.setSettingsOpen(false);
+          setTranslateOpen(false);
         }}
+        onToggleTranslate={() => {
+          setTranslateOpen(!translateOpen);
+          reader.setSearchOpen(false);
+          reader.setSettingsOpen(false);
+          reader.setBookmarksOpen(false);
+        }}
+        isTranslated={!!reader.translatedLang}
         onAddBookmark={() => {
           reader.addBookmark({
             type: 'bookmark',
@@ -218,6 +228,17 @@ export default function ReaderPage() {
             }}
             onDelete={reader.removeBookmark}
             onClose={() => reader.setBookmarksOpen(false)}
+          />
+        )}
+
+        {translateOpen && (
+          <TranslatePanel
+            bookLanguage={reader.book.language}
+            translatedLang={reader.translatedLang}
+            translating={reader.translating}
+            onTranslate={reader.translateTo}
+            onShowOriginal={reader.showOriginal}
+            onClose={() => setTranslateOpen(false)}
           />
         )}
 
