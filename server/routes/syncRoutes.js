@@ -1,5 +1,9 @@
 const router = require('express').Router();
 const ctrl = require('../controllers/syncController');
+const { protect } = require('../middleware/auth');
+
+// All sync routes require authentication
+router.use(protect);
 
 router.post('/:bookId/:chapterIndex/auto', ctrl.autoAlign);
 router.post('/:bookId/:chapterIndex/manual', ctrl.saveManualSync);

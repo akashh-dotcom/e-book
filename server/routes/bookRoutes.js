@@ -9,6 +9,10 @@ const upload = multer({
   },
 });
 const ctrl = require('../controllers/bookController');
+const { protect } = require('../middleware/auth');
+
+// All book routes require authentication
+router.use(protect);
 
 // Book routes
 router.post('/upload', upload.single('epub'), ctrl.upload);
