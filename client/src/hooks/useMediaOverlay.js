@@ -4,7 +4,7 @@ export function useMediaOverlay(syncData, audioUrl) {
   const audioRef = useRef(null);
   const rafRef = useRef(null);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [currentTime, setCurrentTime] = useState(0);
+  const [currentTime, setCurrentTime] = useState(0);  // virtual time
   const [duration, setDuration] = useState(0);
   const [activeWordId, setActiveWordId] = useState(null);
   const [playbackRate, setPlaybackRate] = useState(1);
@@ -26,17 +26,75 @@ export function useMediaOverlay(syncData, audioUrl) {
   const originalSyncRef = useRef(null);
 
   useEffect(() => {
-    if (!syncData?.length) {
-      originalSyncRef.current = null;
-      return;
+    if (!syncData?.length) return;
+    const newIds = syncData.map(w => w.id).join(',');
+    const origIds = originalSyncRef.current?.map(w => w.id).join(',');
+    if (!originalSyncRef.current || newIds !== origIds) {
+      originalSyncRef.current = syncData.map(w => ({
+        id: w.id,
+        clipBegin: w.clipBegin,
+        clipEnd: w.clipEnd,
+      }));
     }
-    // Always update to match current sync data
-    originalSyncRef.current = syncData.map(w => ({
-      id: w.id,
-      clipBegin: w.clipBegin,
-      clipEnd: w.clipEnd,
-    }));
   }, [syncData]);
+
+  // ---- Time mapping: audio position <-> virtual timeline ----
+
+  /** Map audio file position → virtual timeline position */
+  const audioToVirtual = useCallback((audioTime) => {
+    const orig = originalSyncRef.current;
+    const cur = syncDataRef.current;
+    if (!orig?.length || !cur?.length) return audioTime;
+    for (const o of orig) {
+      if (o.clipBegin === null || o.clipEnd === null) continue;
+      const origDur = o.clipEnd - o.clipBegin;
+      if (origDur <= 0) continue;
+      if (audioTime >= o.clipBegin && audioTime < o.clipEnd) {
+        const c = cur.find(w => w.id === o.id);
+        if (!c || c.clipBegin === null) continue;
+        const fraction = (audioTime - o.clipBegin) / origDur;
+        return c.clipBegin + fraction * (c.clipEnd - c.clipBegin);
+      }
+    }
+    return audioTime; // gap — pass through
+  }, []);
+
+  /** Map virtual timeline position → audio file position */
+  const virtualToAudio = useCallback((vTime) => {
+    const orig = originalSyncRef.current;
+    const cur = syncDataRef.current;
+    if (!orig?.length || !cur?.length) return vTime;
+    for (const c of cur) {
+      if (c.clipBegin === null || c.clipEnd === null) continue;
+      const newDur = c.clipEnd - c.clipBegin;
+      if (newDur <= 0) continue;
+      if (vTime >= c.clipBegin && vTime < c.clipEnd) {
+        const o = orig.find(w => w.id === c.id);
+        if (!o || o.clipBegin === null) continue;
+        const fraction = (vTime - c.clipBegin) / newDur;
+        return o.clipBegin + fraction * (o.clipEnd - o.clipBegin);
+      }
+    }
+    return vTime;
+  }, []);
+
+  /** Per-word playback rate at a given audio position */
+  const getRateForAudioPos = useCallback((audioTime) => {
+    const orig = originalSyncRef.current;
+    const cur = syncDataRef.current;
+    if (!orig?.length || !cur?.length) return 1;
+    for (const o of orig) {
+      if (o.clipBegin === null || o.clipEnd === null) continue;
+      if (audioTime >= o.clipBegin && audioTime < o.clipEnd) {
+        const c = cur.find(w => w.id === o.id);
+        if (!c || c.clipBegin === null) continue;
+        const origDur = o.clipEnd - o.clipBegin;
+        const newDur = c.clipEnd - c.clipBegin;
+        return (origDur > 0 && newDur > 0) ? origDur / newDur : 1;
+      }
+    }
+    return 1;
+  }, []);
 
   // ---- Audio element setup ----
 
@@ -51,7 +109,6 @@ export function useMediaOverlay(syncData, audioUrl) {
     audio.addEventListener('loadedmetadata', () => setDuration(audio.duration));
     audio.addEventListener('ended', () => {
       setIsPlaying(false);
-      stopTimer();
       clearHighlights();
     });
     audio.src = audioUrl;
@@ -83,7 +140,7 @@ export function useMediaOverlay(syncData, audioUrl) {
 
   // ---- Highlights: only touch DOM when active word changes ----
 
-  const updateHighlights = useCallback((audioTime) => {
+  const updateHighlights = useCallback((vt) => {
     const data = syncDataRef.current;
     if (!data?.length) return;
 
@@ -238,7 +295,8 @@ export function useMediaOverlay(syncData, audioUrl) {
     isPlaying ? pause() : play();
   }, [isPlaying, play, pause]);
 
-  const seek = useCallback((time) => {
+  // Seek accepts virtual time and converts to audio position
+  const seek = useCallback((vt) => {
     if (audioRef.current) {
       audioRef.current.currentTime = time;
       setCurrentTime(time);
@@ -247,7 +305,7 @@ export function useMediaOverlay(syncData, audioUrl) {
       activeIndexRef.current = -1;
       updateHighlights(time);
     }
-  }, [updateHighlights]);
+  }, [updateHighlights, virtualToAudio]);
 
   const seekToWord = useCallback((wordId) => {
     const data = syncDataRef.current;
