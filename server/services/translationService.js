@@ -1,4 +1,5 @@
 const path = require('path');
+const os = require('os');
 const fs = require('fs').promises;
 const { execSync, spawn } = require('child_process');
 const cheerio = require('cheerio');
@@ -78,8 +79,9 @@ function isRTL(lang) {
  */
 async function translateParagraphs(paragraphs, srcLang, tgtLang, tmpDir, onProgress) {
   const ts = Date.now();
-  const inputPath = path.join(tmpDir, `_translate_in_${ts}.json`);
-  const outputPath = path.join(tmpDir, `_translate_out_${ts}.json`);
+  const tempBase = os.tmpdir();
+  const inputPath = path.join(tempBase, `_translate_in_${ts}.json`);
+  const outputPath = path.join(tempBase, `_translate_out_${ts}.json`);
 
   await fs.writeFile(inputPath, JSON.stringify(paragraphs), 'utf-8');
 
