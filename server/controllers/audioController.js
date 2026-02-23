@@ -298,6 +298,7 @@ exports.listVoices = async (req, res) => {
 
     if (voices.length === 0) {
       voices = [
+        // English
         { name: 'en-US-AriaNeural', gender: 'Female', locale: 'en-US' },
         { name: 'en-US-GuyNeural', gender: 'Male', locale: 'en-US' },
         { name: 'en-US-JennyNeural', gender: 'Female', locale: 'en-US' },
@@ -309,19 +310,39 @@ exports.listVoices = async (req, res) => {
         { name: 'en-AU-WilliamNeural', gender: 'Male', locale: 'en-AU' },
         { name: 'en-IN-NeerjaNeural', gender: 'Female', locale: 'en-IN' },
         { name: 'en-IN-PrabhatNeural', gender: 'Male', locale: 'en-IN' },
+        // European
         { name: 'es-ES-ElviraNeural', gender: 'Female', locale: 'es-ES' },
         { name: 'es-MX-DaliaNeural', gender: 'Female', locale: 'es-MX' },
         { name: 'fr-FR-DeniseNeural', gender: 'Female', locale: 'fr-FR' },
         { name: 'fr-FR-HenriNeural', gender: 'Male', locale: 'fr-FR' },
         { name: 'de-DE-KatjaNeural', gender: 'Female', locale: 'de-DE' },
         { name: 'de-DE-ConradNeural', gender: 'Male', locale: 'de-DE' },
+        { name: 'it-IT-ElsaNeural', gender: 'Female', locale: 'it-IT' },
+        { name: 'pt-BR-FranciscaNeural', gender: 'Female', locale: 'pt-BR' },
+        // Indian languages
         { name: 'hi-IN-SwaraNeural', gender: 'Female', locale: 'hi-IN' },
         { name: 'hi-IN-MadhurNeural', gender: 'Male', locale: 'hi-IN' },
+        { name: 'bn-IN-TanishaaNeural', gender: 'Female', locale: 'bn-IN' },
+        { name: 'bn-IN-BashkarNeural', gender: 'Male', locale: 'bn-IN' },
+        { name: 'ta-IN-PallaviNeural', gender: 'Female', locale: 'ta-IN' },
+        { name: 'ta-IN-ValluvarNeural', gender: 'Male', locale: 'ta-IN' },
+        { name: 'te-IN-ShrutiNeural', gender: 'Female', locale: 'te-IN' },
+        { name: 'te-IN-MohanNeural', gender: 'Male', locale: 'te-IN' },
+        { name: 'kn-IN-SapnaNeural', gender: 'Female', locale: 'kn-IN' },
+        { name: 'kn-IN-GaganNeural', gender: 'Male', locale: 'kn-IN' },
+        { name: 'ml-IN-SobhanaNeural', gender: 'Female', locale: 'ml-IN' },
+        { name: 'ml-IN-MidhunNeural', gender: 'Male', locale: 'ml-IN' },
+        { name: 'mr-IN-AarohiNeural', gender: 'Female', locale: 'mr-IN' },
+        { name: 'mr-IN-ManoharNeural', gender: 'Male', locale: 'mr-IN' },
+        { name: 'gu-IN-DhwaniNeural', gender: 'Female', locale: 'gu-IN' },
+        { name: 'gu-IN-NiranjanNeural', gender: 'Male', locale: 'gu-IN' },
+        { name: 'ur-IN-GulNeural', gender: 'Female', locale: 'ur-IN' },
+        { name: 'ur-IN-SalmanNeural', gender: 'Male', locale: 'ur-IN' },
+        // East Asian
         { name: 'ja-JP-NanamiNeural', gender: 'Female', locale: 'ja-JP' },
         { name: 'zh-CN-XiaoxiaoNeural', gender: 'Female', locale: 'zh-CN' },
-        { name: 'pt-BR-FranciscaNeural', gender: 'Female', locale: 'pt-BR' },
-        { name: 'it-IT-ElsaNeural', gender: 'Female', locale: 'it-IT' },
         { name: 'ko-KR-SunHiNeural', gender: 'Female', locale: 'ko-KR' },
+        // Other
         { name: 'ar-SA-ZariyahNeural', gender: 'Female', locale: 'ar-SA' },
       ];
     }
