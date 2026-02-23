@@ -11,6 +11,7 @@ const syncEntrySchema = new mongoose.Schema({
 const syncDataSchema = new mongoose.Schema({
   bookId: { type: mongoose.Schema.Types.ObjectId, ref: 'Book', required: true },
   chapterIndex: { type: Number, required: true },
+  lang: { type: String, default: null },  // null = original language
   syncData: [syncEntrySchema],
   engine: {
     type: String,
@@ -24,6 +25,6 @@ const syncDataSchema = new mongoose.Schema({
   updatedAt: { type: Date, default: Date.now },
 });
 
-syncDataSchema.index({ bookId: 1, chapterIndex: 1 }, { unique: true });
+syncDataSchema.index({ bookId: 1, chapterIndex: 1, lang: 1 }, { unique: true });
 
 module.exports = mongoose.model('SyncData', syncDataSchema);

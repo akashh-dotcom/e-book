@@ -22,10 +22,11 @@ exports.autoAlign = async (req, res) => {
     const book = await Book.findById(bookId);
     if (!book) return res.status(404).json({ error: 'Book not found' });
 
-    const audioInfo = book.audioFiles?.get(String(chapterIndex));
+    const audioKey = lang ? `${chapterIndex}_${lang}` : String(chapterIndex);
+    const audioInfo = book.audioFiles?.get(audioKey);
     if (!audioInfo) {
       return res.status(400).json({
-        error: 'Upload audio for this chapter first',
+        error: 'Upload or generate audio for this chapter first' + (lang ? ` (language: ${lang})` : ''),
       });
     }
 
@@ -96,11 +97,13 @@ exports.autoAlign = async (req, res) => {
     );
 
     // Step 4: Save to database
+    const syncLang = (lang && lang !== bookLang) ? lang : null;
     await SyncData.findOneAndUpdate(
-      { bookId, chapterIndex: parseInt(chapterIndex) },
+      { bookId, chapterIndex: parseInt(chapterIndex), lang: syncLang },
       {
         bookId,
         chapterIndex: parseInt(chapterIndex),
+        lang: syncLang,
         syncData,
         engine: `whisperx-${mode}`,
         wordCount: wrapped.wordCount,
@@ -129,14 +132,15 @@ exports.autoAlign = async (req, res) => {
 exports.saveManualSync = async (req, res) => {
   try {
     const { bookId, chapterIndex } = req.params;
-    const { syncData } = req.body;
+    const { syncData, lang } = req.body;
 
     if (!syncData?.length) {
       return res.status(400).json({ error: 'No sync data' });
     }
 
     const book = await Book.findById(bookId);
-    const audioInfo = book?.audioFiles?.get(String(chapterIndex));
+    const audioKey = lang ? `${chapterIndex}_${lang}` : String(chapterIndex);
+    const audioInfo = book?.audioFiles?.get(audioKey);
     if (audioInfo) {
       const smilXml = smilGenerator.generate(
         syncData,
@@ -151,9 +155,10 @@ exports.saveManualSync = async (req, res) => {
       );
     }
 
+    const syncLang = lang || null;
     await SyncData.findOneAndUpdate(
-      { bookId, chapterIndex: parseInt(chapterIndex) },
-      { syncData, engine: 'manual', status: 'complete', wordCount: syncData.length },
+      { bookId, chapterIndex: parseInt(chapterIndex), lang: syncLang },
+      { syncData, lang: syncLang, engine: 'manual', status: 'complete', wordCount: syncData.length },
       { upsert: true }
     );
 
@@ -165,10 +170,14 @@ exports.saveManualSync = async (req, res) => {
 
 exports.getSyncData = async (req, res) => {
   try {
-    const sync = await SyncData.findOne({
+    const lang = req.query.lang || null;
+    const query = {
       bookId: req.params.bookId,
       chapterIndex: parseInt(req.params.chapterIndex),
-    });
+    };
+    if (lang) query.lang = lang;
+    else query.lang = { $in: [null, undefined] };
+    const sync = await SyncData.findOne(query);
     if (!sync) return res.status(404).json({ error: 'No sync data' });
     res.json(sync);
   } catch (err) {
@@ -188,10 +197,14 @@ exports.getSyncStatus = async (req, res) => {
 
 exports.deleteSyncData = async (req, res) => {
   try {
-    await SyncData.deleteOne({
+    const lang = req.query.lang || null;
+    const query = {
       bookId: req.params.bookId,
       chapterIndex: parseInt(req.params.chapterIndex),
-    });
+    };
+    if (lang) query.lang = lang;
+    else query.lang = { $in: [null, undefined] };
+    await SyncData.deleteOne(query);
     res.json({ message: 'Sync data deleted' });
   } catch (err) {
     res.status(500).json({ error: err.message });

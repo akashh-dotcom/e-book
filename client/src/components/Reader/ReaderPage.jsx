@@ -20,8 +20,8 @@ export default function ReaderPage() {
   const { bookId } = useParams();
   const reader = useReader(bookId);
 
-  // Audio & sync data
-  const audio = useAudioPlayer(bookId, reader.chapterIndex);
+  // Audio & sync data — pass translatedLang so we fetch language-specific audio
+  const audio = useAudioPlayer(bookId, reader.chapterIndex, reader.translatedLang);
   const overlay = useMediaOverlay(audio.syncData, audio.audioUrl);
   const [reSyncing, setReSyncing] = useState(false);
   const [editorMode, setEditorMode] = useState(false);

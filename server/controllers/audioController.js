@@ -9,6 +9,7 @@ const Book = require('../models/Book');
 exports.uploadChapterAudio = async (req, res) => {
   try {
     const { bookId, chapterIndex } = req.params;
+    const lang = req.query.lang || req.body?.lang || null;
     const book = await Book.findById(bookId);
     if (!book) return res.status(404).json({ error: 'Book not found' });
 
@@ -16,7 +17,8 @@ exports.uploadChapterAudio = async (req, res) => {
     await fs.mkdir(audioDir, { recursive: true });
 
     const ext = path.extname(req.file.originalname) || '.mp3';
-    const filename = `chapter_${chapterIndex}${ext}`;
+    const audioKey = lang ? `${chapterIndex}_${lang}` : String(chapterIndex);
+    const filename = lang ? `chapter_${chapterIndex}_${lang}${ext}` : `chapter_${chapterIndex}${ext}`;
     const audioPath = path.join(audioDir, filename);
 
     await fs.writeFile(audioPath, req.file.buffer);
@@ -25,7 +27,7 @@ exports.uploadChapterAudio = async (req, res) => {
     const duration = await getAudioDuration(audioPath);
 
     if (!book.audioFiles) book.audioFiles = new Map();
-    book.audioFiles.set(String(chapterIndex), {
+    book.audioFiles.set(audioKey, {
       filename,
       duration,
       uploadedAt: new Date(),
@@ -52,8 +54,10 @@ exports.uploadChapterAudio = async (req, res) => {
 exports.streamAudio = async (req, res) => {
   try {
     const { bookId, chapterIndex } = req.params;
+    const lang = req.query.lang || null;
     const book = await Book.findById(bookId);
-    const audioInfo = book?.audioFiles?.get(String(chapterIndex));
+    const audioKey = lang ? `${chapterIndex}_${lang}` : String(chapterIndex);
+    const audioInfo = book?.audioFiles?.get(audioKey);
     if (!audioInfo) return res.status(404).end();
 
     const audioPath = path.join(
@@ -87,12 +91,15 @@ exports.streamAudio = async (req, res) => {
 
 exports.getChapterAudio = async (req, res) => {
   try {
+    const lang = req.query.lang || null;
     const book = await Book.findById(req.params.bookId);
-    const audioInfo = book?.audioFiles?.get(String(req.params.chapterIndex));
+    const audioKey = lang ? `${req.params.chapterIndex}_${lang}` : String(req.params.chapterIndex);
+    const audioInfo = book?.audioFiles?.get(audioKey);
     if (!audioInfo) return res.status(404).json({ error: 'No audio' });
+    const langQuery = lang ? `?lang=${lang}` : '';
     res.json({
       ...audioInfo,
-      url: `/api/audio/${req.params.bookId}/${req.params.chapterIndex}/stream`,
+      url: `/api/audio/${req.params.bookId}/${req.params.chapterIndex}/stream${langQuery}`,
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -101,8 +108,9 @@ exports.getChapterAudio = async (req, res) => {
 
 exports.deleteChapterAudio = async (req, res) => {
   try {
+    const lang = req.query.lang || null;
     const book = await Book.findById(req.params.bookId);
-    const chapterKey = String(req.params.chapterIndex);
+    const chapterKey = lang ? `${req.params.chapterIndex}_${lang}` : String(req.params.chapterIndex);
     const info = book?.audioFiles?.get(chapterKey);
     if (!info) return res.status(404).json({ error: 'Not found' });
 
@@ -113,10 +121,10 @@ exports.deleteChapterAudio = async (req, res) => {
     await book.save();
 
     const SyncData = require('../models/SyncData');
-    await SyncData.deleteOne({
-      bookId: req.params.bookId,
-      chapterIndex: parseInt(req.params.chapterIndex),
-    });
+    const syncQuery = { bookId: req.params.bookId, chapterIndex: parseInt(req.params.chapterIndex) };
+    if (lang) syncQuery.lang = lang;
+    else syncQuery.lang = { $in: [null, undefined] };
+    await SyncData.deleteOne(syncQuery);
 
     res.json({ message: 'Audio deleted' });
   } catch (err) {
@@ -133,12 +141,13 @@ exports.deleteChapterAudio = async (req, res) => {
 exports.trimAudio = async (req, res) => {
   try {
     const { bookId, chapterIndex } = req.params;
-    const { trimStart, trimEnd, skipWordIds } = req.body;
+    const { trimStart, trimEnd, skipWordIds, lang } = req.body;
+    const audioKey = lang ? `${chapterIndex}_${lang}` : String(chapterIndex);
 
     const book = await Book.findById(bookId);
     if (!book) return res.status(404).json({ error: 'Book not found' });
 
-    const audioInfo = book.audioFiles?.get(String(chapterIndex));
+    const audioInfo = book.audioFiles?.get(audioKey);
     if (!audioInfo) return res.status(400).json({ error: 'No audio for this chapter' });
 
     const audioPath = path.join(book.storagePath, 'audio', audioInfo.filename);
@@ -155,7 +164,10 @@ exports.trimAudio = async (req, res) => {
     if (skipWordIds?.length) {
       // Word-based trim
       isWordBased = true;
-      const sync = await SyncData.findOne({ bookId, chapterIndex: parseInt(chapterIndex) });
+      const syncQuery = { bookId, chapterIndex: parseInt(chapterIndex) };
+      if (lang) syncQuery.lang = lang;
+      else syncQuery.lang = { $in: [null, undefined] };
+      const sync = await SyncData.findOne(syncQuery);
       if (!sync) return res.status(400).json({ error: 'No sync data' });
 
       const skipSet = new Set(skipWordIds);
@@ -196,13 +208,17 @@ exports.trimAudio = async (req, res) => {
     const newDuration = await getAudioDuration(audioPath);
 
     // Update book audio duration
-    book.audioFiles.set(String(chapterIndex), { filename: audioInfo.filename, duration: newDuration, uploadedAt: audioInfo.uploadedAt });
+    book.audioFiles.set(audioKey, { filename: audioInfo.filename, duration: newDuration, uploadedAt: audioInfo.uploadedAt });
     book.markModified('audioFiles');
     await book.save();
 
+    const trimSyncQuery = { bookId, chapterIndex: parseInt(chapterIndex) };
+    if (lang) trimSyncQuery.lang = lang;
+    else trimSyncQuery.lang = { $in: [null, undefined] };
+
     if (isWordBased) {
       // Update sync duration and regenerate SMIL
-      const sync = await SyncData.findOne({ bookId, chapterIndex: parseInt(chapterIndex) });
+      const sync = await SyncData.findOne(trimSyncQuery);
       if (sync) {
         sync.duration = newDuration;
         await sync.save();
@@ -214,12 +230,12 @@ exports.trimAudio = async (req, res) => {
       }
     } else {
       // Direct trim — delete old sync data, user must re-sync
-      await SyncData.deleteOne({ bookId, chapterIndex: parseInt(chapterIndex) });
+      await SyncData.deleteOne(trimSyncQuery);
     }
 
     const result = { message: 'Audio trimmed successfully', newDuration };
     if (isWordBased) {
-      const sync = await SyncData.findOne({ bookId, chapterIndex: parseInt(chapterIndex) });
+      const sync = await SyncData.findOne(trimSyncQuery);
       result.syncData = sync?.syncData;
     }
     res.json(result);
@@ -236,10 +252,12 @@ exports.trimAudio = async (req, res) => {
 exports.restoreAudio = async (req, res) => {
   try {
     const { bookId, chapterIndex } = req.params;
+    const lang = req.query.lang || req.body?.lang || null;
+    const audioKey = lang ? `${chapterIndex}_${lang}` : String(chapterIndex);
     const book = await Book.findById(bookId);
     if (!book) return res.status(404).json({ error: 'Book not found' });
 
-    const audioInfo = book.audioFiles?.get(String(chapterIndex));
+    const audioInfo = book.audioFiles?.get(audioKey);
     if (!audioInfo) return res.status(400).json({ error: 'No audio' });
 
     const audioPath = path.join(book.storagePath, 'audio', audioInfo.filename);
@@ -255,7 +273,7 @@ exports.restoreAudio = async (req, res) => {
     const newDuration = await getAudioDuration(audioPath);
 
     const updatedInfo = { filename: audioInfo.filename, duration: newDuration, uploadedAt: audioInfo.uploadedAt };
-    book.audioFiles.set(String(chapterIndex), updatedInfo);
+    book.audioFiles.set(audioKey, updatedInfo);
     book.markModified('audioFiles');
     await book.save();
 
@@ -395,7 +413,8 @@ exports.generateAudio = async (req, res) => {
     const audioDir = path.join(book.storagePath, 'audio');
     await fs.mkdir(audioDir, { recursive: true });
 
-    const filename = `chapter_${chapterIndex}.mp3`;
+    const audioKey = lang ? `${chapterIndex}_${lang}` : String(chapterIndex);
+    const filename = lang ? `chapter_${chapterIndex}_${lang}.mp3` : `chapter_${chapterIndex}.mp3`;
     const audioPath = path.join(audioDir, filename);
 
     // Write text to a temp file for edge-tts (avoids shell escaping issues)
@@ -414,7 +433,7 @@ exports.generateAudio = async (req, res) => {
     const duration = await getAudioDuration(audioPath);
 
     if (!book.audioFiles) book.audioFiles = new Map();
-    book.audioFiles.set(String(chapterIndex), {
+    book.audioFiles.set(audioKey, {
       filename,
       duration,
       uploadedAt: new Date(),
