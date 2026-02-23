@@ -21,6 +21,7 @@ export function useAudioPlayer(bookId, chapterIndex, lang) {
   const [syncData, setSyncData] = useState(null);
   const [hasAudio, setHasAudio] = useState(false);
   const [hasSyncData, setHasSyncData] = useState(false);
+  const [syncProgress, setSyncProgress] = useState(null); // { step, message }
   const blobUrlRef = useRef(null);
 
   const langQuery = lang ? `?lang=${lang}` : '';
@@ -82,13 +83,75 @@ export function useAudioPlayer(bookId, chapterIndex, lang) {
 
   const runAutoSync = useCallback(async (mode = 'word', { lang: syncLang } = {}) => {
     const effectiveLang = syncLang || lang;
-    const res = await api.post(`/sync/${bookId}/${chapterIndex}/auto`, { mode, lang: effectiveLang });
-    // Reload sync data
-    const lq = effectiveLang ? `?lang=${effectiveLang}` : '';
-    const syncRes = await api.get(`/sync/${bookId}/${chapterIndex}${lq}`);
-    setSyncData(syncRes.data.syncData);
-    setHasSyncData(true);
-    return res.data;
+    setSyncProgress({ step: 'starting', message: 'Starting sync...' });
+
+    const token = localStorage.getItem('voxbook_token');
+
+    try {
+      const response = await fetch(`/api/sync/${bookId}/${chapterIndex}/auto`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ mode, lang: effectiveLang }),
+      });
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let error = null;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+
+        // Parse SSE events from the buffer
+        const parts = buffer.split('\n\n');
+        buffer = parts.pop(); // keep incomplete part
+
+        for (const part of parts) {
+          const lines = part.split('\n');
+          let eventType = '';
+          let eventData = '';
+
+          for (const line of lines) {
+            if (line.startsWith('event: ')) eventType = line.slice(7);
+            else if (line.startsWith('data: ')) eventData = line.slice(6);
+          }
+
+          if (!eventData) continue;
+
+          try {
+            const data = JSON.parse(eventData);
+            if (eventType === 'progress') {
+              setSyncProgress({ step: data.step, message: data.message });
+            } else if (eventType === 'error') {
+              error = data.error;
+            } else if (eventType === 'done') {
+              setSyncProgress({ step: 'done', message: data.message });
+            }
+          } catch {
+            // ignore malformed JSON
+          }
+        }
+      }
+
+      if (error) throw new Error(error);
+
+      // Reload sync data
+      const lq = effectiveLang ? `?lang=${effectiveLang}` : '';
+      const syncRes = await api.get(`/sync/${bookId}/${chapterIndex}${lq}`);
+      if (syncRes.data?.syncData) {
+        setSyncData(syncRes.data.syncData);
+        setHasSyncData(true);
+      }
+    } finally {
+      // Clear progress after a short delay so the "done" message is visible
+      setTimeout(() => setSyncProgress(null), 2000);
+    }
   }, [bookId, chapterIndex, lang]);
 
   const updateSyncData = useCallback((newSyncData) => {
@@ -138,6 +201,7 @@ export function useAudioPlayer(bookId, chapterIndex, lang) {
     syncData,
     hasAudio,
     hasSyncData,
+    syncProgress,
     uploadAudio,
     runAutoSync,
     updateSyncData,

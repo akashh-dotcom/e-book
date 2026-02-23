@@ -15,6 +15,7 @@ export default function EditorSidebar({
   onGenerate,
   onAutoSync,
   bookId,
+  syncProgress,
 }) {
   const [activeTab, setActiveTab] = useState('chapters');
   const [uploading, setUploading] = useState(false);
@@ -140,6 +141,12 @@ export default function EditorSidebar({
                   <Mic size={14} />
                   <span>Manual Sync</span>
                 </a>
+                {syncing && syncProgress && (
+                  <div className="ed-sync-progress">
+                    <Loader size={12} className="spin" />
+                    <span>{syncProgress.message}</span>
+                  </div>
+                )}
               </div>
             )}
 

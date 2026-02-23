@@ -170,13 +170,16 @@ def main():
         expected_words = [line.strip() for line in f if line.strip()]
 
     # Step 1: Load model and transcribe
+    print(json.dumps({"progress": "loading_model", "message": "Loading WhisperX model..."}), flush=True)
     model = whisperx.load_model(model_size, device, compute_type=compute_type, language=language)
     audio = whisperx.load_audio(audio_path)
+    print(json.dumps({"progress": "transcribing", "message": "Transcribing audio..."}), flush=True)
     result = model.transcribe(audio, batch_size=16, language=language)
 
     # Step 2: Align with wav2vec2 for word-level timestamps
     # WhisperX only supports alignment for ~30 languages. For unsupported
     # languages, fall back to distributing segment-level timestamps evenly.
+    print(json.dumps({"progress": "aligning", "message": "Aligning words to audio..."}), flush=True)
     transcribed_words = []
     try:
         model_a, metadata = whisperx.load_align_model(language_code=language, device=device)
@@ -213,6 +216,7 @@ def main():
                 })
 
     # Step 3: Align transcribed words to expected book words
+    print(json.dumps({"progress": "matching", "message": "Matching words to text..."}), flush=True)
     alignment = align_words_dp(transcribed_words, expected_words)
 
     # Step 4: Build timestamps for all expected words

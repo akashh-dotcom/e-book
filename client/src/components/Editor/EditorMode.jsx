@@ -49,6 +49,7 @@ export default function EditorMode({
             return result;
           }}
           bookId={bookId}
+          syncProgress={audio.syncProgress}
         />
 
         {/* Canvas area - the EPUB content */}

@@ -119,17 +119,21 @@ def main():
         sentences = [line.strip() for line in f if line.strip()]
 
     # Step 1: Transcribe with WhisperX
+    print(json.dumps({"progress": "loading_model", "message": "Loading WhisperX model..."}), flush=True)
     model = whisperx.load_model(model_size, device, compute_type=compute_type, language=language)
     audio = whisperx.load_audio(audio_path)
+    print(json.dumps({"progress": "transcribing", "message": "Transcribing audio..."}), flush=True)
     result = model.transcribe(audio, batch_size=16, language=language)
 
     # Step 2: Get word-level alignment
+    print(json.dumps({"progress": "aligning", "message": "Aligning words to audio..."}), flush=True)
     model_a, metadata = whisperx.load_align_model(language_code=language, device=device)
     result = whisperx.align(result["segments"], model_a, metadata, audio, device, return_char_alignments=False)
 
     segments = result.get("segments", [])
 
     # Step 3: Map transcription segments to expected sentences
+    print(json.dumps({"progress": "matching", "message": "Matching sentences to text..."}), flush=True)
     sentence_timestamps = match_segments_to_sentences(segments, sentences)
 
     # Write output

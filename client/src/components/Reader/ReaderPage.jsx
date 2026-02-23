@@ -153,6 +153,7 @@ export default function ReaderPage() {
               bookId={bookId}
               chapterIndex={reader.chapterIndex}
               translatedLang={reader.translatedLang}
+              syncProgress={audio.syncProgress}
             />
 
             {/* Translation indicator bar */}

@@ -11,6 +11,7 @@ export default function ChapterAudioUpload({
   bookId,
   chapterIndex,
   translatedLang,
+  syncProgress,
 }) {
   const [uploading, setUploading] = useState(false);
   const [syncing, setSyncing] = useState(false);
@@ -110,6 +111,12 @@ export default function ChapterAudioUpload({
           >
             <Mic size={14} /> Manual Sync
           </a>
+          {syncing && syncProgress && (
+            <div className="sync-progress-status">
+              <Loader size={12} className="spin" />
+              <span>{syncProgress.message}</span>
+            </div>
+          )}
         </div>
       )}
 
