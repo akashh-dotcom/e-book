@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   BookOpen, Trash2, ChevronRight, Upload, Plus,
-  LayoutDashboard, Search, Loader, LogOut,
+  LayoutDashboard, Search, Loader, LogOut, ArrowLeft,
 } from 'lucide-react';
 import useBookStore from '../store/bookStore';
 import useAuthStore from '../store/authStore';
@@ -63,6 +63,11 @@ export default function Dashboard() {
         </Link>
 
         <nav className="flex flex-col gap-0.5 flex-1 max-md:flex-row max-md:flex-none">
+          <Link to="/"
+            className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium text-forest-200/50 no-underline hover:bg-white/[0.04] hover:text-forest-50 transition-all">
+            <ArrowLeft size={18} />
+            <span>Home</span>
+          </Link>
           <div className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium text-forest-50 bg-forest-500/10">
             <LayoutDashboard size={18} className="text-forest-400" />
             <span>Library</span>

@@ -1,4 +1,5 @@
-import { Menu, Search, Settings, Bookmark, BookOpen, PenTool } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Menu, Search, Settings, Bookmark, BookOpen, PenTool, ArrowLeft } from 'lucide-react';
 
 export default function TopBar({
   title,
@@ -9,9 +10,14 @@ export default function TopBar({
   onToggleBookmarks,
   onAddBookmark,
 }) {
+  const navigate = useNavigate();
+
   return (
     <div className="top-bar">
       <div className="top-bar-left">
+        <button className="icon-btn" onClick={() => navigate('/dashboard')} title="Back to Dashboard">
+          <ArrowLeft size={18} />
+        </button>
         <button className="icon-btn" onClick={onToggleSidebar} title="Toggle contents">
           <Menu size={18} />
         </button>

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { BookOpen, User, Mail, Phone, Lock, Eye, EyeOff, ArrowRight } from 'lucide-react';
+import { BookOpen, User, Mail, Phone, Lock, Eye, EyeOff, ArrowRight, ArrowLeft } from 'lucide-react';
 import useAuthStore from '../../store/authStore';
 
 export default function UserSignup() {
@@ -21,6 +21,21 @@ export default function UserSignup() {
 
   return (
     <div className="min-h-screen bg-forest-950 flex items-center justify-center px-4 py-12 relative overflow-hidden">
+      {/* Back buttons */}
+      <div className="fixed top-5 left-5 z-50 flex gap-2">
+        <Link to="/login"
+          className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/[0.04] border border-white/[0.06] text-forest-200/60 text-sm no-underline
+            hover:bg-white/[0.08] hover:text-forest-50 transition-all">
+          <ArrowLeft size={16} />
+          Login
+        </Link>
+        <Link to="/"
+          className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/[0.04] border border-white/[0.06] text-forest-200/60 text-sm no-underline
+            hover:bg-white/[0.08] hover:text-forest-50 transition-all">
+          Home
+        </Link>
+      </div>
+
       {/* Background glow */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[600px] rounded-full opacity-20 blur-3xl pointer-events-none"
         style={{ background: 'radial-gradient(circle, rgba(16,185,129,0.3) 0%, transparent 70%)' }} />
