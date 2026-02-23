@@ -17,6 +17,7 @@ const tocEntrySchema = new mongoose.Schema({
 }, { _id: false });
 
 const bookSchema = new mongoose.Schema({
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   title: { type: String, required: true },
   author: String,
   language: String,
@@ -27,6 +28,11 @@ const bookSchema = new mongoose.Schema({
   toc: [tocEntrySchema],
   totalChapters: Number,
   storagePath: String,
+  audioFiles: {
+    type: Map,
+    of: { filename: String, duration: Number, uploadedAt: Date },
+    default: {},
+  },
   createdAt: { type: Date, default: Date.now },
 });
 

@@ -16,7 +16,25 @@ export default function useReader(bookId) {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [bookmarksOpen, setBookmarksOpen] = useState(false);
   const [bookmarks, setBookmarks] = useState([]);
+  const [translatedLang, setTranslatedLang] = useState(() => {
+    if (!bookId) return null;
+    return localStorage.getItem(`voxbook_lang_${bookId}`) || null;
+  });
+  const [translating, setTranslating] = useState(false);
+  const [translateProgress, setTranslateProgress] = useState(0); // 0-100
   const chapterRef = useRef(null);
+  // Skip the next useEffect chapter reload (set after translateTo completes)
+  const skipNextLoad = useRef(false);
+
+  // Persist translatedLang to localStorage
+  useEffect(() => {
+    if (!bookId) return;
+    if (translatedLang) {
+      localStorage.setItem(`voxbook_lang_${bookId}`, translatedLang);
+    } else {
+      localStorage.removeItem(`voxbook_lang_${bookId}`);
+    }
+  }, [bookId, translatedLang]);
 
   // Load book
   useEffect(() => {
@@ -30,17 +48,40 @@ export default function useReader(bookId) {
       .catch(() => setLoading(false));
   }, [bookId]);
 
-  // Load chapter
+  // Load chapter (original or translated)
   useEffect(() => {
     if (!book) return;
+
+    // Skip if translateTo just set the HTML directly
+    if (skipNextLoad.current) {
+      skipNextLoad.current = false;
+      return;
+    }
+
     setChapterLoading(true);
-    api.get(`/books/${bookId}/chapters/${chapterIndex}`)
-      .then(r => {
-        setChapterHtml(r.data.html);
-        setChapterLoading(false);
-      })
-      .catch(() => setChapterLoading(false));
-  }, [book, bookId, chapterIndex]);
+
+    if (translatedLang) {
+      // Load translated chapter (uses cache, no force)
+      api.post(`/translate/${bookId}/${chapterIndex}`, { targetLang: translatedLang })
+        .then(r => {
+          setChapterHtml(r.data.html);
+          setChapterLoading(false);
+        })
+        .catch(() => {
+          // Fallback to original on error
+          api.get(`/books/${bookId}/chapters/${chapterIndex}`)
+            .then(r => { setChapterHtml(r.data.html); setChapterLoading(false); })
+            .catch(() => setChapterLoading(false));
+        });
+    } else {
+      api.get(`/books/${bookId}/chapters/${chapterIndex}`)
+        .then(r => {
+          setChapterHtml(r.data.html);
+          setChapterLoading(false);
+        })
+        .catch(() => setChapterLoading(false));
+    }
+  }, [book, bookId, chapterIndex, translatedLang]);
 
   // Load bookmarks
   useEffect(() => {
@@ -101,7 +142,83 @@ export default function useReader(bookId) {
     return () => window.removeEventListener('keydown', handler);
   }, [goNext, goPrev]);
 
-  // Paginated mode page turn
+  // Reload chapter (respects current translation state).
+  // Returns a Promise so callers (e.g. onRegenerate) can await it
+  // to ensure the DOM has updated before relying on word spans.
+  const reloadChapter = useCallback(async () => {
+    if (!book || !bookId) return;
+    setChapterLoading(true);
+
+    try {
+      if (translatedLang) {
+        try {
+          const r = await api.post(`/translate/${bookId}/${chapterIndex}`, { targetLang: translatedLang });
+          setChapterHtml(r.data.html);
+        } catch {
+          const r = await api.get(`/books/${bookId}/chapters/${chapterIndex}`);
+          setChapterHtml(r.data.html);
+        }
+      } else {
+        const r = await api.get(`/books/${bookId}/chapters/${chapterIndex}`);
+        setChapterHtml(r.data.html);
+      }
+    } catch {
+      // ignore
+    } finally {
+      setChapterLoading(false);
+    }
+  }, [book, bookId, chapterIndex, translatedLang]);
+
+  // Translate current chapter to a language (with polling progress)
+  const translateTo = useCallback(async (targetLang) => {
+    if (!targetLang) {
+      setTranslatedLang(null);
+      return;
+    }
+    setTranslating(true);
+    setTranslateProgress(0);
+
+    // Start polling for progress
+    const pollInterval = setInterval(async () => {
+      try {
+        const r = await api.get(`/translate/${bookId}/${chapterIndex}/progress`);
+        if (r.data && r.data.percent > 0) {
+          setTranslateProgress(r.data.percent);
+        }
+      } catch {
+        // ignore poll errors
+      }
+    }, 800);
+
+    try {
+      const res = await api.post(`/translate/${bookId}/${chapterIndex}`, {
+        targetLang,
+        force: true,
+      }, { timeout: 600000 }); // 10 min for large chapters
+
+      // Stop polling
+      clearInterval(pollInterval);
+
+      if (res.data.html) {
+        // Set HTML directly and skip the useEffect reload
+        skipNextLoad.current = true;
+        setChapterHtml(res.data.html);
+        setTranslatedLang(res.data.translated ? targetLang : null);
+      }
+    } catch {
+      clearInterval(pollInterval);
+      // Stay on original
+    } finally {
+      setTranslating(false);
+      setTranslateProgress(0);
+    }
+  }, [bookId, chapterIndex]);
+
+  // Show original
+  const showOriginal = useCallback(() => {
+    setTranslatedLang(null);
+  }, []);
+
   const turnPage = useCallback((direction) => {
     const container = chapterRef.current;
     if (!container) return;
@@ -142,5 +259,12 @@ export default function useReader(bookId) {
     removeBookmark,
     chapterRef,
     turnPage,
+    reloadChapter,
+    // Translation
+    translatedLang,
+    translating,
+    translateProgress,
+    translateTo,
+    showOriginal,
   };
 }

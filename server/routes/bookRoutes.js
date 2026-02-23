@@ -9,6 +9,10 @@ const upload = multer({
   },
 });
 const ctrl = require('../controllers/bookController');
+const { protect } = require('../middleware/auth');
+
+// All book routes require authentication
+router.use(protect);
 
 // Book routes
 router.post('/upload', upload.single('epub'), ctrl.upload);
@@ -16,6 +20,7 @@ router.get('/', ctrl.listBooks);
 router.get('/:id', ctrl.getBook);
 router.get('/:id/chapters/:index', ctrl.getChapter);
 router.get('/:id/search', ctrl.searchBook);
+router.get('/:id/export-epub', ctrl.exportEpub);
 router.delete('/:id', ctrl.deleteBook);
 
 // Bookmark routes

@@ -1,16 +1,25 @@
-import { Menu, Search, Settings, Bookmark, BookOpen } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Menu, Search, Settings, Bookmark, BookOpen, PenTool, ArrowLeft, Languages } from 'lucide-react';
 
 export default function TopBar({
   title,
+  onToggleEditor,
   onToggleSidebar,
   onToggleSearch,
   onToggleSettings,
   onToggleBookmarks,
   onAddBookmark,
+  onToggleTranslate,
+  isTranslated,
 }) {
+  const navigate = useNavigate();
+
   return (
     <div className="top-bar">
       <div className="top-bar-left">
+        <button className="icon-btn" onClick={() => navigate('/dashboard')} title="Back to Dashboard">
+          <ArrowLeft size={18} />
+        </button>
         <button className="icon-btn" onClick={onToggleSidebar} title="Toggle contents">
           <Menu size={18} />
         </button>
@@ -18,6 +27,19 @@ export default function TopBar({
       </div>
 
       <div className="top-bar-right">
+        {onToggleEditor && (
+          <button className="edit-mode-btn" onClick={onToggleEditor} title="Open Editor">
+            <PenTool size={15} />
+            <span>Edit</span>
+          </button>
+        )}
+        <button
+          className={`icon-btn ${isTranslated ? 'icon-btn-active' : ''}`}
+          onClick={onToggleTranslate}
+          title="Translate"
+        >
+          <Languages size={18} />
+        </button>
         <button className="icon-btn" onClick={onToggleSearch} title="Search">
           <Search size={18} />
         </button>
