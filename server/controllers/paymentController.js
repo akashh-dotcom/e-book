@@ -1,7 +1,19 @@
-const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+const Stripe = require('stripe');
 const User = require('../models/User');
 
 const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:5173';
+
+// Lazy-init so the server boots even when STRIPE_SECRET_KEY is blank.
+let _stripe;
+function getStripe() {
+  if (!_stripe) {
+    if (!process.env.STRIPE_SECRET_KEY) {
+      throw new Error('STRIPE_SECRET_KEY is not set — add it to your .env');
+    }
+    _stripe = Stripe(process.env.STRIPE_SECRET_KEY);
+  }
+  return _stripe;
+}
 
 // Map Stripe price IDs to plan names
 function planFromPriceId(priceId) {
@@ -25,7 +37,7 @@ exports.createCheckoutSession = async (req, res) => {
     // Create or reuse Stripe customer
     let customerId = user.stripeCustomerId;
     if (!customerId) {
-      const customer = await stripe.customers.create({
+      const customer = await getStripe().customers.create({
         email: user.email,
         metadata: { userId: user._id.toString() },
       });
@@ -33,7 +45,7 @@ exports.createCheckoutSession = async (req, res) => {
       await User.findByIdAndUpdate(user._id, { stripeCustomerId: customerId });
     }
 
-    const session = await stripe.checkout.sessions.create({
+    const session = await getStripe().checkout.sessions.create({
       customer: customerId,
       mode: 'subscription',
       line_items: [{ price: priceId, quantity: 1 }],
@@ -61,7 +73,7 @@ exports.createPortalSession = async (req, res) => {
       return res.status(400).json({ error: 'No billing account found' });
     }
 
-    const session = await stripe.billingPortal.sessions.create({
+    const session = await getStripe().billingPortal.sessions.create({
       customer: user.stripeCustomerId,
       return_url: `${CLIENT_URL}/dashboard`,
     });
@@ -93,7 +105,7 @@ exports.handleWebhook = async (req, res) => {
   let event;
 
   try {
-    event = stripe.webhooks.constructEvent(
+    event = getStripe().webhooks.constructEvent(
       req.body, // raw body
       sig,
       process.env.STRIPE_WEBHOOK_SECRET
@@ -109,7 +121,7 @@ exports.handleWebhook = async (req, res) => {
         const session = event.data.object;
         const userId = session.metadata?.userId;
         if (userId && session.subscription) {
-          const sub = await stripe.subscriptions.retrieve(session.subscription);
+          const sub = await getStripe().subscriptions.retrieve(session.subscription);
           const priceId = sub.items.data[0]?.price?.id;
           await User.findByIdAndUpdate(userId, {
             stripeSubscriptionId: sub.id,
