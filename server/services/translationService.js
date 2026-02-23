@@ -5,6 +5,28 @@ const cheerio = require('cheerio');
 const wordWrapper = require('./wordWrapper');
 
 /**
+ * Detect the correct Python command for the current OS.
+ * Windows uses "python", Linux/macOS use "python3".
+ */
+let _pythonCmd = null;
+function getPythonCmd() {
+  if (_pythonCmd) return _pythonCmd;
+  const candidates = process.platform === 'win32'
+    ? ['python', 'python3', 'py']
+    : ['python3', 'python'];
+  for (const cmd of candidates) {
+    try {
+      execSync(`${cmd} --version`, { stdio: 'pipe', timeout: 5000 });
+      _pythonCmd = cmd;
+      return cmd;
+    } catch {
+      // try next
+    }
+  }
+  throw new Error('Python not found. Install Python 3 and ensure it is in your PATH.');
+}
+
+/**
  * Map Edge-TTS voice locale (e.g. "ja-JP") to language code for NLLB.
  */
 function voiceLocaleToLang(voiceName) {
@@ -63,7 +85,7 @@ async function translateText(text, srcLang, tgtLang, tmpDir) {
 
   try {
     const result = execSync(
-      `python3 "${scriptPath}" --input "${inputPath}" --output "${outputPath}" --src "${srcLang}" --tgt "${tgtLang}"`,
+      `${getPythonCmd()} "${scriptPath}" --input "${inputPath}" --output "${outputPath}" --src "${srcLang}" --tgt "${tgtLang}"`,
       { timeout: 600000 } // 10 min timeout for large chapters
     ).toString();
 
