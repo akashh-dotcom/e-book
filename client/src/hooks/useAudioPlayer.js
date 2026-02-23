@@ -75,7 +75,9 @@ export function useAudioPlayer(bookId, chapterIndex, lang) {
       { headers: { 'Content-Type': 'multipart/form-data' } }
     );
     const sep = langQuery ? '&' : '?';
-    setAudioUrl(`/api/audio/${bookId}/${chapterIndex}/stream${langQuery}${sep}t=${Date.now()}`);
+    const streamPath = `/api/audio/${bookId}/${chapterIndex}/stream${langQuery}${sep}t=${Date.now()}`;
+    const blobUrl = await fetchAudioBlobUrl(streamPath);
+    setBlobAudioUrl(blobUrl);
     setHasAudio(true);
     return res.data;
   }, [bookId, chapterIndex, langQuery, setBlobAudioUrl]);
@@ -184,7 +186,9 @@ export function useAudioPlayer(bookId, chapterIndex, lang) {
     // Cache-buster forces useMediaOverlay to recreate its Audio element even
     // when the URL was already set (e.g. original audio served via fallback).
     const sep = lq ? '&' : '?';
-    setAudioUrl(`/api/audio/${bookId}/${chapterIndex}/stream${lq}${sep}t=${Date.now()}`);
+    const streamPath = `/api/audio/${bookId}/${chapterIndex}/stream${lq}${sep}t=${Date.now()}`;
+    const blobUrl = await fetchAudioBlobUrl(streamPath);
+    setBlobAudioUrl(blobUrl);
     setHasAudio(true);
     return res.data;
   }, [bookId, chapterIndex, lang, setBlobAudioUrl]);
