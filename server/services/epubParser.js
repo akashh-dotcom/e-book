@@ -9,40 +9,22 @@ class EpubParser {
     const zip = await JSZip.loadAsync(epubBuffer);
 
     // 1. container.xml -> find OPF path
-    const containerFile = zip.file('META-INF/container.xml');
-    if (!containerFile) {
-      throw new Error('Invalid EPUB: missing META-INF/container.xml');
-    }
-    const containerXml = await containerFile.async('string');
+    const containerXml = await zip
+      .file('META-INF/container.xml').async('string');
     const container = await xml2js.parseStringPromise(containerXml);
-    const opfPath = container?.container
-      ?.rootfiles?.[0]?.rootfile?.[0]?.$?.['full-path'];
-    if (!opfPath) {
-      throw new Error('Invalid EPUB: cannot find OPF path in container.xml');
-    }
+    const opfPath = container.container
+      .rootfiles[0].rootfile[0].$['full-path'];
     const opfDir = path.dirname(opfPath);
 
     // 2. Parse OPF -> metadata, manifest, spine
-    const opfFile = zip.file(opfPath);
-    if (!opfFile) {
-      throw new Error(`Invalid EPUB: missing OPF file at ${opfPath}`);
-    }
-    const opfXml = await opfFile.async('string');
+    const opfXml = await zip.file(opfPath).async('string');
     const opf = await xml2js.parseStringPromise(opfXml);
-    const pkg = opf.package || opf['opf:package'] || opf[Object.keys(opf)[0]];
-    if (!pkg) {
-      throw new Error('Invalid EPUB: cannot parse OPF package');
-    }
+    const pkg = opf.package;
 
-    const metadataNode = pkg.metadata?.[0] || pkg['opf:metadata']?.[0] || {};
-    const metadata = this.parseMetadata(metadataNode);
-
-    const manifestNode = pkg.manifest?.[0] || pkg['opf:manifest']?.[0];
-    const manifest = this.parseManifest(manifestNode, opfDir);
-
-    const spineNode = pkg.spine?.[0] || pkg['opf:spine']?.[0];
-    const spineRefs = spineNode?.itemref;
-    const spine = spineRefs ? spineRefs.map(ref => ref.$?.idref).filter(Boolean) : [];
+    const metadata = this.parseMetadata(pkg.metadata[0]);
+    const manifest = this.parseManifest(pkg.manifest[0], opfDir);
+    const spineRefs = pkg.spine[0].itemref;
+    const spine = spineRefs ? spineRefs.map(ref => ref.$.idref) : [];
 
     // 3. Extract chapters in reading order
     const chapters = [];
@@ -50,32 +32,23 @@ class EpubParser {
     for (let i = 0; i < spine.length; i++) {
       const item = manifest[spine[i]];
       if (!item) continue;
-      if (!item.mediaType || !item.mediaType.includes('xhtml')) continue;
+      if (item.mediaType !== 'application/xhtml+xml') continue;
 
       const zipFile = zip.file(item.href);
       if (!zipFile) continue;
 
-      try {
-        const xhtml = await zipFile.async('string');
-        chapters.push({
-          index: chapterIdx,
-          id: spine[i],
-          href: item.href,
-          content: xhtml,
-        });
-        chapterIdx++;
-      } catch (e) {
-        console.warn(`Skipping chapter ${spine[i]}: ${e.message}`);
-      }
+      const xhtml = await zipFile.async('string');
+      chapters.push({
+        index: chapterIdx,
+        id: spine[i],
+        href: item.href,
+        content: xhtml,
+      });
+      chapterIdx++;
     }
 
     // 4. Extract TOC
-    let toc = [];
-    try {
-      toc = await this.extractToc(zip, manifest, opfDir);
-    } catch (e) {
-      console.warn('TOC extraction failed, using empty TOC:', e.message);
-    }
+    const toc = await this.extractToc(zip, manifest, opfDir);
 
     // 5. Extract cover image
     const coverHref = this.findCover(pkg, manifest);
@@ -84,13 +57,12 @@ class EpubParser {
   }
 
   parseMetadata(meta) {
-    if (!meta) return { title: 'Untitled', author: '', language: '', publisher: '', description: '', date: '' };
     const get = (arr) => {
       if (!arr || !arr[0]) return '';
-      return typeof arr[0] === 'string' ? arr[0] : arr[0]._ || arr[0]?.['#text'] || '';
+      return typeof arr[0] === 'string' ? arr[0] : arr[0]._ || '';
     };
     return {
-      title: get(meta['dc:title']) || 'Untitled',
+      title: get(meta['dc:title']),
       author: get(meta['dc:creator']),
       language: get(meta['dc:language']),
       publisher: get(meta['dc:publisher']),
@@ -103,11 +75,10 @@ class EpubParser {
     const manifest = {};
     if (!manifestNode || !manifestNode.item) return manifest;
     manifestNode.item.forEach(item => {
-      const a = item?.$;
-      if (!a || !a.id || !a.href) return;
+      const a = item.$;
       manifest[a.id] = {
         href: opfDir && opfDir !== '.' ? path.posix.join(opfDir, a.href) : a.href,
-        mediaType: a['media-type'] || '',
+        mediaType: a['media-type'],
         properties: a.properties || '',
       };
     });
@@ -123,10 +94,7 @@ class EpubParser {
       const navFile = zip.file(navItem.href);
       if (navFile) {
         const navXhtml = await navFile.async('string');
-        if (navXhtml) {
-          const toc = this.parseNavXhtml(navXhtml);
-          if (toc.length > 0) return toc;
-        }
+        if (navXhtml) return this.parseNavXhtml(navXhtml);
       }
     }
 
@@ -149,17 +117,11 @@ class EpubParser {
     const $ = cheerio.load(navXhtml, { xmlMode: true });
     const toc = [];
 
-    // Avoid namespaced selectors (css-select doesn't support them)
-    // Instead, find nav by filtering on the attribute value manually
-    let navEl = $('nav').filter((_, el) => {
-      const type = $(el).attr('epub:type') || $(el).attr('type') || '';
-      return type === 'toc';
-    }).first();
-    if (!navEl.length) {
-      navEl = $('nav').first();
-    }
+    // EPUB3 nav element
+    const navEl = $('nav[*|type="toc"], nav[epub\\:type="toc"], nav').first();
     const topOl = navEl.find('> ol').first();
     if (!topOl.length) {
+      // Fallback: find any ol
       $('nav ol > li').each((_, li) => {
         const a = $(li).children('a').first();
         const entry = {
@@ -204,12 +166,12 @@ class EpubParser {
 
   async parseNcx(ncxXml) {
     const parsed = await xml2js.parseStringPromise(ncxXml);
+    const toc = [];
 
     const navMap = parsed.ncx?.navMap?.[0];
-    if (!navMap || !navMap.navPoint) return [];
+    if (!navMap || !navMap.navPoint) return toc;
 
     const processNavPoints = (navPoints) => {
-      if (!Array.isArray(navPoints)) return [];
       return navPoints.map(np => {
         const title = np.navLabel?.[0]?.text?.[0] || '';
         const href = np.content?.[0]?.$?.src || '';
@@ -222,32 +184,32 @@ class EpubParser {
   }
 
   findCover(pkg, manifest) {
-    try {
-      const meta = pkg.metadata?.[0]?.meta;
-      if (meta) {
-        const coverMeta = Array.isArray(meta) ? meta.find(
-          m => m.$ && m.$.name === 'cover'
-        ) : null;
-        if (coverMeta) {
-          const coverId = coverMeta.$.content;
-          return manifest[coverId]?.href || null;
-        }
+    // Look for cover in metadata
+    const meta = pkg.metadata?.[0]?.meta;
+    if (meta) {
+      const coverMeta = Array.isArray(meta) ? meta.find(
+        m => m.$ && m.$.name === 'cover'
+      ) : null;
+      if (coverMeta) {
+        const coverId = coverMeta.$.content;
+        return manifest[coverId]?.href || null;
       }
-
-      const coverItem = Object.values(manifest).find(
-        i => i.properties && i.properties.includes('cover-image')
-      );
-      if (coverItem) return coverItem.href;
-
-      const coverById = Object.entries(manifest).find(
-        ([id]) => id.toLowerCase().includes('cover')
-      );
-      if (coverById && coverById[1].mediaType?.startsWith('image/')) {
-        return coverById[1].href;
-      }
-    } catch {
-      // cover is optional
     }
+
+    // Look for cover-image property in manifest
+    const coverItem = Object.values(manifest).find(
+      i => i.properties && i.properties.includes('cover-image')
+    );
+    if (coverItem) return coverItem.href;
+
+    // Heuristic: look for item with 'cover' in id
+    const coverById = Object.entries(manifest).find(
+      ([id]) => id.toLowerCase().includes('cover')
+    );
+    if (coverById && coverById[1].mediaType?.startsWith('image/')) {
+      return coverById[1].href;
+    }
+
     return null;
   }
 }

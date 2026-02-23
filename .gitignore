@@ -5,4 +5,3 @@ server/storage/books/*/
 server/uploads/
 *.epub
 .DS_Store
-venv/

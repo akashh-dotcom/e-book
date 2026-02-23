@@ -5,10 +5,7 @@ export default defineConfig({
   plugins: [react()],
   server: {
     proxy: {
-      '/api': {
-        target: 'http://localhost:5000',
-        timeout: 600000,       // 10 min for long translation requests
-      },
+      '/api': 'http://localhost:5000',
       '/storage': 'http://localhost:5000',
     },
   },

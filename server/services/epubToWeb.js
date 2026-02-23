@@ -4,6 +4,17 @@ const fs = require('fs').promises;
 
 class EpubToWeb {
 
+  /**
+   * Convert parsed EPUB to web-ready file structure.
+   *
+   * For each chapter:
+   * - Extract <body> content from XHTML
+   * - Fix relative paths for images/CSS
+   * - Sanitize (remove scripts)
+   * - Save clean HTML
+   *
+   * Also extracts all assets (CSS, images, fonts).
+   */
   async convert(parsedEpub, outputDir) {
     const { chapters, manifest, toc, metadata, coverHref, zip, opfDir }
       = parsedEpub;
@@ -16,63 +27,50 @@ class EpubToWeb {
     const processedChapters = [];
 
     for (const ch of chapters) {
-      try {
-        const processed = this.processChapter(ch.content, ch.href, opfDir);
+      const processed = this.processChapter(ch.content, ch.href, opfDir);
 
-        await fs.writeFile(
-          path.join(outputDir, 'chapters', `${ch.index}.html`),
-          processed.html
-        );
+      await fs.writeFile(
+        path.join(outputDir, 'chapters', `${ch.index}.html`),
+        processed.html
+      );
 
-        processedChapters.push({
-          index: ch.index,
-          title: processed.title || `Chapter ${ch.index + 1}`,
-          wordCount: processed.wordCount,
-          filename: `${ch.index}.html`,
-        });
-      } catch (e) {
-        console.warn(`Skipping chapter ${ch.index}: ${e.message}`);
-      }
+      processedChapters.push({
+        index: ch.index,
+        title: processed.title || `Chapter ${ch.index + 1}`,
+        wordCount: processed.wordCount,
+        filename: `${ch.index}.html`,
+      });
     }
 
     // Extract assets
     for (const [id, item] of Object.entries(manifest)) {
-      try {
-        if (!item.mediaType) continue;
-        const isAsset = item.mediaType.startsWith('image/') ||
-          item.mediaType === 'text/css' ||
-          item.mediaType.includes('font');
-        if (!isAsset) continue;
+      const isAsset = item.mediaType.startsWith('image/') ||
+        item.mediaType === 'text/css' ||
+        item.mediaType.includes('font');
+      if (!isAsset) continue;
 
-        const zipFile = zip.file(item.href);
-        if (!zipFile) continue;
+      const zipFile = zip.file(item.href);
+      if (!zipFile) continue;
 
-        const relPath = opfDir && opfDir !== '.'
-          ? item.href.replace(opfDir + '/', '')
-          : item.href;
-        const destPath = path.join(outputDir, 'assets', relPath);
-        await fs.mkdir(path.dirname(destPath), { recursive: true });
-        await fs.writeFile(destPath, await zipFile.async('nodebuffer'));
-      } catch (e) {
-        console.warn(`Skipping asset ${id}: ${e.message}`);
-      }
+      const relPath = opfDir && opfDir !== '.'
+        ? item.href.replace(opfDir + '/', '')
+        : item.href;
+      const destPath = path.join(outputDir, 'assets', relPath);
+      await fs.mkdir(path.dirname(destPath), { recursive: true });
+      await fs.writeFile(destPath, await zipFile.async('nodebuffer'));
     }
 
     // Extract cover
     let coverPath = null;
     if (coverHref) {
-      try {
-        const coverFile = zip.file(coverHref);
-        if (coverFile) {
-          const ext = path.extname(coverHref);
-          coverPath = `cover${ext}`;
-          await fs.writeFile(
-            path.join(outputDir, 'assets', coverPath),
-            await coverFile.async('nodebuffer')
-          );
-        }
-      } catch (e) {
-        console.warn('Cover extraction failed:', e.message);
+      const coverFile = zip.file(coverHref);
+      if (coverFile) {
+        const ext = path.extname(coverHref);
+        coverPath = `cover${ext}`;
+        await fs.writeFile(
+          path.join(outputDir, 'assets', coverPath),
+          await coverFile.async('nodebuffer')
+        );
       }
     }
 
@@ -99,7 +97,7 @@ class EpubToWeb {
     // Remove scripts
     $('script').remove();
 
-    // Fix image paths
+    // Fix image paths -> /storage/books/{id}/assets/...
     $('img').each((_, el) => {
       const src = $(el).attr('src');
       if (src && !src.startsWith('http') && !src.startsWith('data:')) {
@@ -149,14 +147,14 @@ class EpubToWeb {
     });
 
     // Extract title
-    const title = $('h1, h2, h3, title').first().text().trim() || '';
+    const title = $('h1, h2, h3, title').first().text().trim();
 
     // Count words
     const text = $('body').text() || '';
     const wordCount = text.split(/\s+/).filter(Boolean).length;
 
     // Get body content only
-    const bodyHtml = $('body').html() || $.html() || '';
+    const bodyHtml = $('body').html() || $.html();
 
     return { html: bodyHtml, title, wordCount };
   }

@@ -1,9 +1,5 @@
-import { useState, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
-import { Languages, X, Loader } from 'lucide-react';
 import useReader from '../../hooks/useReader';
-import { useAudioPlayer } from '../../hooks/useAudioPlayer';
-import { useMediaOverlay } from '../../hooks/useMediaOverlay';
 import Sidebar from './Sidebar';
 import TopBar from './TopBar';
 import ChapterView from './ChapterView';
@@ -11,44 +7,11 @@ import BottomBar from './BottomBar';
 import SearchPanel from './SearchPanel';
 import SettingsPanel from './SettingsPanel';
 import BookmarksPanel from './BookmarksPanel';
-import TranslatePanel from './TranslatePanel';
 import AudioBar from './AudioBar';
-import ChapterAudioUpload from '../AudioUpload/ChapterAudioUpload';
-import EditorMode from '../Editor/EditorMode';
 
 export default function ReaderPage() {
   const { bookId } = useParams();
   const reader = useReader(bookId);
-
-  // Audio & sync data — pass translatedLang so we fetch language-specific audio
-  const audio = useAudioPlayer(bookId, reader.chapterIndex, reader.translatedLang);
-  const overlay = useMediaOverlay(audio.syncData, audio.audioUrl);
-  const [reSyncing, setReSyncing] = useState(false);
-  const [editorMode, setEditorMode] = useState(false);
-  const [translateOpen, setTranslateOpen] = useState(false);
-  const [regenProgress, setRegenProgress] = useState(null);
-
-  const handleReSync = useCallback(async () => {
-    setReSyncing(true);
-    try {
-      await audio.runAutoSync('word');
-      await reader.reloadChapter();
-    } catch {
-      // error handled by runAutoSync
-    } finally {
-      setReSyncing(false);
-    }
-  }, [audio, reader]);
-
-  const handleTrimDone = useCallback(async (result) => {
-    if (result?.syncData) {
-      audio.updateSyncData(result.syncData);
-      await reader.reloadChapter();
-    } else {
-      audio.reloadAudio();
-      audio.reloadSync();
-    }
-  }, [audio, reader]);
 
   if (reader.loading) {
     return (
@@ -67,56 +30,26 @@ export default function ReaderPage() {
     );
   }
 
-  const hasSync = audio.hasSyncData;
-
-  // === EDITOR MODE ===
-  if (editorMode) {
-    return (
-      <EditorMode
-        reader={reader}
-        audio={audio}
-        overlay={overlay}
-        bookId={bookId}
-        onExitEditor={() => setEditorMode(false)}
-        onTrimDone={handleTrimDone}
-        onReSync={handleReSync}
-        reSyncing={reSyncing}
-      />
-    );
-  }
-
-  // === READER MODE ===
   return (
-    <div className={`reader-root theme-${reader.theme} ${hasSync ? 'audio-synced' : ''} ${overlay.isPlaying ? 'audio-playing' : ''}`}>
+    <div className={`reader-root theme-${reader.theme}`}>
       <TopBar
         title={reader.book.title}
-        onToggleEditor={() => setEditorMode(true)}
         onToggleSidebar={() => reader.setSidebarOpen(!reader.sidebarOpen)}
         onToggleSearch={() => {
           reader.setSearchOpen(!reader.searchOpen);
           reader.setSettingsOpen(false);
           reader.setBookmarksOpen(false);
-          setTranslateOpen(false);
         }}
         onToggleSettings={() => {
           reader.setSettingsOpen(!reader.settingsOpen);
           reader.setSearchOpen(false);
           reader.setBookmarksOpen(false);
-          setTranslateOpen(false);
         }}
         onToggleBookmarks={() => {
           reader.setBookmarksOpen(!reader.bookmarksOpen);
           reader.setSearchOpen(false);
           reader.setSettingsOpen(false);
-          setTranslateOpen(false);
         }}
-        onToggleTranslate={() => {
-          setTranslateOpen(!translateOpen);
-          reader.setSearchOpen(false);
-          reader.setSettingsOpen(false);
-          reader.setBookmarksOpen(false);
-        }}
-        isTranslated={!!reader.translatedLang}
         onAddBookmark={() => {
           reader.addBookmark({
             type: 'bookmark',
@@ -137,70 +70,6 @@ export default function ReaderPage() {
 
         <main className="reader-content" ref={reader.chapterRef}>
           <div className="reader-content-inner">
-            <ChapterAudioUpload
-              hasAudio={audio.hasAudio}
-              hasSyncData={audio.hasSyncData}
-              onUpload={audio.uploadAudio}
-              onAutoSync={async (mode) => {
-                const lang = reader.translatedLang || undefined;
-                const result = await audio.runAutoSync(mode, { lang });
-                await reader.reloadChapter();
-                return result;
-              }}
-              onGenerate={async (voice) => {
-                const lang = reader.translatedLang || undefined;
-                await audio.generateAudio(voice, { lang });
-              }}
-              onRegenerate={async (voice) => {
-                const lang = reader.translatedLang || undefined;
-                setRegenProgress({ percent: 5, message: 'Generating audio...' });
-                await audio.generateAudio(voice, { lang });
-                setRegenProgress({ percent: 50, message: 'Audio generated. Syncing...' });
-                await audio.runAutoSync('word', { lang });
-                setRegenProgress({ percent: 95, message: 'Reloading...' });
-                await reader.reloadChapter();
-                setRegenProgress({ percent: 100, message: 'Done!' });
-                setTimeout(() => setRegenProgress(null), 1500);
-              }}
-              bookId={bookId}
-              chapterIndex={reader.chapterIndex}
-              translatedLang={reader.translatedLang}
-              syncProgress={audio.syncProgress}
-              regenProgress={regenProgress}
-            />
-
-            {/* Translation indicator bar */}
-            {reader.translatedLang && (
-              <div className="translation-bar">
-                <Languages size={14} />
-                <span>
-                  Translated to <strong>{reader.translatedLang.toUpperCase()}</strong>
-                </span>
-                <button
-                  className="translation-bar-btn"
-                  onClick={reader.showOriginal}
-                  title="Show original text"
-                >
-                  <X size={12} /> Original
-                </button>
-              </div>
-            )}
-
-            {reader.translating && (
-              <div className="translation-bar translating">
-                <Loader size={14} className="spin" />
-                <span>Translating chapter... {reader.translateProgress > 0 ? `${reader.translateProgress}%` : ''}</span>
-                {reader.translateProgress > 0 && (
-                  <div className="translation-progress-bar">
-                    <div
-                      className="translation-progress-fill"
-                      style={{ width: `${reader.translateProgress}%` }}
-                    />
-                  </div>
-                )}
-              </div>
-            )}
-
             <ChapterView
               html={reader.chapterHtml}
               fontSize={reader.fontSize}
@@ -216,7 +85,6 @@ export default function ReaderPage() {
                   highlightColor: color,
                 });
               }}
-              onWordClick={hasSync ? overlay.seekToWord : undefined}
             />
           </div>
         </main>
@@ -253,28 +121,7 @@ export default function ReaderPage() {
             onClose={() => reader.setBookmarksOpen(false)}
           />
         )}
-
-        {translateOpen && (
-          <TranslatePanel
-            bookLanguage={reader.book.language}
-            translatedLang={reader.translatedLang}
-            translating={reader.translating}
-            translateProgress={reader.translateProgress}
-            onTranslate={reader.translateTo}
-            onShowOriginal={reader.showOriginal}
-            onClose={() => setTranslateOpen(false)}
-          />
-        )}
-
       </div>
-
-      {audio.hasAudio && (
-        <AudioBar
-          overlay={overlay}
-          bookId={bookId}
-          hasSyncData={hasSync}
-        />
-      )}
 
       <BottomBar
         current={reader.chapterIndex}

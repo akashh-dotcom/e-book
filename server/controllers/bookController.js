@@ -27,10 +27,9 @@ exports.upload = async (req, res) => {
     // Save original
     await fs.writeFile(path.join(outputDir, 'original.epub'), buffer);
 
-    // Save to MongoDB (tied to the logged-in user)
+    // Save to MongoDB
     const book = await Book.create({
       _id: bookId,
-      userId: req.user._id,
       ...bookData.metadata,
       chapters: bookData.chapters,
       toc: bookData.toc,
@@ -41,7 +40,7 @@ exports.upload = async (req, res) => {
 
     res.status(201).json(book);
   } catch (err) {
-    console.error('Upload error:', err.stack || err);
+    console.error('Upload error:', err);
     res.status(500).json({ error: err.message });
   }
 };
@@ -84,12 +83,11 @@ exports.getChapter = async (req, res) => {
   }
 };
 
-// List books — users see only their own, admins see all
+// List all books
 exports.listBooks = async (req, res) => {
   try {
-    const filter = req.user.role === 'admin' ? {} : { userId: req.user._id };
-    const books = await Book.find(filter)
-      .select('title author cover totalChapters createdAt userId')
+    const books = await Book.find()
+      .select('title author cover totalChapters createdAt')
       .sort('-createdAt');
     res.json(books);
   } catch (err) {
@@ -113,43 +111,16 @@ exports.searchBook = async (req, res) => {
   }
 };
 
-// Delete book — users can only delete their own, admins can delete any
+// Delete book
 exports.deleteBook = async (req, res) => {
   try {
     const book = await Book.findById(req.params.id);
     if (!book) return res.status(404).json({ error: 'Not found' });
-
-    // Ownership check (admins bypass)
-    if (req.user.role !== 'admin' && book.userId.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ error: 'You can only delete your own books' });
-    }
-
     await fs.rm(book.storagePath, { recursive: true, force: true });
     await Bookmark.deleteMany({ bookId: req.params.id });
     await Book.deleteOne({ _id: req.params.id });
     res.json({ message: 'Deleted' });
   } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-};
-
-// Export EPUB3 with Media Overlays
-exports.exportEpub = async (req, res) => {
-  try {
-    const book = await Book.findById(req.params.id);
-    if (!book) return res.status(404).json({ error: 'Not found' });
-
-    const epubExporter = require('../services/epubExporter');
-    const epubBuffer = await epubExporter.exportWithMediaOverlays(book);
-
-    const filename = `${book.title.replace(/[^a-zA-Z0-9]/g, '_')}.epub`;
-    res.set({
-      'Content-Type': 'application/epub+zip',
-      'Content-Disposition': `attachment; filename="${filename}"`,
-    });
-    res.send(epubBuffer);
-  } catch (err) {
-    console.error('Export error:', err);
     res.status(500).json({ error: err.message });
   }
 };

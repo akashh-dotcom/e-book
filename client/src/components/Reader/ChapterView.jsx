@@ -7,7 +7,6 @@ export default function ChapterView({
   readingMode,
   loading,
   onHighlight,
-  onWordClick,
 }) {
   const [highlightPopup, setHighlightPopup] = useState(null);
 
@@ -65,12 +64,6 @@ export default function ChapterView({
         style={{ fontSize: `${fontSize}px`, lineHeight }}
         dangerouslySetInnerHTML={{ __html: html }}
         onMouseUp={handleMouseUp}
-        onClick={(e) => {
-          // Click-word-to-seek: if user clicks a word span
-          if (onWordClick && e.target.id && e.target.id.startsWith('w')) {
-            onWordClick(e.target.id);
-          }
-        }}
       />
 
       {highlightPopup && (
