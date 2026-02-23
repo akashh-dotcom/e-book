@@ -15,7 +15,6 @@ Output (JSON):
 
 import sys
 import json
-import re
 import os
 
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
@@ -24,98 +23,10 @@ import whisperx
 import torch
 
 
-# Languages that have reliable wav2vec2 alignment models in WhisperX
-ALIGN_SUPPORTED_LANGS = {
-    "en", "fr", "de", "es", "it", "ja", "zh", "nl", "uk", "pt",
-    "ar", "cs", "ru", "pl", "hu", "fi", "fa", "el", "tr", "da",
-    "he", "vi", "ko", "ur", "te", "hi", "ca", "ml", "no", "nn",
-}
-
-
-def normalize(text):
-    """Normalize text for comparison."""
-    return re.sub(r'[^\w\s]', '', text.lower()).strip()
-
-
-def match_segments_to_sentences(segments, sentences):
-    """
-    Map WhisperX transcription segments to the expected sentences using
-    a greedy word-overlap approach.
-
-    Returns list of { id, text, start, end } for each expected sentence.
-    """
-    # Build a flat list of (word, segment_idx, start, end) from transcription
-    trans_words = []
-    for seg_idx, seg in enumerate(segments):
-        for w in seg.get("words", []):
-            if "start" in w and "end" in w:
-                trans_words.append({
-                    "word": normalize(w["word"]),
-                    "start": w["start"],
-                    "end": w["end"],
-                })
-
-    # If no word-level timestamps, fall back to segment-level
-    if not trans_words:
-        for seg in segments:
-            words_in_seg = seg.get("text", "").split()
-            if not words_in_seg:
-                continue
-            seg_start = seg.get("start", 0)
-            seg_end = seg.get("end", 0)
-            dur = (seg_end - seg_start) / len(words_in_seg) if words_in_seg else 0
-            for k, w in enumerate(words_in_seg):
-                trans_words.append({
-                    "word": normalize(w),
-                    "start": round(seg_start + k * dur, 3),
-                    "end": round(seg_start + (k + 1) * dur, 3),
-                })
-
-    # For each expected sentence, find the best matching window in trans_words
-    result = []
-    trans_ptr = 0  # sliding pointer into transcribed words
-
-    for sent_idx, sentence in enumerate(sentences):
-        sent_words = [normalize(w) for w in sentence.split() if w.strip()]
-        if not sent_words:
-            continue
-
-        # Find the start position: look for first matching word near trans_ptr
-        best_start = trans_ptr
-        best_score = 0
-
-        search_end = min(trans_ptr + len(sent_words) * 3, len(trans_words))
-        for start in range(trans_ptr, min(search_end, len(trans_words))):
-            score = 0
-            for k, sw in enumerate(sent_words[:5]):  # check first 5 words
-                if start + k < len(trans_words) and trans_words[start + k]["word"] == sw:
-                    score += 1
-            if score > best_score:
-                best_score = score
-                best_start = start
-
-        # Determine the span covering this sentence's words
-        span_end = min(best_start + len(sent_words), len(trans_words))
-
-        start_time = trans_words[best_start]["start"] if best_start < len(trans_words) else 0
-        end_time = trans_words[span_end - 1]["end"] if span_end > 0 and span_end <= len(trans_words) else start_time
-
-        result.append({
-            "id": f"s{str(sent_idx + 1).zfill(6)}",
-            "text": sentence,
-            "start": round(start_time, 3),
-            "end": round(end_time, 3),
-        })
-
-        trans_ptr = span_end
-
-    return result
-
-
 def distribute_segments_to_sentences(segments, sentences):
     """
     Distribute segment timestamps proportionally across expected sentences.
-    Used for non-Latin languages where word-level matching is unreliable.
+    Each sentence is weighted by its word count relative to the total.
     """
     if not segments or not sentences:
         return [
@@ -172,24 +83,9 @@ def main():
 
     segments = result.get("segments", [])
 
-    # Step 2: Get word-level alignment (only for supported languages)
-    if language in ALIGN_SUPPORTED_LANGS:
-        print(json.dumps({"progress": "aligning", "message": "Aligning words to audio..."}), flush=True)
-        try:
-            model_a, metadata = whisperx.load_align_model(language_code=language, device=device)
-            result = whisperx.align(result["segments"], model_a, metadata, audio, device, return_char_alignments=False)
-            segments = result.get("segments", [])
-        except ValueError as e:
-            print(f"Alignment model not available for '{language}': {e}", file=sys.stderr)
-
-    # Step 3: Map transcription segments to expected sentences
-    print(json.dumps({"progress": "matching", "message": "Matching sentences to text..."}), flush=True)
-
-    # For supported languages, try word-level matching; otherwise distribute proportionally
-    if language in ALIGN_SUPPORTED_LANGS:
-        sentence_timestamps = match_segments_to_sentences(segments, sentences)
-    else:
-        sentence_timestamps = distribute_segments_to_sentences(segments, sentences)
+    # Step 2: Distribute segment timestamps proportionally across sentences
+    print(json.dumps({"progress": "matching", "message": "Distributing timestamps to sentences..."}), flush=True)
+    sentence_timestamps = distribute_segments_to_sentences(segments, sentences)
 
     # Write output
     with open(output_path, "w", encoding="utf-8") as f:
