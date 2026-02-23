@@ -92,6 +92,10 @@ export function useMediaOverlay(syncData, audioUrl) {
   // ---- Audio element setup ----
 
   useEffect(() => {
+    if (!audioUrl) {
+      audioRef.current = null;
+      return;
+    }
     const audio = new Audio();
     audio.preload = 'metadata';
     audioRef.current = audio;
@@ -100,13 +104,8 @@ export function useMediaOverlay(syncData, audioUrl) {
       setIsPlaying(false);
       clearHighlights();
     });
-    audio.addEventListener('error', () => {
-      console.error('Audio load error:', audio.error?.message || 'unknown', 'src:', audioUrl);
-    });
-    if (audioUrl) {
-      audio.src = audioUrl;
-      audio.load();
-    }
+    audio.src = audioUrl;
+    audio.load();
     return () => {
       audio.pause();
       audio.src = '';

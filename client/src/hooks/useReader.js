@@ -16,12 +16,25 @@ export default function useReader(bookId) {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [bookmarksOpen, setBookmarksOpen] = useState(false);
   const [bookmarks, setBookmarks] = useState([]);
-  const [translatedLang, setTranslatedLang] = useState(null); // null = original
+  const [translatedLang, setTranslatedLang] = useState(() => {
+    if (!bookId) return null;
+    return localStorage.getItem(`voxbook_lang_${bookId}`) || null;
+  });
   const [translating, setTranslating] = useState(false);
   const [translateProgress, setTranslateProgress] = useState(0); // 0-100
   const chapterRef = useRef(null);
   // Skip the next useEffect chapter reload (set after translateTo completes)
   const skipNextLoad = useRef(false);
+
+  // Persist translatedLang to localStorage
+  useEffect(() => {
+    if (!bookId) return;
+    if (translatedLang) {
+      localStorage.setItem(`voxbook_lang_${bookId}`, translatedLang);
+    } else {
+      localStorage.removeItem(`voxbook_lang_${bookId}`);
+    }
+  }, [bookId, translatedLang]);
 
   // Load book
   useEffect(() => {
