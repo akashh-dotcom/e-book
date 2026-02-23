@@ -152,6 +152,7 @@ export default function ReaderPage() {
               }}
               bookId={bookId}
               chapterIndex={reader.chapterIndex}
+              translatedLang={reader.translatedLang}
             />
 
             {/* Translation indicator bar */}

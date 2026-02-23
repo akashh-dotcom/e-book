@@ -10,6 +10,7 @@ export default function ChapterAudioUpload({
   onGenerate,
   bookId,
   chapterIndex,
+  translatedLang,
 }) {
   const [uploading, setUploading] = useState(false);
   const [syncing, setSyncing] = useState(false);
@@ -77,6 +78,7 @@ export default function ChapterAudioUpload({
               <VoiceSelector
                 value={selectedVoice}
                 onChange={setSelectedVoice}
+                filterLang={translatedLang}
               />
 
               <button

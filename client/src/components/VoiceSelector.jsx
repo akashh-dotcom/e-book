@@ -5,7 +5,7 @@ const DEFAULT_VOICE = 'en-US-AriaNeural';
 
 let cachedVoices = null;
 
-export default function VoiceSelector({ value, onChange, className = '' }) {
+export default function VoiceSelector({ value, onChange, filterLang, className = '' }) {
   const [voices, setVoices] = useState(cachedVoices || []);
   const [loading, setLoading] = useState(!cachedVoices);
 
@@ -20,9 +20,23 @@ export default function VoiceSelector({ value, onChange, className = '' }) {
       .finally(() => setLoading(false));
   }, []);
 
+  // Filter voices by translation language if provided
+  const filtered = filterLang
+    ? voices.filter(v => v.locale.split('-')[0] === filterLang)
+    : voices;
+
+  // Auto-select first matching voice when filter changes
+  useEffect(() => {
+    if (!filterLang || filtered.length === 0) return;
+    const currentMatch = filtered.some(v => v.name === value);
+    if (!currentMatch) {
+      onChange(filtered[0].name);
+    }
+  }, [filterLang, filtered, value, onChange]);
+
   // Group voices by locale
   const grouped = {};
-  for (const v of voices) {
+  for (const v of filtered) {
     if (!grouped[v.locale]) grouped[v.locale] = [];
     grouped[v.locale].push(v);
   }
