@@ -57,7 +57,9 @@ exports.streamAudio = async (req, res) => {
     const lang = req.query.lang || null;
     const book = await Book.findById(bookId);
     const audioKey = lang ? `${chapterIndex}_${lang}` : String(chapterIndex);
-    const audioInfo = book?.audioFiles?.get(audioKey);
+    let audioInfo = book?.audioFiles?.get(audioKey);
+    // Fallback: if lang-specific audio not found, try the base key
+    if (!audioInfo && lang) audioInfo = book?.audioFiles?.get(String(chapterIndex));
     if (!audioInfo) return res.status(404).end();
 
     const audioPath = path.join(
@@ -94,7 +96,9 @@ exports.getChapterAudio = async (req, res) => {
     const lang = req.query.lang || null;
     const book = await Book.findById(req.params.bookId);
     const audioKey = lang ? `${req.params.chapterIndex}_${lang}` : String(req.params.chapterIndex);
-    const audioInfo = book?.audioFiles?.get(audioKey);
+    let audioInfo = book?.audioFiles?.get(audioKey);
+    // Fallback: if lang-specific audio not found, try the base key
+    if (!audioInfo && lang) audioInfo = book?.audioFiles?.get(String(req.params.chapterIndex));
     if (!audioInfo) return res.status(404).json({ error: 'No audio' });
     const langQuery = lang ? `?lang=${lang}` : '';
     res.json({

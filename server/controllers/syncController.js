@@ -23,7 +23,9 @@ exports.autoAlign = async (req, res) => {
     if (!book) return res.status(404).json({ error: 'Book not found' });
 
     const audioKey = lang ? `${chapterIndex}_${lang}` : String(chapterIndex);
-    const audioInfo = book.audioFiles?.get(audioKey);
+    let audioInfo = book.audioFiles?.get(audioKey);
+    // Fallback: if lang-specific audio not found, try the base key
+    if (!audioInfo && lang) audioInfo = book.audioFiles?.get(String(chapterIndex));
     if (!audioInfo) {
       return res.status(400).json({
         error: 'Upload or generate audio for this chapter first' + (lang ? ` (language: ${lang})` : ''),
@@ -177,7 +179,15 @@ exports.getSyncData = async (req, res) => {
     };
     if (lang) query.lang = lang;
     else query.lang = { $in: [null, undefined] };
-    const sync = await SyncData.findOne(query);
+    let sync = await SyncData.findOne(query);
+    // Fallback: if lang-specific sync not found, try without lang
+    if (!sync && lang) {
+      sync = await SyncData.findOne({
+        bookId: req.params.bookId,
+        chapterIndex: parseInt(req.params.chapterIndex),
+        lang: { $in: [null, undefined] },
+      });
+    }
     if (!sync) return res.status(404).json({ error: 'No sync data' });
     res.json(sync);
   } catch (err) {

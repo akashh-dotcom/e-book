@@ -93,13 +93,20 @@ export function useMediaOverlay(syncData, audioUrl) {
 
   useEffect(() => {
     const audio = new Audio();
+    audio.preload = 'metadata';
     audioRef.current = audio;
     audio.addEventListener('loadedmetadata', () => setDuration(audio.duration));
     audio.addEventListener('ended', () => {
       setIsPlaying(false);
       clearHighlights();
     });
-    if (audioUrl) audio.src = audioUrl;
+    audio.addEventListener('error', () => {
+      console.error('Audio load error:', audio.error?.message || 'unknown', 'src:', audioUrl);
+    });
+    if (audioUrl) {
+      audio.src = audioUrl;
+      audio.load();
+    }
     return () => {
       audio.pause();
       audio.src = '';
