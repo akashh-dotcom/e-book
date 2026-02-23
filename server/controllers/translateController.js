@@ -172,7 +172,14 @@ exports.getSupportedLanguages = async (req, res) => {
     { code: 'bn', name: 'Bengali' },
     { code: 'ta', name: 'Tamil' },
     { code: 'te', name: 'Telugu' },
+    { code: 'kn', name: 'Kannada' },
+    { code: 'ml', name: 'Malayalam' },
+    { code: 'mr', name: 'Marathi' },
+    { code: 'gu', name: 'Gujarati' },
+    { code: 'pa', name: 'Punjabi' },
     { code: 'ur', name: 'Urdu' },
+    { code: 'ne', name: 'Nepali' },
+    { code: 'si', name: 'Sinhala' },
     { code: 'ja', name: 'Japanese' },
     { code: 'ko', name: 'Korean' },
     { code: 'zh', name: 'Chinese' },
@@ -181,8 +188,11 @@ exports.getSupportedLanguages = async (req, res) => {
     { code: 'id', name: 'Indonesian' },
     { code: 'ms', name: 'Malay' },
     { code: 'tl', name: 'Filipino' },
+    { code: 'my', name: 'Myanmar' },
+    { code: 'km', name: 'Khmer' },
     { code: 'sw', name: 'Swahili' },
     { code: 'af', name: 'Afrikaans' },
+    { code: 'am', name: 'Amharic' },
   ];
   res.json(languages);
 };

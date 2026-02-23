@@ -49,6 +49,7 @@ def get_nllb_code(lang_code):
         'te': 'tel_Telu', 'te-IN': 'tel_Telu',
         'mr': 'mar_Deva', 'mr-IN': 'mar_Deva',
         'gu': 'guj_Gujr', 'gu-IN': 'guj_Gujr',
+        'pa': 'pan_Guru', 'pa-IN': 'pan_Guru',
         'kn': 'kan_Knda', 'kn-IN': 'kan_Knda',
         'ml': 'mal_Mlym', 'ml-IN': 'mal_Mlym',
         'ur': 'urd_Arab', 'ur-PK': 'urd_Arab', 'ur-IN': 'urd_Arab',
