@@ -32,7 +32,7 @@ export default function ReaderPage() {
     setReSyncing(true);
     try {
       await audio.runAutoSync('word');
-      reader.reloadChapter();
+      await reader.reloadChapter();
     } catch {
       // error handled by runAutoSync
     } finally {
@@ -40,10 +40,10 @@ export default function ReaderPage() {
     }
   }, [audio, reader]);
 
-  const handleTrimDone = useCallback((result) => {
+  const handleTrimDone = useCallback(async (result) => {
     if (result?.syncData) {
       audio.updateSyncData(result.syncData);
-      reader.reloadChapter();
+      await reader.reloadChapter();
     } else {
       audio.reloadAudio();
       audio.reloadSync();
@@ -144,7 +144,7 @@ export default function ReaderPage() {
               onAutoSync={async (mode) => {
                 const lang = reader.translatedLang || undefined;
                 const result = await audio.runAutoSync(mode, { lang });
-                reader.reloadChapter();
+                await reader.reloadChapter();
                 return result;
               }}
               onGenerate={async (voice) => {
@@ -158,7 +158,7 @@ export default function ReaderPage() {
                 setRegenProgress({ percent: 50, message: 'Audio generated. Syncing...' });
                 await audio.runAutoSync('word', { lang });
                 setRegenProgress({ percent: 95, message: 'Reloading...' });
-                reader.reloadChapter();
+                await reader.reloadChapter();
                 setRegenProgress({ percent: 100, message: 'Done!' });
                 setTimeout(() => setRegenProgress(null), 1500);
               }}

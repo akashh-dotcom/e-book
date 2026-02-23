@@ -117,6 +117,7 @@ export function useMediaOverlay(syncData, audioUrl) {
       audio.pause();
       audio.src = '';
       stopTimer();
+      clearHighlights();
     };
   }, [audioUrl]);
 
@@ -126,6 +127,13 @@ export function useMediaOverlay(syncData, audioUrl) {
       rafRef.current = null;
     }
   };
+
+  // Reset highlights when sync data changes (e.g. re-sync, chapter change)
+  // so stale activeWordRef doesn't prevent fresh highlighting.
+  useEffect(() => {
+    clearHighlights();
+    setActiveWordId(null);
+  }, [syncData]);
 
   // Mark skipped words in the DOM
   useEffect(() => {
@@ -189,6 +197,12 @@ export function useMediaOverlay(syncData, audioUrl) {
 
     // Nothing changed — skip all DOM work
     if (newId === activeWordRef.current) return;
+
+    // New word found in sync data but its DOM element doesn't exist yet
+    // (chapter HTML still loading after reloadChapter). Don't commit to
+    // activeWordRef — the next animation frame will retry and find it
+    // once React has rendered the new chapter HTML.
+    if (newId && !document.getElementById(newId)) return;
 
     // Remove active class from previous word
     if (activeWordRef.current) {
