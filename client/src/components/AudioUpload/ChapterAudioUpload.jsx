@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { Upload, Mic, Loader, Wand2, Volume2 } from 'lucide-react';
+import { Upload, Mic, Loader, Wand2, Volume2, RefreshCw } from 'lucide-react';
 import VoiceSelector, { DEFAULT_VOICE } from '../VoiceSelector';
 
 export default function ChapterAudioUpload({
@@ -8,14 +8,17 @@ export default function ChapterAudioUpload({
   onUpload,
   onAutoSync,
   onGenerate,
+  onRegenerate,
   bookId,
   chapterIndex,
   translatedLang,
   syncProgress,
+  regenProgress,
 }) {
   const [uploading, setUploading] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [regenerating, setRegenerating] = useState(false);
   const [selectedVoice, setSelectedVoice] = useState(DEFAULT_VOICE);
   const [error, setError] = useState('');
   const fileRef = useRef(null);
@@ -53,6 +56,19 @@ export default function ChapterAudioUpload({
     }
     setGenerating(false);
   };
+
+  const handleRegenerate = async () => {
+    setRegenerating(true);
+    setError('');
+    try {
+      await onRegenerate(selectedVoice);
+    } catch (err) {
+      setError(err.response?.data?.error || 'Re-generate failed');
+    }
+    setRegenerating(false);
+  };
+
+  const isBusy = regenerating || syncing;
 
   return (
     <div className="audio-upload-bar">
@@ -121,7 +137,44 @@ export default function ChapterAudioUpload({
       )}
 
       {hasSyncData && (
-        <span className="sync-ready">Audio synced</span>
+        <div className="sync-done-row">
+          <span className="sync-ready">Audio synced</span>
+          {onRegenerate && (
+            <div className="audio-generate-row">
+              <VoiceSelector
+                value={selectedVoice}
+                onChange={setSelectedVoice}
+                filterLang={translatedLang}
+                disabled={isBusy}
+              />
+              <button
+                className="audio-upload-btn regenerate"
+                onClick={handleRegenerate}
+                disabled={isBusy}
+              >
+                {regenerating
+                  ? <Loader size={14} className="spin" />
+                  : <RefreshCw size={14} />}
+                {regenerating ? 'Re-generating...' : 'Re-generate & Sync'}
+              </button>
+            </div>
+          )}
+          {regenerating && regenProgress && (
+            <div className="regen-progress">
+              <div className="regen-progress-info">
+                <Loader size={12} className="spin" />
+                <span>{regenProgress.message}</span>
+                <span className="regen-pct">{regenProgress.percent}%</span>
+              </div>
+              <div className="regen-progress-bar">
+                <div
+                  className="regen-progress-fill"
+                  style={{ width: `${regenProgress.percent}%` }}
+                />
+              </div>
+            </div>
+          )}
+        </div>
       )}
 
       {error && <span className="audio-error">{error}</span>}

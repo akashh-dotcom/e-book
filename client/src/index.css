@@ -1265,6 +1265,58 @@ body {
   font-weight: 500;
 }
 
+.sync-done-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.audio-upload-btn.regenerate {
+  background: #7c3aed;
+  color: white;
+  border-color: #7c3aed;
+}
+
+.audio-upload-btn.regenerate:hover {
+  opacity: 0.9;
+}
+
+.regen-progress {
+  width: 100%;
+  margin-top: 6px;
+}
+
+.regen-progress-info {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.82rem;
+  color: var(--text-muted, #888);
+  margin-bottom: 4px;
+}
+
+.regen-pct {
+  margin-left: auto;
+  font-weight: 600;
+  color: #7c3aed;
+}
+
+.regen-progress-bar {
+  width: 100%;
+  height: 4px;
+  background: var(--border, #e5e7eb);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.regen-progress-fill {
+  height: 100%;
+  background: #7c3aed;
+  border-radius: 2px;
+  transition: width 0.4s ease;
+}
+
 .audio-error {
   font-size: 0.82rem;
   color: #ef4444;

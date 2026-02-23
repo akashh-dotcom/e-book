@@ -26,6 +26,7 @@ export default function ReaderPage() {
   const [reSyncing, setReSyncing] = useState(false);
   const [editorMode, setEditorMode] = useState(false);
   const [translateOpen, setTranslateOpen] = useState(false);
+  const [regenProgress, setRegenProgress] = useState(null);
 
   const handleReSync = useCallback(async () => {
     setReSyncing(true);
@@ -150,10 +151,22 @@ export default function ReaderPage() {
                 const lang = reader.translatedLang || undefined;
                 await audio.generateAudio(voice, { lang });
               }}
+              onRegenerate={async (voice) => {
+                const lang = reader.translatedLang || undefined;
+                setRegenProgress({ percent: 5, message: 'Generating audio...' });
+                await audio.generateAudio(voice, { lang });
+                setRegenProgress({ percent: 50, message: 'Audio generated. Syncing...' });
+                await audio.runAutoSync('word', { lang });
+                setRegenProgress({ percent: 95, message: 'Reloading...' });
+                reader.reloadChapter();
+                setRegenProgress({ percent: 100, message: 'Done!' });
+                setTimeout(() => setRegenProgress(null), 1500);
+              }}
               bookId={bookId}
               chapterIndex={reader.chapterIndex}
               translatedLang={reader.translatedLang}
               syncProgress={audio.syncProgress}
+              regenProgress={regenProgress}
             />
 
             {/* Translation indicator bar */}
