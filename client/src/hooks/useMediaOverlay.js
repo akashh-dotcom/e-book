@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 
 export function useMediaOverlay(syncData, audioUrl) {
   const audioRef = useRef(null);
-  const timerRef = useRef(null);
+  const rafRef = useRef(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -14,11 +14,15 @@ export function useMediaOverlay(syncData, audioUrl) {
   syncDataRef.current = syncData;
   const playbackRateRef = useRef(1);
 
+  // Tracking refs for efficient updates
+  const activeWordRef = useRef(null);       // last highlighted word id
+  const activeIndexRef = useRef(-1);        // last highlighted word index
+  const lastTimeUpdate = useRef(0);         // performance.now() for throttled state update
+
   // Original sync data — always kept in sync with the latest server data.
   // Previously this only reset when word IDs changed, which caused a critical
   // bug: after re-syncing (same IDs, new timestamps), originalSyncRef retained
-  // stale timestamps, making getRateForAudioPos() return wrong values and
-  // modifying audio playback speed incorrectly.
+  // stale timestamps.
   const originalSyncRef = useRef(null);
 
   useEffect(() => {
@@ -60,9 +64,9 @@ export function useMediaOverlay(syncData, audioUrl) {
   }, [audioUrl]);
 
   const stopTimer = () => {
-    if (timerRef.current) {
-      cancelAnimationFrame(timerRef.current);
-      timerRef.current = null;
+    if (rafRef.current) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
     }
   };
 
@@ -77,73 +81,131 @@ export function useMediaOverlay(syncData, audioUrl) {
     }
   }, [syncData]);
 
-  // ---- Highlights: directly match audio.currentTime to sync data ----
+  // ---- Highlights: only touch DOM when active word changes ----
 
   const updateHighlights = useCallback((audioTime) => {
     const data = syncDataRef.current;
     if (!data?.length) return;
 
-    // Find the active word: the word whose [clipBegin, clipEnd) contains audioTime,
-    // OR the last word whose clipEnd <= audioTime but the NEXT word hasn't started yet
-    // (this keeps the last word highlighted during sentence/paragraph pauses).
+    // Find the active word using probe-from-last-index (O(1) amortised).
+    // During normal playback the next word is either the same or the next index.
     let activeIdx = -1;
-    for (let i = 0; i < data.length; i++) {
-      const entry = data[i];
-      if (entry.clipBegin === null || entry.clipEnd === null) continue;
-      if (audioTime >= entry.clipBegin && audioTime < entry.clipEnd) {
-        activeIdx = i;
-        break;
-      }
-      if (audioTime >= entry.clipEnd) {
-        // Check if we're in a gap before the next word
-        const next = data.slice(i + 1).find(e => e.clipBegin !== null);
-        if (!next || audioTime < next.clipBegin) {
-          activeIdx = i; // Stay on this word during the gap
+    const hint = activeIndexRef.current;
+    const len = data.length;
+
+    // Fast path: check current and next index first
+    if (hint >= 0 && hint < len) {
+      const h = data[hint];
+      if (h.clipBegin !== null && audioTime >= h.clipBegin && audioTime < h.clipEnd) {
+        activeIdx = hint;
+      } else {
+        const next = hint + 1;
+        if (next < len) {
+          const n = data[next];
+          if (n.clipBegin !== null && audioTime >= n.clipBegin && audioTime < n.clipEnd) {
+            activeIdx = next;
+          }
         }
       }
     }
 
-    const activeId = activeIdx >= 0 ? data[activeIdx].id : null;
-
-    for (let i = 0; i < data.length; i++) {
-      const entry = data[i];
-      const el = document.getElementById(entry.id);
-      if (!el || entry.clipBegin === null) continue;
-
-      if (i === activeIdx) {
-        el.classList.add('-epub-media-overlay-active');
-        el.classList.remove('mo-spoken');
-        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      } else if (activeIdx >= 0 && i < activeIdx) {
-        el.classList.remove('-epub-media-overlay-active');
-        el.classList.add('mo-spoken');
-      } else {
-        el.classList.remove('-epub-media-overlay-active', 'mo-spoken');
+    // Slow path: full scan (only on seek or first play)
+    if (activeIdx === -1) {
+      for (let i = 0; i < len; i++) {
+        const entry = data[i];
+        if (entry.clipBegin === null || entry.clipEnd === null) continue;
+        if (audioTime >= entry.clipBegin && audioTime < entry.clipEnd) {
+          activeIdx = i;
+          break;
+        }
+        if (audioTime >= entry.clipEnd) {
+          // Keep the last word highlighted during gaps (sentence/paragraph pauses)
+          const next = data.slice(i + 1).find(e => e.clipBegin !== null);
+          if (!next || audioTime < next.clipBegin) {
+            activeIdx = i;
+          }
+        }
       }
     }
-    setActiveWordId(activeId);
+
+    const newId = activeIdx >= 0 ? data[activeIdx].id : null;
+
+    // Nothing changed — skip all DOM work
+    if (newId === activeWordRef.current) return;
+
+    // Remove active class from previous word
+    if (activeWordRef.current) {
+      const prevEl = document.getElementById(activeWordRef.current);
+      if (prevEl) {
+        prevEl.classList.remove('-epub-media-overlay-active');
+        prevEl.classList.add('mo-spoken');
+      }
+    }
+
+    // Add active class to new word and scroll into view
+    if (newId) {
+      const newEl = document.getElementById(newId);
+      if (newEl) {
+        newEl.classList.add('-epub-media-overlay-active');
+        newEl.classList.remove('mo-spoken');
+        newEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
+
+    // On first highlight or after seek, mark all preceding words as spoken
+    if (activeIdx >= 0 && activeWordRef.current === null) {
+      for (let i = 0; i < activeIdx; i++) {
+        const entry = data[i];
+        if (entry.clipBegin === null) continue;
+        const el = document.getElementById(entry.id);
+        if (el) {
+          el.classList.remove('-epub-media-overlay-active');
+          el.classList.add('mo-spoken');
+        }
+      }
+    }
+
+    activeWordRef.current = newId;
+    activeIndexRef.current = activeIdx;
+    setActiveWordId(newId);
   }, []);
 
   const clearHighlights = () => {
     document.querySelectorAll('.-epub-media-overlay-active, .mo-spoken')
       .forEach(el => el.classList.remove('-epub-media-overlay-active', 'mo-spoken'));
+    activeWordRef.current = null;
+    activeIndexRef.current = -1;
   };
 
-  // ---- Playback timer: uses requestAnimationFrame for smooth updates ----
+  // ---- Playback loop using requestAnimationFrame ----
+  // rAF fires in sync with the browser's repaint (~60fps), giving tighter
+  // coupling between audio.currentTime reads and the visual highlight update.
   // Directly reads audio.currentTime and matches against sync data.
-  // No virtual time mapping or rate adjustment — the TTS per-word timing
-  // in the sync data already matches the actual audio exactly.
+  // No virtual time mapping — TTS per-word timing in the sync data already
+  // matches the actual audio exactly.
 
   const startTimer = useCallback(() => {
     stopTimer();
+    lastTimeUpdate.current = 0;
     const tick = () => {
       if (!audioRef.current) return;
       const audioTime = audioRef.current.currentTime;
-      setCurrentTime(audioTime);
+
       updateHighlights(audioTime);
-      timerRef.current = requestAnimationFrame(tick);
+
+      // Throttle React state update for seek bar to ~5 Hz (every 200ms).
+      // The highlight updates above are direct DOM mutations and don't need
+      // React — only the seek bar position needs the state, and 5 Hz is smooth
+      // enough for that while avoiding 60 re-renders/second.
+      const now = performance.now();
+      if (now - lastTimeUpdate.current > 200) {
+        setCurrentTime(audioTime);
+        lastTimeUpdate.current = now;
+      }
+
+      rafRef.current = requestAnimationFrame(tick);
     };
-    timerRef.current = requestAnimationFrame(tick);
+    rafRef.current = requestAnimationFrame(tick);
   }, [updateHighlights]);
 
   const play = useCallback(() => {
@@ -166,6 +228,10 @@ export function useMediaOverlay(syncData, audioUrl) {
     audioRef.current?.pause();
     setIsPlaying(false);
     stopTimer();
+    // Final accurate time update
+    if (audioRef.current) {
+      setCurrentTime(audioRef.current.currentTime);
+    }
   }, []);
 
   const togglePlay = useCallback(() => {
@@ -176,6 +242,9 @@ export function useMediaOverlay(syncData, audioUrl) {
     if (audioRef.current) {
       audioRef.current.currentTime = time;
       setCurrentTime(time);
+      // Reset tracking so updateHighlights does a full mark-up of spoken words
+      activeWordRef.current = null;
+      activeIndexRef.current = -1;
       updateHighlights(time);
     }
   }, [updateHighlights]);
