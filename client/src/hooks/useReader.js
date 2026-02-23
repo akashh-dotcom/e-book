@@ -20,6 +20,8 @@ export default function useReader(bookId) {
   const [translating, setTranslating] = useState(false);
   const [translateProgress, setTranslateProgress] = useState(0); // 0-100
   const chapterRef = useRef(null);
+  // Skip the next useEffect chapter reload (set after translateTo completes)
+  const skipNextLoad = useRef(false);
 
   // Load book
   useEffect(() => {
@@ -36,10 +38,17 @@ export default function useReader(bookId) {
   // Load chapter (original or translated)
   useEffect(() => {
     if (!book) return;
+
+    // Skip if translateTo just set the HTML directly
+    if (skipNextLoad.current) {
+      skipNextLoad.current = false;
+      return;
+    }
+
     setChapterLoading(true);
 
     if (translatedLang) {
-      // Load translated chapter
+      // Load translated chapter (uses cache, no force)
       api.post(`/translate/${bookId}/${chapterIndex}`, { targetLang: translatedLang })
         .then(r => {
           setChapterHtml(r.data.html);
@@ -140,8 +149,8 @@ export default function useReader(bookId) {
     }
   }, [book, bookId, chapterIndex, translatedLang]);
 
-  // Translate current chapter to a language (with SSE progress)
-  const translateTo = useCallback(async (targetLang, { force = true } = {}) => {
+  // Translate current chapter to a language (with polling progress)
+  const translateTo = useCallback(async (targetLang) => {
     if (!targetLang) {
       setTranslatedLang(null);
       return;
@@ -149,61 +158,35 @@ export default function useReader(bookId) {
     setTranslating(true);
     setTranslateProgress(0);
 
+    // Start polling for progress
+    const pollInterval = setInterval(async () => {
+      try {
+        const r = await api.get(`/translate/${bookId}/${chapterIndex}/progress`);
+        if (r.data && r.data.percent > 0) {
+          setTranslateProgress(r.data.percent);
+        }
+      } catch {
+        // ignore poll errors
+      }
+    }, 800);
+
     try {
-      const token = localStorage.getItem('voxbook_token');
-      const response = await fetch(`/api/translate/${bookId}/${chapterIndex}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({ targetLang, force }),
+      const res = await api.post(`/translate/${bookId}/${chapterIndex}`, {
+        targetLang,
+        force: true,
       });
 
-      const contentType = response.headers.get('content-type') || '';
+      // Stop polling
+      clearInterval(pollInterval);
 
-      if (contentType.includes('text/event-stream')) {
-        // SSE streaming response — read progress events
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder();
-        let buffer = '';
-
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-
-          buffer += decoder.decode(value, { stream: true });
-          const lines = buffer.split('\n');
-          buffer = lines.pop(); // keep incomplete line
-
-          for (const line of lines) {
-            if (!line.startsWith('data: ')) continue;
-            try {
-              const evt = JSON.parse(line.slice(6));
-              if (evt.progress !== undefined) {
-                setTranslateProgress(evt.progress);
-              }
-              if (evt.done) {
-                setChapterHtml(evt.html);
-                setTranslatedLang(targetLang);
-              }
-              if (evt.error) {
-                throw new Error(evt.error);
-              }
-            } catch (parseErr) {
-              if (parseErr.message && !parseErr.message.includes('JSON')) throw parseErr;
-            }
-          }
-        }
-      } else {
-        // Regular JSON response (cached result or same-language)
-        const data = await response.json();
-        if (data.html) {
-          setChapterHtml(data.html);
-          setTranslatedLang(data.translated ? targetLang : null);
-        }
+      if (res.data.html) {
+        // Set HTML directly and skip the useEffect reload
+        skipNextLoad.current = true;
+        setChapterHtml(res.data.html);
+        setTranslatedLang(res.data.translated ? targetLang : null);
       }
     } catch {
+      clearInterval(pollInterval);
       // Stay on original
     } finally {
       setTranslating(false);

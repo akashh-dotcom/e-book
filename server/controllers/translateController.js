@@ -4,19 +4,30 @@ const Book = require('../models/Book');
 const wordWrapper = require('../services/wordWrapper');
 const translation = require('../services/translationService');
 
+// In-memory progress tracking for active translations
+const translationProgress = new Map();
+
 /**
- * Translate a chapter to a target language (with SSE progress streaming).
+ * Get translation progress.
+ * GET /api/translate/:bookId/:chapterIndex/progress
+ */
+exports.getProgress = (req, res) => {
+  const { bookId, chapterIndex } = req.params;
+  const key = `${bookId}_${chapterIndex}`;
+  const progress = translationProgress.get(key) || { percent: 0, status: 'idle' };
+  res.json(progress);
+};
+
+/**
+ * Translate a chapter to a target language.
  * POST /api/translate/:bookId/:chapterIndex
- * Body: { targetLang: "ja-JP" }
- *
- * Streams progress events as SSE, then the final result.
- * Events:
- *   data: {"progress":30,"current":3,"total":10}
- *   data: {"done":true,"html":"...","translated":true,...}
+ * Body: { targetLang: "ja-JP", force: true }
  */
 exports.translateChapter = async (req, res) => {
+  const { bookId, chapterIndex } = req.params;
+  const progressKey = `${bookId}_${chapterIndex}`;
+
   try {
-    const { bookId, chapterIndex } = req.params;
     const { targetLang, force } = req.body;
 
     if (!targetLang) {
@@ -51,7 +62,7 @@ exports.translateChapter = async (req, res) => {
       await fs.unlink(translatedPath).catch(() => {});
     }
 
-    // Check cache — return immediately (no streaming needed)
+    // Check cache
     const cached = !force && await translation.hasTranslation(book.storagePath, chapterIndex, targetLang);
     if (cached) {
       let html = await fs.readFile(translatedPath, 'utf-8');
@@ -65,15 +76,8 @@ exports.translateChapter = async (req, res) => {
       });
     }
 
-    // --- SSE streaming for progress ---
-    res.setHeader('Content-Type', 'text/event-stream');
-    res.setHeader('Cache-Control', 'no-cache');
-    res.setHeader('Connection', 'keep-alive');
-    res.setHeader('X-Accel-Buffering', 'no');
-    res.flushHeaders();
-
-    // Send initial event
-    res.write(`data: ${JSON.stringify({ progress: 0, current: 0, total: 0, status: 'starting' })}\n\n`);
+    // Set initial progress
+    translationProgress.set(progressKey, { percent: 0, current: 0, total: 0, status: 'loading_model' });
 
     // Read original chapter HTML
     const originalPath = path.join(book.storagePath, 'chapters', `${chapterIndex}.html`);
@@ -83,37 +87,31 @@ exports.translateChapter = async (req, res) => {
     const result = await translation.translateChapterHtml(
       originalHtml, srcLang, targetLang, book.storagePath,
       ({ current, total, percent }) => {
-        res.write(`data: ${JSON.stringify({ progress: percent, current, total, status: 'translating' })}\n\n`);
+        translationProgress.set(progressKey, { percent, current, total, status: 'translating' });
       }
     );
 
     // Save translated chapter
     await fs.writeFile(translatedPath, result.html, 'utf-8');
 
+    // Clean up progress
+    translationProgress.delete(progressKey);
+
     // Resolve asset paths
     const assetBase = `/storage/books/${book._id}/assets`;
     const resolvedHtml = result.html.replace(/__ASSET__/g, assetBase);
 
-    // Send final result
-    res.write(`data: ${JSON.stringify({
-      done: true,
+    res.json({
       html: resolvedHtml,
       translated: true,
       language: tgtShort,
       cached: false,
       wordCount: result.wordCount,
-    })}\n\n`);
-
-    res.end();
+    });
   } catch (err) {
     console.error('Translation error:', err);
-    // If headers already sent (SSE mode), send error as event
-    if (res.headersSent) {
-      res.write(`data: ${JSON.stringify({ error: err.message })}\n\n`);
-      res.end();
-    } else {
-      res.status(500).json({ error: err.message });
-    }
+    translationProgress.delete(progressKey);
+    res.status(500).json({ error: err.message });
   }
 };
 
