@@ -136,12 +136,12 @@ export default function SettingsPanel({
           <button
             className={`theme-btn ${readingMode === 'scroll' ? 'active' : ''}`}
             onClick={() => setReadingMode('scroll')}
-            style={{ background: 'var(--bg-alt)', color: 'var(--text)' }}
+            style={{ background: 'rgba(16,185,129,0.06)', color: '#d1fae5' }}
           >Scroll</button>
           <button
             className={`theme-btn ${readingMode === 'paginated' ? 'active' : ''}`}
             onClick={() => setReadingMode('paginated')}
-            style={{ background: 'var(--bg-alt)', color: 'var(--text)' }}
+            style={{ background: 'rgba(16,185,129,0.06)', color: '#d1fae5' }}
           >Paginated</button>
         </div>
       </div>
