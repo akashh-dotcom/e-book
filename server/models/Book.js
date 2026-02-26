@@ -30,6 +30,7 @@ const bookSchema = new mongoose.Schema({
   toc: [tocEntrySchema],
   totalChapters: Number,
   storagePath: String,
+  originalFilename: String,
   audioFiles: {
     type: Map,
     of: { filename: String, duration: Number, uploadedAt: Date },

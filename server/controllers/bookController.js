@@ -37,6 +37,7 @@ exports.upload = async (req, res) => {
       cover: bookData.cover,
       totalChapters: bookData.totalChapters,
       storagePath: outputDir,
+      originalFilename: req.file.originalname || '',
     });
 
     res.status(201).json(book);
@@ -142,7 +143,7 @@ exports.exportEpub = async (req, res) => {
     const epubExporter = require('../services/epubExporter');
     const epubBuffer = await epubExporter.exportWithMediaOverlays(book);
 
-    const filename = `${book.title.replace(/[^a-zA-Z0-9]/g, '_')}.epub`;
+    const filename = book.originalFilename || `${book.title.replace(/[^a-zA-Z0-9]/g, '_')}.epub`;
     res.set({
       'Content-Type': 'application/epub+zip',
       'Content-Disposition': `attachment; filename="${filename}"`,
