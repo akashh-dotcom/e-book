@@ -52,7 +52,7 @@ export function useMediaOverlay(syncData, audioUrl) {
   const lastActiveIdxRef = useRef(-1);
 
   // Original sync data — the alignment before any word-edge drags.
-  // Resets when word IDs change (e.g. after re-sync from aeneas).
+  // Resets when word IDs change (e.g. after re-sync).
   const originalSyncRef = useRef(null);
 
   useEffect(() => {

@@ -122,8 +122,6 @@ export default function ChapterAudioUpload({
           >
             <option value="auto">Auto (TTS/WhisperX)</option>
             <option value="whisperx">WhisperX</option>
-            <option value="aeneas">Aeneas (DTW)</option>
-            <option value="ensemble">Ensemble (Best)</option>
           </select>
           <button
             className="audio-upload-btn sync"

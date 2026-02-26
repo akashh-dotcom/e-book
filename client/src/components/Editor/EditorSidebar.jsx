@@ -148,8 +148,6 @@ export default function EditorSidebar({
                 >
                   <option value="auto">Auto (TTS/WhisperX)</option>
                   <option value="whisperx">WhisperX</option>
-                  <option value="aeneas">Aeneas (DTW)</option>
-                  <option value="ensemble">Ensemble (Best)</option>
                 </select>
                 <button
                   className="ed-audio-action-btn ed-sync-action-btn"
