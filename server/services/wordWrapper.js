@@ -1,5 +1,33 @@
 const cheerio = require('cheerio');
 
+// Content elements whose text nodes should be wrapped / extracted.
+// Must match between wrap() and getPlainText() so TTS audio and
+// sync highlighting use the exact same word list in the same order.
+const CONTENT_TAGS = new Set([
+  'p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'li', 'td', 'th',
+  'blockquote', 'figcaption', 'dt', 'dd', 'span', 'em', 'strong', 'a',
+  'b', 'i', 'u', 's', 'sub', 'sup', 'small', 'mark', 'cite', 'q',
+  'abbr', 'dfn', 'time', 'label', 'caption',
+]);
+
+// Elements that should never have their text extracted.
+const SKIP_TAGS = new Set(['script', 'style', 'noscript']);
+
+/**
+ * Check whether a node is inside at least one content element.
+ */
+function isInsideContentElement(node) {
+  let ancestor = node.parent;
+  while (ancestor) {
+    if (ancestor.type === 'tag') {
+      if (SKIP_TAGS.has(ancestor.name)) return false;
+      if (CONTENT_TAGS.has(ancestor.name)) return true;
+    }
+    ancestor = ancestor.parent;
+  }
+  return false;
+}
+
 class WordWrapper {
 
   /**
@@ -13,12 +41,16 @@ class WordWrapper {
   /**
    * Wrap each word in chapter HTML with <span id="wXXXXX">.
    *
+   * Uses a depth-first DOM walk so that words are numbered in
+   * document reading order — critical for correct TTS ↔ highlight
+   * synchronisation even when inline elements (em, strong, a …)
+   * are nested inside block elements (p, h1, li …).
+   *
    * @param {string} html - Raw chapter HTML
    * @param {number} startIndex - Starting word index (default 0)
    * @returns {{ html, wordCount, words, wordIds, plainText }}
    */
   wrap(html, startIndex = 0) {
-    // Strip any existing word wrapping to prevent double-wrapping
     const cleanHtml = this.unwrap(html);
     const $ = cheerio.load(cleanHtml, { xmlMode: false });
     let wordIndex = startIndex;
@@ -26,15 +58,11 @@ class WordWrapper {
     const wordIds = [];
     const plainTextParts = [];
 
-    const textElements =
-      'p, h1, h2, h3, h4, h5, h6, li, td, th, ' +
-      'blockquote, figcaption, dt, dd, span, em, strong, a';
-
-    $(textElements).each((_, el) => {
-      $(el).contents().each((_, node) => {
-        if (node.type !== 'text') return;
-        const text = $(node).text();
-        if (!text.trim()) return;
+    const processNode = (node) => {
+      if (node.type === 'text') {
+        if (!isInsideContentElement(node)) return;
+        const text = node.data;
+        if (!text || !text.trim()) return;
 
         plainTextParts.push(text.trim());
 
@@ -49,8 +77,23 @@ class WordWrapper {
         }).join('');
 
         $(node).replaceWith(wrapped);
-      });
-    });
+        return;
+      }
+
+      // Skip non-content container tags
+      if (node.type === 'tag' && SKIP_TAGS.has(node.name)) return;
+
+      // Recurse into children in document order.
+      // Copy the children array because replaceWith mutates it.
+      if (node.children) {
+        const children = [...node.children];
+        for (const child of children) {
+          processNode(child);
+        }
+      }
+    };
+
+    processNode($.root()[0]);
 
     return {
       html: $.html(),
@@ -62,11 +105,32 @@ class WordWrapper {
   }
 
   /**
-   * Get plain text from HTML (same method used by audio generation).
+   * Get plain text from HTML — extracts words from the same content
+   * elements in the same document order as wrap(), so the text sent
+   * to TTS matches exactly what will be word-wrapped for highlighting.
    */
   getPlainText(html) {
     const cleanHtml = this.unwrap(html);
-    return cleanHtml.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+    const $ = cheerio.load(cleanHtml, { xmlMode: false });
+    const parts = [];
+
+    const collectText = (node) => {
+      if (node.type === 'text') {
+        if (!isInsideContentElement(node)) return;
+        const text = node.data?.trim();
+        if (text) parts.push(text);
+        return;
+      }
+      if (node.type === 'tag' && SKIP_TAGS.has(node.name)) return;
+      if (node.children) {
+        for (const child of node.children) {
+          collectText(child);
+        }
+      }
+    };
+
+    collectText($.root()[0]);
+    return parts.join(' ');
   }
 }
 
