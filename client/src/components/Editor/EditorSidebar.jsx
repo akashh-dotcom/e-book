@@ -55,7 +55,7 @@ export default function EditorSidebar({
   const handleRegenerate = async () => {
     setRegenerating(true);
     setError('');
-    try { await onRegenerate(selectedVoice); }
+    try { await onRegenerate(selectedVoice, { engine: selectedEngine }); }
     catch (err) { setError(err.response?.data?.error || 'Re-generate failed'); }
     setRegenerating(false);
   };
@@ -147,6 +147,7 @@ export default function EditorSidebar({
                   disabled={syncing}
                 >
                   <option value="auto">Auto (TTS/WhisperX)</option>
+                  <option value="stable-ts">Stable-TS (Best Accuracy)</option>
                   <option value="whisperx">WhisperX</option>
                 </select>
                 <button
@@ -181,6 +182,16 @@ export default function EditorSidebar({
                       className="ed-voice-select"
                       disabled={regenerating}
                     />
+                    <select
+                      className="ed-engine-select"
+                      value={selectedEngine}
+                      onChange={e => setSelectedEngine(e.target.value)}
+                      disabled={regenerating}
+                    >
+                      <option value="auto">Auto (TTS/WhisperX)</option>
+                      <option value="stable-ts">Stable-TS (Best Accuracy)</option>
+                      <option value="whisperx">WhisperX</option>
+                    </select>
                     <button
                       className="ed-audio-action-btn ed-generate-btn"
                       onClick={handleRegenerate}

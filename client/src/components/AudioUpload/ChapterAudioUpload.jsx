@@ -62,7 +62,7 @@ export default function ChapterAudioUpload({
     setRegenerating(true);
     setError('');
     try {
-      await onRegenerate(selectedVoice);
+      await onRegenerate(selectedVoice, { engine: selectedEngine });
     } catch (err) {
       setError(err.response?.data?.error || 'Re-generate failed');
     }

@@ -163,12 +163,12 @@ export default function ReaderPage() {
                 const lang = reader.translatedLang || undefined;
                 await audio.generateAudio(voice, { lang });
               }}
-              onRegenerate={async (voice) => {
+              onRegenerate={async (voice, { engine } = {}) => {
                 const lang = reader.translatedLang || undefined;
                 setRegenProgress({ percent: 5, message: 'Generating audio...' });
                 await audio.generateAudio(voice, { lang });
                 setRegenProgress({ percent: 50, message: 'Audio generated. Syncing...' });
-                await audio.runAutoSync('word', { lang });
+                await audio.runAutoSync('word', { lang, engine });
                 setRegenProgress({ percent: 95, message: 'Reloading...' });
                 reader.reloadChapter();
                 setRegenProgress({ percent: 100, message: 'Done!' });
