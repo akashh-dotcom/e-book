@@ -22,6 +22,7 @@ export function useAudioPlayer(bookId, chapterIndex, lang) {
   const [hasAudio, setHasAudio] = useState(false);
   const [hasSyncData, setHasSyncData] = useState(false);
   const [syncProgress, setSyncProgress] = useState(null); // { step, message }
+  const [syncVersion, setSyncVersion] = useState(0); // increments on backend sync loads
   const blobUrlRef = useRef(null);
 
   const langQuery = lang ? `?lang=${lang}` : '';
@@ -58,6 +59,7 @@ export function useAudioPlayer(bookId, chapterIndex, lang) {
       .then(res => {
         if (!cancelled && res.data?.syncData) {
           setSyncData(res.data.syncData);
+          setSyncVersion(v => v + 1);
           setHasSyncData(true);
         }
       })
@@ -147,6 +149,7 @@ export function useAudioPlayer(bookId, chapterIndex, lang) {
       const syncRes = await api.get(`/sync/${bookId}/${chapterIndex}${lq}`);
       if (syncRes.data?.syncData) {
         setSyncData(syncRes.data.syncData);
+        setSyncVersion(v => v + 1);
         setHasSyncData(true);
       }
     } finally {
@@ -163,6 +166,7 @@ export function useAudioPlayer(bookId, chapterIndex, lang) {
     api.get(`/sync/${bookId}/${chapterIndex}${langQuery}`)
       .then(res => {
         setSyncData(res.data.syncData);
+        setSyncVersion(v => v + 1);
         setHasSyncData(true);
       })
       .catch(() => {
@@ -203,6 +207,7 @@ export function useAudioPlayer(bookId, chapterIndex, lang) {
   return {
     audioUrl,
     syncData,
+    syncVersion,
     hasAudio,
     hasSyncData,
     syncProgress,

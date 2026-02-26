@@ -22,7 +22,7 @@ export default function ReaderPage() {
 
   // Audio & sync data — pass translatedLang so we fetch language-specific audio
   const audio = useAudioPlayer(bookId, reader.chapterIndex, reader.translatedLang);
-  const overlay = useMediaOverlay(audio.syncData, audio.audioUrl);
+  const overlay = useMediaOverlay(audio.syncData, audio.audioUrl, audio.syncVersion);
   const [reSyncing, setReSyncing] = useState(false);
   const [editorMode, setEditorMode] = useState(false);
   const [translateOpen, setTranslateOpen] = useState(false);

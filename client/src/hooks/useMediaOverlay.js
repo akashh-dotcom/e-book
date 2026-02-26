@@ -36,7 +36,7 @@ function findActiveIndex(data, time) {
   return -1;
 }
 
-export function useMediaOverlay(syncData, audioUrl) {
+export function useMediaOverlay(syncData, audioUrl, syncVersion = 0) {
   const audioRef = useRef(null);
   const rafRef = useRef(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -52,21 +52,27 @@ export function useMediaOverlay(syncData, audioUrl) {
   const lastActiveIdxRef = useRef(-1);
 
   // Original sync data — the alignment before any word-edge drags.
-  // Resets when word IDs change (e.g. after re-sync).
+  // Resets when syncVersion changes (backend re-sync / initial load) or
+  // when word IDs change (different chapter / re-wrapped text).
+  // Word-edge drags update syncData but NOT syncVersion, so the original
+  // timing is preserved and the playback rate adjusts to match.
   const originalSyncRef = useRef(null);
+  const prevSyncVersionRef = useRef(syncVersion);
 
   useEffect(() => {
     if (!syncData?.length) return;
+    const versionChanged = syncVersion !== prevSyncVersionRef.current;
     const newIds = syncData.map(w => w.id).join(',');
     const origIds = originalSyncRef.current?.map(w => w.id).join(',');
-    if (!originalSyncRef.current || newIds !== origIds) {
+    if (!originalSyncRef.current || newIds !== origIds || versionChanged) {
       originalSyncRef.current = syncData.map(w => ({
         id: w.id,
         clipBegin: w.clipBegin,
         clipEnd: w.clipEnd,
       }));
+      prevSyncVersionRef.current = syncVersion;
     }
-  }, [syncData]);
+  }, [syncData, syncVersion]);
 
   // ---- Time mapping: audio position <-> virtual timeline ----
 
