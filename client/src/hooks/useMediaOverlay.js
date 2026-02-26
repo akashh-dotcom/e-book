@@ -3,7 +3,13 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 /**
  * Binary search for the word whose [clipBegin, clipEnd) contains `time`.
  * Assumes `data` is sorted by clipBegin (ascending).
- * Returns the index into `data`, or -1 if in a gap / out of range.
+ *
+ * When `time` falls in a gap between two words (e.g. word A ends at 2.5s,
+ * word B starts at 2.8s, time=2.6s), returns the LAST word whose clipBegin
+ * is <= time.  This keeps the highlight on the previous word during gaps
+ * instead of flashing to no-highlight, which produces much smoother karaoke.
+ *
+ * Returns -1 only when `time` is before the very first word.
  */
 function findActiveIndex(data, time) {
   let lo = 0;
@@ -14,7 +20,6 @@ function findActiveIndex(data, time) {
     // Skip entries with null timing (skipped words)
     if (entry.clipBegin === null || entry.clipEnd === null) {
       // Search both sides from this null entry
-      let found = -1;
       for (let j = mid - 1; j >= lo; j--) {
         if (data[j].clipBegin !== null && time >= data[j].clipBegin && time < data[j].clipEnd) return j;
         if (data[j].clipEnd !== null && data[j].clipEnd <= time) break;
@@ -23,7 +28,7 @@ function findActiveIndex(data, time) {
         if (data[j].clipBegin !== null && time >= data[j].clipBegin && time < data[j].clipEnd) return j;
         if (data[j].clipBegin !== null && data[j].clipBegin > time) break;
       }
-      return found;
+      break; // no exact match around null zone — fall through to gap handler
     }
     if (time < entry.clipBegin) {
       hi = mid - 1;
@@ -33,7 +38,23 @@ function findActiveIndex(data, time) {
       return mid; // time is within [clipBegin, clipEnd)
     }
   }
-  return -1;
+
+  // No exact [clipBegin, clipEnd) match — we're in a gap between words.
+  // Find the last word whose clipBegin <= time (keeps previous word lit).
+  lo = 0;
+  hi = data.length - 1;
+  let best = -1;
+  while (lo <= hi) {
+    const mid = (lo + hi) >>> 1;
+    const entry = data[mid];
+    if (entry.clipBegin !== null && entry.clipBegin <= time) {
+      best = mid;
+      lo = mid + 1;
+    } else {
+      hi = mid - 1;
+    }
+  }
+  return best;
 }
 
 export function useMediaOverlay(syncData, audioUrl, syncVersion = 0) {
@@ -261,8 +282,8 @@ export function useMediaOverlay(syncData, audioUrl, syncVersion = 0) {
     const tick = (timestamp) => {
       if (!audioRef.current) return;
 
-      // Throttle updates to ~every 30ms (33fps) to avoid excessive work
-      if (timestamp - lastUpdate >= 30) {
+      // Update every frame (~16ms / 60fps) for precise word highlighting
+      if (timestamp - lastUpdate >= 16) {
         lastUpdate = timestamp;
         const audioTime = audioRef.current.currentTime;
 
