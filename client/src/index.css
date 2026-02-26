@@ -2488,14 +2488,14 @@ body {
 
 .ed-body {
   display: grid;
-  grid-template-columns: 320px 1fr 340px;
+  grid-template-columns: 400px 1fr 340px;
   overflow: hidden;
   min-height: 0;
 }
 
 /* When no properties panel */
 .ed-body:not(:has(.ed-properties)) {
-  grid-template-columns: 320px 1fr;
+  grid-template-columns: 400px 1fr;
 }
 
 /* --- SIDEBAR (left) --- */
