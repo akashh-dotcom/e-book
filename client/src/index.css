@@ -2867,9 +2867,9 @@ body {
 }
 
 .ed-canvas-inner {
-  max-width: 100%;
+  max-width: 760px;
   margin: 0 auto;
-  padding: 36px 40px 80px;
+  padding: 36px 48px 80px;
   animation: edSlideUp 0.4s ease-out 0.1s both;
 }
 
