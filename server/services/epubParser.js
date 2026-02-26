@@ -280,7 +280,8 @@ class EpubParser {
         continue;
       }
 
-      const bodyChildren = body.contents().toArray();
+      // Use children() for element nodes only (skip whitespace text nodes)
+      const bodyChildren = body.children().toArray();
 
       // Find DOM positions of each anchor element
       const anchorPositions = [];
@@ -288,7 +289,7 @@ class EpubParser {
         const el = $(`[id="${a.anchor}"]`).first();
         if (!el.length) continue;
 
-        // Walk up to the top-level body child
+        // Walk up to the top-level body child element
         let topLevel = el[0];
         while (topLevel.parentNode && topLevel.parentNode !== body[0]) {
           topLevel = topLevel.parentNode;
@@ -318,10 +319,14 @@ class EpubParser {
           ? anchorPositions[i + 1].domIndex
           : bodyChildren.length;
 
-        let sectionHtml = '';
+        // Clone elements into a wrapper to safely extract HTML
+        const $wrapper = $('<div></div>');
         for (let j = start; j < end; j++) {
-          sectionHtml += $.html(bodyChildren[j]);
+          $wrapper.append($(bodyChildren[j]).clone());
         }
+        const sectionHtml = $wrapper.html();
+
+        if (!sectionHtml) continue; // Skip empty sections
 
         const fullContent = `<!DOCTYPE html><html><head>${headHtml}</head><body>${sectionHtml}</body></html>`;
 
