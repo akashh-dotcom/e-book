@@ -2870,14 +2870,11 @@ body {
   max-width: 100%;
   margin: 0 auto;
   padding: 36px 40px 80px;
-  display: flex;
-  justify-content: center;
   animation: edSlideUp 0.4s ease-out 0.1s both;
 }
 
 .ed-canvas-inner .chapter-content {
-  width: 100%;
-  max-width: 700px;
+  text-align: center;
 }
 
 /* --- PROPERTIES (right) --- */
