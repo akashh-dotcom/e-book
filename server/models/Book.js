@@ -10,9 +10,11 @@ const chapterSchema = new mongoose.Schema({
 const tocEntrySchema = new mongoose.Schema({
   title: String,
   href: String,
+  chapterIndex: { type: Number, default: 0 },
   children: [{
     title: String,
     href: String,
+    chapterIndex: { type: Number, default: 0 },
   }],
 }, { _id: false });
 

@@ -19,7 +19,6 @@ export default function Sidebar({
             <TocItem
               key={i}
               entry={entry}
-              chapterIndex={i}
               currentIndex={currentIndex}
               onSelect={onSelect}
             />
@@ -44,16 +43,18 @@ export default function Sidebar({
   );
 }
 
-function TocItem({ entry, chapterIndex, currentIndex, onSelect }) {
+function TocItem({ entry, currentIndex, onSelect }) {
   const [open, setOpen] = useState(false);
   const hasChildren = entry.children && entry.children.length > 0;
+  const chapterIdx = entry.chapterIndex ?? 0;
+  const fragment = (entry.href || '').split('#')[1] || undefined;
 
   return (
     <div className="toc-group">
       <button
-        className={`toc-entry ${chapterIndex === currentIndex ? 'active' : ''}`}
+        className={`toc-entry ${chapterIdx === currentIndex ? 'active' : ''}`}
         onClick={() => {
-          onSelect(chapterIndex);
+          onSelect(chapterIdx, fragment);
           if (hasChildren) setOpen(!open);
         }}
       >
@@ -67,15 +68,19 @@ function TocItem({ entry, chapterIndex, currentIndex, onSelect }) {
 
       {hasChildren && open && (
         <div className="toc-children">
-          {entry.children.map((child, j) => (
-            <button
-              key={j}
-              className="toc-entry toc-child"
-              onClick={() => onSelect(chapterIndex)}
-            >
-              {child.title}
-            </button>
-          ))}
+          {entry.children.map((child, j) => {
+            const childIdx = child.chapterIndex ?? chapterIdx;
+            const childFrag = (child.href || '').split('#')[1] || undefined;
+            return (
+              <button
+                key={j}
+                className={`toc-entry toc-child ${childIdx === currentIndex ? 'active' : ''}`}
+                onClick={() => onSelect(childIdx, childFrag)}
+              >
+                {child.title}
+              </button>
+            );
+          })}
         </div>
       )}
     </div>

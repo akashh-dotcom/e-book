@@ -24,6 +24,7 @@ export default function useReader(bookId) {
   const [translating, setTranslating] = useState(false);
   const [translateProgress, setTranslateProgress] = useState(0); // 0-100
   const chapterRef = useRef(null);
+  const pendingFragment = useRef(null);
   // Skip the next useEffect chapter reload (set after translateTo completes)
   const skipNextLoad = useRef(false);
 
@@ -92,6 +93,18 @@ export default function useReader(bookId) {
     }
   }, [book, bookId, chapterIndex, translatedLang]);
 
+  // Scroll to fragment after chapter content loads
+  useEffect(() => {
+    if (!pendingFragment.current || !chapterRef.current) return;
+    const frag = pendingFragment.current;
+    pendingFragment.current = null;
+    // Delay to ensure DOM has rendered the new chapter HTML
+    requestAnimationFrame(() => {
+      const el = chapterRef.current?.querySelector(`[id="${CSS.escape(frag)}"]`);
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  }, [chapterHtml]);
+
   // Load bookmarks
   useEffect(() => {
     if (!bookId) return;
@@ -112,10 +125,19 @@ export default function useReader(bookId) {
     }
   }, [chapterIndex]);
 
-  const goToChapter = useCallback((index) => {
-    setChapterIndex(index);
+  const goToChapter = useCallback((index, fragment) => {
+    pendingFragment.current = fragment || null;
+    if (index === chapterIndex && fragment && chapterRef.current) {
+      // Same chapter — just scroll to the fragment
+      requestAnimationFrame(() => {
+        const el = chapterRef.current.querySelector(`[id="${CSS.escape(fragment)}"]`);
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    } else {
+      setChapterIndex(index);
+    }
     setSearchOpen(false);
-  }, []);
+  }, [chapterIndex]);
 
   const addBookmark = useCallback(async (data) => {
     try {

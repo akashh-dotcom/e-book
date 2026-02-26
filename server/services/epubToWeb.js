@@ -76,11 +76,14 @@ class EpubToWeb {
       }
     }
 
+    // Resolve TOC hrefs to chapter indices
+    const resolvedToc = this.resolveToc(toc, chapters, opfDir);
+
     // Save metadata
     const bookData = {
       metadata,
       chapters: processedChapters,
-      toc,
+      toc: resolvedToc,
       cover: coverPath,
       totalChapters: processedChapters.length,
     };
@@ -91,6 +94,44 @@ class EpubToWeb {
     );
 
     return bookData;
+  }
+
+  /**
+   * Map TOC hrefs to chapter indices so the sidebar can navigate correctly.
+   * TOC hrefs are relative to nav/ncx location; chapter hrefs are full zip paths.
+   */
+  resolveToc(toc, chapters, opfDir) {
+    // Build lookup: relative path (stripped of opfDir) → chapter index
+    const hrefToIndex = {};
+    for (const ch of chapters) {
+      const rel = opfDir && opfDir !== '.'
+        ? ch.href.replace(opfDir + '/', '')
+        : ch.href;
+      hrefToIndex[rel] = ch.index;
+      // Also store basename for fuzzy matching
+      hrefToIndex[path.posix.basename(ch.href)] = ch.index;
+    }
+
+    const resolve = (href) => {
+      if (!href) return 0;
+      const filePart = href.split('#')[0];
+      if (hrefToIndex[filePart] !== undefined) return hrefToIndex[filePart];
+      // Try basename
+      const base = path.posix.basename(filePart);
+      if (hrefToIndex[base] !== undefined) return hrefToIndex[base];
+      return 0;
+    };
+
+    return toc.map(entry => ({
+      title: entry.title,
+      href: entry.href,
+      chapterIndex: resolve(entry.href),
+      children: (entry.children || []).map(child => ({
+        title: child.title,
+        href: child.href,
+        chapterIndex: resolve(child.href),
+      })),
+    }));
   }
 
   processChapter(xhtml, chapterHref, opfDir) {
