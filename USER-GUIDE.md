@@ -47,6 +47,43 @@ Install the following before you begin:
 | **ffprobe** | any | Audio duration detection |
 | **Git** | any | Clone the repository |
 
+### System tools — install commands
+
+**Ubuntu / Debian:**
+
+```bash
+# Node.js 18 (via NodeSource)
+curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+sudo apt install -y nodejs
+
+# MongoDB
+sudo apt install -y mongodb
+
+# Python 3
+sudo apt install -y python3 python3-pip python3-venv
+
+# ffmpeg (includes ffprobe)
+sudo apt install -y ffmpeg
+
+# Git
+sudo apt install -y git
+```
+
+**macOS (Homebrew):**
+
+```bash
+brew install node mongodb-community python ffmpeg git
+```
+
+**Windows:**
+
+Download and install from official sites:
+- Node.js: https://nodejs.org
+- MongoDB: https://www.mongodb.com/try/download/community
+- Python: https://www.python.org/downloads/
+- ffmpeg: https://ffmpeg.org/download.html
+- Git: https://git-scm.com/downloads
+
 ### Verify installations
 
 ```bash
@@ -57,6 +94,44 @@ python3 --version # should print 3.8+
 ffmpeg -version  # should print version info
 ffprobe -version # should print version info
 ```
+
+### Node.js Dependencies Breakdown
+
+These are installed automatically by `npm install` inside `server/` and `client/`.
+
+#### Server (`server/package.json`)
+
+| Package | Version | Purpose |
+|---------|---------|---------|
+| **express** | ^4.21.2 | Web server framework — handles all API routes |
+| **mongoose** | ^8.23.0 | MongoDB ODM — defines schemas, queries the database |
+| **bcryptjs** | ^3.0.3 | Password hashing — secures user passwords at rest |
+| **jsonwebtoken** | ^9.0.3 | JWT authentication — generates & verifies login tokens |
+| **multer** | ^1.4.5-lts.1 | File upload middleware — handles EPUB and audio uploads |
+| **jszip** | ^3.10.1 | ZIP extraction — unpacks EPUB files (EPUB = ZIP) |
+| **cheerio** | ^1.0.0 | HTML parser — processes chapter HTML, word-wrapping, cleanup |
+| **xml2js** | ^0.6.2 | XML parser — reads OPF, NCX, nav.xhtml from EPUBs |
+| **cors** | ^2.8.5 | Cross-Origin Resource Sharing — lets frontend talk to backend |
+| **dotenv** | ^16.4.7 | Environment variables — loads `.env` config |
+| **stripe** | ^20.3.1 | Stripe SDK — payment processing, subscriptions |
+| **nodemon** | ^3.1.9 | *(dev)* Auto-restart server on file changes |
+
+#### Client (`client/package.json`)
+
+| Package | Version | Purpose |
+|---------|---------|---------|
+| **react** | ^18.3.1 | UI library — component-based rendering |
+| **react-dom** | ^18.3.1 | React DOM renderer |
+| **react-router-dom** | ^7.1.1 | Client-side routing — pages, navigation, route guards |
+| **axios** | ^1.7.9 | HTTP client — all API calls to the backend |
+| **zustand** | ^5.0.3 | State management — auth store, book store |
+| **lucide-react** | ^0.468.0 | Icon library — all UI icons |
+| **@stripe/stripe-js** | ^8.8.0 | Stripe frontend SDK — redirects to checkout/portal |
+| **vite** | ^6.0.7 | *(dev)* Build tool — dev server, bundling, HMR |
+| **tailwindcss** | ^3.4.17 | *(dev)* Utility CSS framework — all styling |
+| **@vitejs/plugin-react** | ^4.3.4 | *(dev)* Vite React plugin — JSX transform, Fast Refresh |
+| **autoprefixer** | ^10.4.20 | *(dev)* CSS vendor prefixes |
+| **postcss** | ^8.4.49 | *(dev)* CSS processing pipeline |
 
 ---
 
@@ -96,17 +171,70 @@ source venv/bin/activate        # Linux/Mac
 pip install -r requirements.txt
 ```
 
-This installs:
-- **WhisperX** — forced audio-text alignment
-- **torch / torchaudio** — ML backend for WhisperX
+All Python dependencies are now included in `requirements.txt`. Here is what each one does:
 
-### 2.5 Install additional Python packages (for full feature set)
+### Python Dependencies Breakdown
+
+| # | Package | Install Source | Size | Purpose | Required? |
+|---|---------|---------------|------|---------|-----------|
+| 1 | **whisperx** | `git+https://github.com/m-bain/whisperX.git` | ~200MB + model downloads | Forced audio-text alignment — maps each word in the text to its timestamp in the audio | Yes (for audio sync) |
+| 2 | **torch** | PyPI | ~2GB (CPU) / ~2.5GB (CUDA) | PyTorch ML framework — backend for WhisperX and stable-ts | Yes (for audio sync) |
+| 3 | **torchaudio** | PyPI | ~10MB | Audio I/O and processing for PyTorch — loads and resamples audio files | Yes (for audio sync) |
+| 4 | **edge-tts** | PyPI | ~50KB | Microsoft Edge Text-to-Speech — generates audio narration with 140+ voices, also captures per-word timing (WordBoundary events) for instant sync | Yes (for TTS generation) |
+| 5 | **transformers** | PyPI | ~500MB | Hugging Face library — loads and runs Meta's NLLB-200 translation model | Yes (for translation) |
+| 6 | **sentencepiece** | PyPI | ~2MB | Tokenizer — required by NLLB-200 to split text into subword tokens before translation | Yes (for translation) |
+| 7 | **stable-ts** | PyPI | ~50KB | Enhanced Whisper timestamps — alternative alignment engine, better accuracy than standard Whisper on some audio | Optional |
+
+### What each dependency powers
+
+```
+Feature                        Dependencies needed
+──────────────────────────────────────────────────────────────
+Audio-Text Sync (WhisperX)  →  whisperx, torch, torchaudio
+Audio-Text Sync (stable-ts) →  stable-ts, torch
+TTS Audio Generation        →  edge-tts
+Chapter Translation         →  transformers, sentencepiece
+```
+
+### Install everything at once
 
 ```bash
-pip install edge-tts            # Text-to-speech generation
-pip install transformers sentencepiece  # NLLB translation model
-pip install stable-ts           # (optional) enhanced alignment
+pip install -r requirements.txt
 ```
+
+### Or install per feature
+
+```bash
+# Audio sync only (WhisperX)
+pip install whisperx@git+https://github.com/m-bain/whisperX.git torch torchaudio
+
+# TTS generation only
+pip install edge-tts
+
+# Translation only
+pip install transformers sentencepiece
+
+# Optional: enhanced alignment
+pip install stable-ts
+```
+
+### GPU vs CPU
+
+- **With NVIDIA GPU (CUDA):** WhisperX runs significantly faster. Install PyTorch with CUDA:
+  ```bash
+  pip install torch torchaudio --index-url https://download.pytorch.org/whl/cu121
+  ```
+- **CPU only:** Works but alignment is slower. The default `pip install torch torchaudio` installs the CPU version.
+
+### First-run downloads
+
+Some packages download large models on first use:
+
+| Model | Size | When Downloaded |
+|-------|------|-----------------|
+| WhisperX alignment model | ~1–3GB | First time you run Auto-Sync |
+| NLLB-200 translation model | ~1.2GB | First time you translate a chapter |
+| edge-tts voices | Streamed | Each TTS request (no local download) |
 
 ---
 
