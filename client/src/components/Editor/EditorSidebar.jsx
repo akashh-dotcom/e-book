@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import {
-  BookOpen, Upload, Volume2, Wand2, Mic, Loader, ChevronRight, ChevronDown,
-  Music, FileAudio, RefreshCw,
+  BookOpen, Upload, Volume2, Wand2, Mic, Loader, X,
+  Music, FileAudio, RefreshCw, Trash2,
 } from 'lucide-react';
 import VoiceSelector, { DEFAULT_VOICE } from '../VoiceSelector';
 
@@ -15,6 +15,8 @@ export default function EditorSidebar({
   onGenerate,
   onAutoSync,
   onRegenerate,
+  onDeleteAudio,
+  onDeleteSync,
   bookId,
   syncProgress,
 }) {
@@ -23,8 +25,9 @@ export default function EditorSidebar({
   const [generating, setGenerating] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [selectedVoice, setSelectedVoice] = useState(DEFAULT_VOICE);
-  const [selectedEngine, setSelectedEngine] = useState('auto');
+  const [selectedEngine, setSelectedEngine] = useState('stable-ts');
   const [error, setError] = useState('');
 
   const handleUpload = async (file) => {
@@ -60,7 +63,43 @@ export default function EditorSidebar({
     setRegenerating(false);
   };
 
+  const handleDeleteAudio = async () => {
+    if (!onDeleteAudio) return;
+    setDeleting(true);
+    setError('');
+    try { await onDeleteAudio(); }
+    catch (err) { setError(err.response?.data?.error || 'Delete failed'); }
+    setDeleting(false);
+  };
+
+  const handleDeleteSync = async () => {
+    if (!onDeleteSync) return;
+    setDeleting(true);
+    setError('');
+    try { await onDeleteSync(); }
+    catch (err) { setError(err.response?.data?.error || 'Delete failed'); }
+    setDeleting(false);
+  };
+
+  const isBusy = generating || syncing || regenerating || deleting;
   const chapters = book?.chapters || [];
+
+  /* Shared engine selector */
+  const engineSelect = (
+    <div className="ed-engine-wrapper">
+      <label className="ed-engine-label">Sync Engine</label>
+      <select
+        className="ed-engine-select"
+        value={selectedEngine}
+        onChange={e => setSelectedEngine(e.target.value)}
+        disabled={isBusy}
+      >
+        <option value="stable-ts">Stable-TS (Default)</option>
+        <option value="whisperx">WhisperX</option>
+        <option value="auto">Auto (TTS timing)</option>
+      </select>
+    </div>
+  );
 
   return (
     <div className="ed-sidebar">
@@ -104,12 +143,14 @@ export default function EditorSidebar({
       {activeTab === 'audio' && (
         <div className="ed-sidebar-content">
           <div className="ed-audio-section">
+            {/* Status row */}
             <div className="ed-audio-status">
               <FileAudio size={16} />
               <span>{hasAudio ? 'Audio loaded' : 'No audio'}</span>
               {hasSyncData && <span className="ed-sync-badge">Synced</span>}
             </div>
 
+            {/* ── STATE 1: No audio yet ── */}
             {!hasAudio && (
               <div className="ed-audio-actions">
                 <label className="ed-audio-action-btn">
@@ -122,6 +163,9 @@ export default function EditorSidebar({
                     onChange={e => handleUpload(e.target.files[0])}
                   />
                 </label>
+
+                <div className="ed-divider-label">or generate with TTS</div>
+
                 <VoiceSelector
                   value={selectedVoice}
                   onChange={setSelectedVoice}
@@ -133,27 +177,19 @@ export default function EditorSidebar({
                   disabled={generating}
                 >
                   {generating ? <Loader size={14} className="spin" /> : <Volume2 size={14} />}
-                  <span>{generating ? 'Generating...' : 'Generate (TTS)'}</span>
+                  <span>{generating ? 'Generating...' : 'Generate Audio'}</span>
                 </button>
               </div>
             )}
 
+            {/* ── STATE 2: Audio loaded, not synced ── */}
             {hasAudio && !hasSyncData && (
               <div className="ed-audio-actions">
-                <select
-                  className="ed-engine-select"
-                  value={selectedEngine}
-                  onChange={e => setSelectedEngine(e.target.value)}
-                  disabled={syncing}
-                >
-                  <option value="auto">Auto (TTS/WhisperX)</option>
-                  <option value="stable-ts">Stable-TS (Best Accuracy)</option>
-                  <option value="whisperx">WhisperX</option>
-                </select>
+                {engineSelect}
                 <button
                   className="ed-audio-action-btn ed-sync-action-btn"
                   onClick={handleSync}
-                  disabled={syncing}
+                  disabled={isBusy}
                 >
                   {syncing ? <Loader size={14} className="spin" /> : <Wand2 size={14} />}
                   <span>{syncing ? 'Syncing...' : 'Auto-Sync'}</span>
@@ -162,6 +198,18 @@ export default function EditorSidebar({
                   <Mic size={14} />
                   <span>Manual Sync</span>
                 </a>
+
+                {/* Remove audio button */}
+                <button
+                  className="ed-audio-action-btn ed-remove-btn"
+                  onClick={handleDeleteAudio}
+                  disabled={isBusy}
+                  title="Remove audio and start over"
+                >
+                  {deleting ? <Loader size={14} className="spin" /> : <X size={14} />}
+                  <span>Remove Audio</span>
+                </button>
+
                 {syncing && syncProgress && (
                   <div className="ed-sync-progress">
                     <Loader size={12} className="spin" />
@@ -171,41 +219,68 @@ export default function EditorSidebar({
               </div>
             )}
 
+            {/* ── STATE 3: Synced ── */}
             {hasAudio && hasSyncData && (
               <div className="ed-audio-ready">
                 Audio is synced and ready for editing. Use the timeline below to trim.
-                {onRegenerate && (
-                  <div className="ed-audio-actions" style={{ marginTop: 8 }}>
-                    <VoiceSelector
-                      value={selectedVoice}
-                      onChange={setSelectedVoice}
-                      className="ed-voice-select"
-                      disabled={regenerating}
-                    />
-                    <select
-                      className="ed-engine-select"
-                      value={selectedEngine}
-                      onChange={e => setSelectedEngine(e.target.value)}
-                      disabled={regenerating}
-                    >
-                      <option value="auto">Auto (TTS/WhisperX)</option>
-                      <option value="stable-ts">Stable-TS (Best Accuracy)</option>
-                      <option value="whisperx">WhisperX</option>
-                    </select>
-                    <button
-                      className="ed-audio-action-btn ed-generate-btn"
-                      onClick={handleRegenerate}
-                      disabled={regenerating}
-                    >
-                      {regenerating ? <Loader size={14} className="spin" /> : <RefreshCw size={14} />}
-                      <span>{regenerating ? 'Re-generating...' : 'Re-generate & Sync'}</span>
-                    </button>
-                    {regenerating && syncProgress && (
-                      <div className="ed-sync-progress">
-                        <Loader size={12} className="spin" />
-                        <span>{syncProgress.message}</span>
-                      </div>
-                    )}
+
+                {/* Revert buttons */}
+                <div className="ed-revert-row">
+                  <button
+                    className="ed-revert-btn"
+                    onClick={handleDeleteSync}
+                    disabled={isBusy}
+                    title="Remove sync data only (keep audio)"
+                  >
+                    <X size={13} />
+                    <span>Remove Sync</span>
+                  </button>
+                  <button
+                    className="ed-revert-btn ed-revert-btn-danger"
+                    onClick={handleDeleteAudio}
+                    disabled={isBusy}
+                    title="Remove audio and sync data"
+                  >
+                    <Trash2 size={13} />
+                    <span>Remove Audio</span>
+                  </button>
+                </div>
+
+                {/* Re-sync / Re-generate */}
+                <div className="ed-audio-actions" style={{ marginTop: 10 }}>
+                  {engineSelect}
+
+                  <button
+                    className="ed-audio-action-btn ed-sync-action-btn"
+                    onClick={handleSync}
+                    disabled={isBusy}
+                  >
+                    {syncing ? <Loader size={14} className="spin" /> : <Wand2 size={14} />}
+                    <span>{syncing ? 'Re-syncing...' : 'Re-sync'}</span>
+                  </button>
+
+                  <div className="ed-divider-label">or regenerate with new voice</div>
+
+                  <VoiceSelector
+                    value={selectedVoice}
+                    onChange={setSelectedVoice}
+                    className="ed-voice-select"
+                    disabled={isBusy}
+                  />
+                  <button
+                    className="ed-audio-action-btn ed-generate-btn"
+                    onClick={handleRegenerate}
+                    disabled={isBusy}
+                  >
+                    {regenerating ? <Loader size={14} className="spin" /> : <RefreshCw size={14} />}
+                    <span>{regenerating ? 'Regenerating...' : 'Regenerate Audio'}</span>
+                  </button>
+                </div>
+
+                {(syncing || regenerating) && syncProgress && (
+                  <div className="ed-sync-progress">
+                    <Loader size={12} className="spin" />
+                    <span>{syncProgress.message}</span>
                   </div>
                 )}
               </div>

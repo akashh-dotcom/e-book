@@ -197,6 +197,22 @@ export function useAudioPlayer(bookId, chapterIndex, lang) {
     return res.data;
   }, [bookId, chapterIndex, lang, setBlobAudioUrl]);
 
+  const deleteAudio = useCallback(async () => {
+    await api.delete(`/audio/${bookId}/${chapterIndex}${langQuery}`);
+    if (blobUrlRef.current) URL.revokeObjectURL(blobUrlRef.current);
+    blobUrlRef.current = null;
+    setAudioUrl(null);
+    setSyncData(null);
+    setHasAudio(false);
+    setHasSyncData(false);
+  }, [bookId, chapterIndex, langQuery]);
+
+  const deleteSync = useCallback(async () => {
+    await api.delete(`/sync/${bookId}/${chapterIndex}${langQuery}`);
+    setSyncData(null);
+    setHasSyncData(false);
+  }, [bookId, chapterIndex, langQuery]);
+
   // Cleanup blob URL on unmount
   useEffect(() => {
     return () => {
@@ -217,5 +233,7 @@ export function useAudioPlayer(bookId, chapterIndex, lang) {
     reloadSync,
     reloadAudio,
     generateAudio,
+    deleteAudio,
+    deleteSync,
   };
 }
