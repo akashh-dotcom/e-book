@@ -37,6 +37,7 @@ exports.upload = async (req, res) => {
       cover: bookData.cover,
       totalChapters: bookData.totalChapters,
       storagePath: outputDir,
+      originalFilename: req.file.originalname || '',
     });
 
     res.status(201).json(book);
@@ -142,7 +143,7 @@ exports.exportEpub = async (req, res) => {
     const epubExporter = require('../services/epubExporter');
     const epubBuffer = await epubExporter.exportWithMediaOverlays(book);
 
-    const filename = `${book.title.replace(/[^a-zA-Z0-9]/g, '_')}.epub`;
+    const filename = book.originalFilename || `${book.title.replace(/[^a-zA-Z0-9]/g, '_')}.epub`;
     res.set({
       'Content-Type': 'application/epub+zip',
       'Content-Disposition': `attachment; filename="${filename}"`,
@@ -150,6 +151,21 @@ exports.exportEpub = async (req, res) => {
     res.send(epubBuffer);
   } catch (err) {
     console.error('Export error:', err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// Update book settings (e.g. highlight color)
+exports.updateBookSettings = async (req, res) => {
+  try {
+    const book = await Book.findById(req.params.id);
+    if (!book) return res.status(404).json({ error: 'Not found' });
+    if (req.body.highlightColor !== undefined) {
+      book.highlightColor = req.body.highlightColor;
+    }
+    await book.save();
+    res.json({ highlightColor: book.highlightColor });
+  } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };

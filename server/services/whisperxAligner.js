@@ -109,6 +109,7 @@ class WhisperXAligner {
           clipEnd: ttsWords[i].end,
         });
       }
+      this._closeGaps(syncData);
       return syncData;
     }
 
@@ -224,6 +225,14 @@ class WhisperXAligner {
       expIdx++;
     }
 
+    // Close gaps: extend each word's clipEnd to the next word's clipBegin.
+    // Edge-tts WordBoundary durations only cover phonetic pronunciation,
+    // leaving gaps between words where no highlight is active. Extending
+    // clipEnd ensures continuous karaoke-style highlighting that tracks
+    // the actual pace of speech (longer words when voice pauses longer,
+    // shorter words when voice speaks quickly).
+    this._closeGaps(syncData);
+
     return syncData;
   }
 
@@ -267,15 +276,72 @@ class WhisperXAligner {
   }
 
   /**
+   * Close timing gaps between consecutive words so highlighting is
+   * continuous. Each word's clipEnd is extended to the next word's
+   * clipBegin (up to 2s max — larger gaps are real pauses).
+   */
+  _closeGaps(syncData) {
+    for (let i = 0; i < syncData.length - 1; i++) {
+      if (syncData[i].clipEnd === null || syncData[i + 1].clipBegin === null) continue;
+      const gap = syncData[i + 1].clipBegin - syncData[i].clipEnd;
+      if (gap > 0 && gap < 2.0) {
+        syncData[i].clipEnd = syncData[i + 1].clipBegin;
+      }
+    }
+  }
+
+  /**
    * Convert WhisperX timestamps to internal syncData format.
    */
   buildSyncData(whisperxTimestamps, wordIds) {
-    return whisperxTimestamps.map((ts, i) => ({
+    const syncData = whisperxTimestamps.map((ts, i) => ({
       id: wordIds[i] || 'w' + String(i + 1).padStart(5, '0'),
       word: ts.word,
       clipBegin: ts.start,
       clipEnd: ts.end,
     }));
+    this._closeGaps(syncData);
+    return syncData;
+  }
+
+  /**
+   * Perform word-level alignment using stable-ts.
+   * stable-ts modifies Whisper's cross-attention weights to produce
+   * more accurate word timestamps than standard Whisper or edge-TTS timing.
+   * Particularly effective for TTS-generated audio where edge-TTS timing drifts.
+   */
+  async alignWithStableTs(audioPath, words, options = {}) {
+    const { language = 'en', modelSize = 'base', onProgress } = options;
+
+    const tmpDir = path.join(os.tmpdir(), 'stable_ts_' + Date.now());
+    await fs.mkdir(tmpDir, { recursive: true });
+
+    const textPath = path.join(tmpDir, 'words.txt');
+    await fs.writeFile(textPath, words.join('\n'));
+
+    const outputPath = path.join(tmpDir, 'alignment.json');
+
+    const scriptPath = path.join(
+      __dirname, '..', 'scripts', 'stable_ts_align.py'
+    );
+
+    try {
+      await runPythonWithProgress(
+        [scriptPath, audioPath, textPath, outputPath, language, modelSize],
+        { timeout: 900000, onProgress }
+      );
+
+      const timestamps = JSON.parse(
+        await fs.readFile(outputPath, 'utf-8')
+      );
+
+      return timestamps;
+    } catch (err) {
+      console.error('stable-ts alignment failed:', err.message);
+      throw new Error('stable-ts forced alignment failed: ' + err.message);
+    } finally {
+      await fs.rm(tmpDir, { recursive: true, force: true });
+    }
   }
 
   /**
@@ -311,24 +377,28 @@ class WhisperXAligner {
         await fs.readFile(outputPath, 'utf-8')
       );
 
-      // Distribute word timestamps evenly within each sentence
+      // Distribute word timestamps proportionally by character length.
+      // Longer words take longer to pronounce, so they get more time.
       const syncData = [];
       let globalWordIdx = 0;
 
       for (const sent of sentenceTimestamps) {
         const sentWords = sent.text.split(/\s+/).filter(Boolean);
         const sentDuration = sent.end - sent.start;
-        const wordDuration = sentWords.length > 0
-          ? sentDuration / sentWords.length
-          : 0;
+        // Weight by character count (min 1 to avoid zero-length words)
+        const charCounts = sentWords.map(w => Math.max(w.length, 1));
+        const totalChars = charCounts.reduce((a, b) => a + b, 0) || 1;
 
+        let cursor = sent.start;
         for (let i = 0; i < sentWords.length; i++) {
+          const wordDuration = sentDuration * (charCounts[i] / totalChars);
           syncData.push({
             id: wordIds[globalWordIdx] || 'w' + String(globalWordIdx + 1).padStart(5, '0'),
             word: sentWords[i],
-            clipBegin: Math.round((sent.start + i * wordDuration) * 1000) / 1000,
-            clipEnd: Math.round((sent.start + (i + 1) * wordDuration) * 1000) / 1000,
+            clipBegin: Math.round(cursor * 1000) / 1000,
+            clipEnd: Math.round((cursor + wordDuration) * 1000) / 1000,
           });
+          cursor += wordDuration;
           globalWordIdx++;
         }
       }

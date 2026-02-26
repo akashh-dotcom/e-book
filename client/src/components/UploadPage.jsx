@@ -10,6 +10,7 @@ import {
 import useBookStore from '../store/bookStore';
 import useAuthStore from '../store/authStore';
 import ProfilePanel from './ProfilePanel';
+import api from '../services/api';
 
 export default function UploadPage() {
   const [dragOver, setDragOver] = useState(false);
@@ -110,6 +111,36 @@ export default function UploadPage() {
     e.preventDefault();
     setDragOver(false);
     handleFile(e.dataTransfer.files[0]);
+  };
+
+  // Stripe checkout for paid plans
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
+  const handlePlanClick = async (plan) => {
+    // Free plan — just go to dashboard / signup
+    if (plan.name === 'Starter') {
+      navigate(user ? '/dashboard' : '/signup');
+      return;
+    }
+    // Enterprise — contact sales
+    if (plan.name === 'Enterprise' && !plan.monthlyPriceId && !plan.annualPriceId) {
+      window.location.href = 'mailto:sales@voxbook.app';
+      return;
+    }
+    // Must be logged in
+    if (!user) {
+      navigate('/signup');
+      return;
+    }
+    const priceId = billingCycle === 'monthly' ? plan.monthlyPriceId : plan.annualPriceId;
+    if (!priceId) return;
+    setCheckoutLoading(true);
+    try {
+      const { data } = await api.post('/payment/create-checkout-session', { priceId });
+      window.location.href = data.url;
+    } catch (err) {
+      setError(err.response?.data?.error || 'Payment setup failed');
+      setCheckoutLoading(false);
+    }
   };
 
   const isR = (id) => revealed.has(id);
@@ -880,6 +911,8 @@ export default function UploadPage() {
               desc: 'Perfect for casual readers who want to try audiobook creation.',
               monthlyPrice: 0,
               annualPrice: 0,
+              monthlyPriceId: null,
+              annualPriceId: null,
               color: 'forest',
               gradient: 'from-forest-500/10 to-forest-500/5',
               border: 'border-white/[0.06]',
@@ -903,6 +936,8 @@ export default function UploadPage() {
               desc: 'For power readers and creators who need more.',
               monthlyPrice: 12,
               annualPrice: 10,
+              monthlyPriceId: import.meta.env.VITE_STRIPE_PRO_MONTHLY_PRICE_ID || '',
+              annualPriceId: import.meta.env.VITE_STRIPE_PRO_ANNUAL_PRICE_ID || '',
               color: 'violet',
               gradient: 'from-violet-500/15 to-violet-500/5',
               border: 'border-violet-500/30',
@@ -926,6 +961,8 @@ export default function UploadPage() {
               desc: 'Unlimited everything for teams and publishers.',
               monthlyPrice: 39,
               annualPrice: 32,
+              monthlyPriceId: import.meta.env.VITE_STRIPE_ENTERPRISE_MONTHLY_PRICE_ID || '',
+              annualPriceId: import.meta.env.VITE_STRIPE_ENTERPRISE_ANNUAL_PRICE_ID || '',
               color: 'amber',
               gradient: 'from-amber-500/10 to-amber-500/5',
               border: 'border-amber-500/20',
@@ -1003,8 +1040,11 @@ export default function UploadPage() {
                 </div>
 
                 {/* CTA button */}
-                <button className={`w-full py-2.5 rounded-xl text-sm font-semibold transition-all duration-300 hover:scale-[1.02] mb-6 ${plan.btnStyle}`}>
-                  {plan.btnText}
+                <button
+                  onClick={() => handlePlanClick(plan)}
+                  disabled={checkoutLoading}
+                  className={`w-full py-2.5 rounded-xl text-sm font-semibold transition-all duration-300 hover:scale-[1.02] mb-6 disabled:opacity-50 disabled:cursor-wait ${plan.btnStyle}`}>
+                  {checkoutLoading ? 'Redirecting…' : plan.btnText}
                 </button>
 
                 {/* Features list */}

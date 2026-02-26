@@ -21,10 +21,13 @@ export default function EditorToolbar({
     setExporting(true);
     try {
       const res = await api.get(`/books/${bookId}/export-epub`, { responseType: 'blob' });
+      const disposition = res.headers['content-disposition'] || '';
+      const match = disposition.match(/filename="?([^"]+)"?/);
+      const filename = match ? match[1] : `${bookTitle || 'book'}.epub`;
       const url = window.URL.createObjectURL(new Blob([res.data]));
       const a = document.createElement('a');
       a.href = url;
-      a.download = `${bookTitle || 'book'}.epub`;
+      a.download = filename;
       document.body.appendChild(a);
       a.click();
       a.remove();

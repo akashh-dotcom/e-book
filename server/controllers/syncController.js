@@ -8,13 +8,19 @@ const whisperxAligner = require('../services/whisperxAligner');
 const smilGenerator = require('../services/smilGenerator');
 
 /**
- * Auto-align audio to chapter text using WhisperX (SSE streaming).
+ * Auto-align audio to chapter text (SSE streaming).
  * POST /api/sync/:bookId/:chapterIndex/auto
- * Body: { mode: "word" | "sentence", modelSize: "tiny"|"base"|"small"|"medium"|"large-v2", lang?: string }
+ * Body: {
+ *   mode: "word" | "sentence",
+ *   engine: "auto" | "whisperx",
+ *   modelSize: "tiny"|"base"|"small"|"medium"|"large-v2",
+ *   lang?: string
+ * }
  *
- * Streams progress events as SSE, then closes the connection.
- * When lang is provided (e.g. "kn"), aligns against the translated chapter
- * so that sync data matches the translated word spans.
+ * Engine behaviour:
+ *   "auto"      — Use TTS timing if available, else WhisperX word-level
+ *   "whisperx"  — Force WhisperX alignment (word-level forced alignment)
+ *   "stable-ts" — Use stable-ts (enhanced Whisper timestamps, best for fixing drift)
  */
 exports.autoAlign = async (req, res) => {
   // Set up SSE headers
@@ -30,7 +36,7 @@ exports.autoAlign = async (req, res) => {
 
   try {
     const { bookId, chapterIndex } = req.params;
-    const { mode = 'word', modelSize = 'tiny', lang } = req.body;
+    const { mode = 'word', engine = 'auto', modelSize = 'tiny', lang } = req.body;
 
     send('progress', { step: 'preparing', message: 'Preparing chapter...' });
 
@@ -81,7 +87,7 @@ exports.autoAlign = async (req, res) => {
     // Save word-wrapped HTML back
     await fs.writeFile(chapterPath, wrapped.html);
 
-    send('progress', { step: 'wrapping_done', message: 'Text prepared. Starting WhisperX...' });
+    send('progress', { step: 'wrapping_done', message: 'Text prepared. Starting alignment...' });
 
     const audioPath = path.join(book.storagePath, 'audio', audioInfo.filename);
 
@@ -90,33 +96,67 @@ exports.autoAlign = async (req, res) => {
     };
 
     let syncData;
+    let usedEngine = engine;
 
-    // Try edge-tts per-word timing JSON first (instant, exact for TTS-generated audio)
-    const timingPath = audioPath.replace(/\.mp3$/, '_timing.json');
-    let usedTtsTiming = false;
-    try {
-      await fs.access(timingPath);
-      send('progress', { step: 'tts_timing_found', message: 'Using TTS per-word timing...' });
-      syncData = await whisperxAligner.buildSyncFromTiming(timingPath, wrapped.words, wrapped.wordIds);
-      if (syncData) usedTtsTiming = true;
-    } catch {
-      // No timing file — fall back to WhisperX
+    // --- TTS timing shortcut (only for "auto" engine) ---
+    if (engine === 'auto') {
+      const timingPath = audioPath.replace(/\.mp3$/, '_timing.json');
+      try {
+        await fs.access(timingPath);
+        send('progress', { step: 'tts_timing_found', message: 'Using TTS per-word timing...' });
+        syncData = await whisperxAligner.buildSyncFromTiming(timingPath, wrapped.words, wrapped.wordIds);
+        if (syncData) usedEngine = 'edge-tts-word-boundary';
+      } catch {
+        // No timing file — continue to WhisperX
+      }
     }
 
-    if (!syncData) {
-      // Fallback: WhisperX alignment (for uploaded/non-TTS audio)
-      if (mode === 'sentence') {
-        syncData = await whisperxAligner.alignSentencesThenDistribute(
-          audioPath, wrapped.plainText, wrapped.wordIds,
-          { language: whisperLang, modelSize, onProgress }
-        );
-      } else {
-        const timestamps = await whisperxAligner.alignWords(
+    // --- stable-ts alignment ---
+    if (!syncData && engine === 'stable-ts') {
+      send('progress', { step: 'stable_ts_start', message: 'Starting stable-ts alignment (enhanced timestamps)...' });
+
+      try {
+        const timestamps = await whisperxAligner.alignWithStableTs(
           audioPath, wrapped.words,
           { language: whisperLang, modelSize, onProgress }
         );
         syncData = whisperxAligner.buildSyncData(timestamps, wrapped.wordIds);
+        usedEngine = 'stable-ts';
+      } catch (err) {
+        console.error('stable-ts alignment failed:', err.message);
+        send('error', { error: 'stable-ts alignment failed: ' + err.message });
+        return res.end();
       }
+    }
+
+    // --- WhisperX alignment ---
+    if (!syncData && (engine === 'auto' || engine === 'whisperx')) {
+      send('progress', { step: 'whisperx_start', message: 'Starting WhisperX alignment...' });
+
+      try {
+        if (mode === 'sentence') {
+          syncData = await whisperxAligner.alignSentencesThenDistribute(
+            audioPath, wrapped.plainText, wrapped.wordIds,
+            { language: whisperLang, modelSize, onProgress }
+          );
+        } else {
+          const timestamps = await whisperxAligner.alignWords(
+            audioPath, wrapped.words,
+            { language: whisperLang, modelSize, onProgress }
+          );
+          syncData = whisperxAligner.buildSyncData(timestamps, wrapped.wordIds);
+        }
+        usedEngine = `whisperx-${mode}`;
+      } catch (err) {
+        console.error('WhisperX alignment failed:', err.message);
+        send('error', { error: 'WhisperX alignment failed: ' + err.message });
+        return res.end();
+      }
+    }
+
+    if (!syncData) {
+      send('error', { error: 'Alignment failed' });
+      return res.end();
     }
 
     send('progress', { step: 'saving', message: 'Saving sync data...' });
@@ -139,7 +179,7 @@ exports.autoAlign = async (req, res) => {
         chapterIndex: parseInt(chapterIndex),
         lang: syncLang,
         syncData,
-        engine: usedTtsTiming ? 'edge-tts-word-boundary' : `whisperx-${mode}`,
+        engine: usedEngine,
         wordCount: wrapped.wordCount,
         duration: audioInfo.duration,
         status: 'complete',
@@ -148,7 +188,8 @@ exports.autoAlign = async (req, res) => {
     );
 
     send('done', {
-      message: 'WhisperX alignment complete',
+      message: `Alignment complete (${usedEngine})`,
+      engine: usedEngine,
       mode,
       wordCount: wrapped.wordCount,
       syncDataCount: syncData.length,

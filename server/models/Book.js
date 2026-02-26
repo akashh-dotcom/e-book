@@ -10,9 +10,11 @@ const chapterSchema = new mongoose.Schema({
 const tocEntrySchema = new mongoose.Schema({
   title: String,
   href: String,
+  chapterIndex: { type: Number, default: 0 },
   children: [{
     title: String,
     href: String,
+    chapterIndex: { type: Number, default: 0 },
   }],
 }, { _id: false });
 
@@ -28,11 +30,13 @@ const bookSchema = new mongoose.Schema({
   toc: [tocEntrySchema],
   totalChapters: Number,
   storagePath: String,
+  originalFilename: String,
   audioFiles: {
     type: Map,
     of: { filename: String, duration: Number, uploadedAt: Date },
     default: {},
   },
+  highlightColor: { type: String, default: '' },
   createdAt: { type: Date, default: Date.now },
 });
 

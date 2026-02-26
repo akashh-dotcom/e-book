@@ -26,7 +26,7 @@ class EpubToWeb {
 
         processedChapters.push({
           index: ch.index,
-          title: processed.title || `Chapter ${ch.index + 1}`,
+          title: ch.tocTitle || processed.title || `Chapter ${ch.index + 1}`,
           wordCount: processed.wordCount,
           filename: `${ch.index}.html`,
         });
@@ -76,11 +76,14 @@ class EpubToWeb {
       }
     }
 
+    // Resolve TOC hrefs to chapter indices
+    const resolvedToc = this.resolveToc(toc, chapters, opfDir);
+
     // Save metadata
     const bookData = {
       metadata,
       chapters: processedChapters,
-      toc,
+      toc: resolvedToc,
       cover: coverPath,
       totalChapters: processedChapters.length,
     };
@@ -91,6 +94,65 @@ class EpubToWeb {
     );
 
     return bookData;
+  }
+
+  /**
+   * Map TOC hrefs to chapter indices so the sidebar can navigate correctly.
+   * TOC hrefs are relative to nav/ncx location; chapter hrefs are full zip paths.
+   */
+  resolveToc(toc, chapters, opfDir) {
+    // Build lookups for file-only and file+anchor matching
+    const hrefToIndex = {};
+    const hrefAnchorToIndex = {};
+
+    for (const ch of chapters) {
+      const rel = opfDir && opfDir !== '.'
+        ? ch.href.replace(opfDir + '/', '')
+        : ch.href;
+      const base = path.posix.basename(ch.href);
+
+      // File-only mapping (first chapter for each file wins)
+      if (hrefToIndex[rel] === undefined) hrefToIndex[rel] = ch.index;
+      if (hrefToIndex[base] === undefined) hrefToIndex[base] = ch.index;
+
+      // File + anchor mapping for split chapters
+      if (ch.anchor) {
+        hrefAnchorToIndex[`${rel}#${ch.anchor}`] = ch.index;
+        hrefAnchorToIndex[`${base}#${ch.anchor}`] = ch.index;
+      }
+    }
+
+    const resolve = (href) => {
+      if (!href) return 0;
+
+      // Try full href with anchor first (for split chapters)
+      if (href.includes('#')) {
+        const filePart = href.split('#')[0];
+        const anchor = href.split('#')[1];
+        const key1 = `${filePart}#${anchor}`;
+        if (hrefAnchorToIndex[key1] !== undefined) return hrefAnchorToIndex[key1];
+        const key2 = `${path.posix.basename(filePart)}#${anchor}`;
+        if (hrefAnchorToIndex[key2] !== undefined) return hrefAnchorToIndex[key2];
+      }
+
+      // Fall back to file-only match
+      const filePart = href.split('#')[0];
+      if (hrefToIndex[filePart] !== undefined) return hrefToIndex[filePart];
+      const base = path.posix.basename(filePart);
+      if (hrefToIndex[base] !== undefined) return hrefToIndex[base];
+      return 0;
+    };
+
+    return toc.map(entry => ({
+      title: entry.title,
+      href: entry.href,
+      chapterIndex: resolve(entry.href),
+      children: (entry.children || []).map(child => ({
+        title: child.title,
+        href: child.href,
+        chapterIndex: resolve(child.href),
+      })),
+    }));
   }
 
   processChapter(xhtml, chapterHref, opfDir) {

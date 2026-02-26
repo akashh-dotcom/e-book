@@ -15,7 +15,12 @@ const syncDataSchema = new mongoose.Schema({
   syncData: [syncEntrySchema],
   engine: {
     type: String,
-    enum: ['whisperx-word', 'whisperx-sentence', 'aeneas-word', 'aeneas-sentence', 'manual'],
+    enum: [
+      'whisperx-word', 'whisperx-sentence',
+      'edge-tts-word-boundary',
+      'stable-ts',
+      'manual',
+    ],
     default: 'whisperx-word',
   },
   wordCount: Number,

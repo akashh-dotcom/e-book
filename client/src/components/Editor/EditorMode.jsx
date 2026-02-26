@@ -43,14 +43,14 @@ export default function EditorMode({
           hasSyncData={audio.hasSyncData}
           onUpload={audio.uploadAudio}
           onGenerate={async (voice) => { await audio.generateAudio(voice); }}
-          onAutoSync={async (mode) => {
-            const result = await audio.runAutoSync(mode);
+          onAutoSync={async (mode, { engine } = {}) => {
+            const result = await audio.runAutoSync(mode, { engine });
             reader.reloadChapter();
             return result;
           }}
-          onRegenerate={async (voice) => {
+          onRegenerate={async (voice, { engine } = {}) => {
             await audio.generateAudio(voice);
-            await audio.runAutoSync('word');
+            await audio.runAutoSync('word', { engine });
             reader.reloadChapter();
           }}
           bookId={bookId}

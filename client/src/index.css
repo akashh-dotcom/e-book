@@ -603,6 +603,71 @@ body {
   accent-color: var(--accent);
 }
 
+/* Highlight color picker in settings */
+.highlight-color-options {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.hl-color-swatch {
+  width: 28px;
+  height: 28px;
+  border: 2px solid var(--border);
+  border-radius: 50%;
+  cursor: pointer;
+  transition: transform 0.12s, border-color 0.12s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.hl-color-swatch:not([style]) {
+  background: conic-gradient(#c0392b, #e67e22, #d4a017, #27ae60, #2563eb, #8e44ad, #c0392b);
+}
+
+.hl-color-swatch:hover {
+  transform: scale(1.15);
+}
+
+.hl-color-swatch.active {
+  border-color: var(--text);
+  box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--text);
+}
+
+.hl-auto-label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+  pointer-events: none;
+}
+
+.hl-custom-swatch {
+  position: relative;
+  overflow: hidden;
+}
+
+.hl-custom-swatch:not([style]) {
+  background: var(--bg-alt);
+  border-style: dashed;
+}
+
+.hl-custom-swatch .hl-auto-label {
+  color: var(--text-dim);
+  text-shadow: none;
+  font-size: 0.85rem;
+}
+
+.hl-hidden-input {
+  position: absolute;
+  width: 0;
+  height: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
 /* === HIGHLIGHT POPUP === */
 
 .highlight-popup {
@@ -2429,6 +2494,27 @@ body {
 .ed-generate-btn:hover {
   background: linear-gradient(135deg, rgba(139,92,246,0.22), rgba(99,102,241,0.15));
   box-shadow: 0 0 12px rgba(139,92,246,0.15);
+}
+
+.ed-engine-select,
+.engine-select {
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.06);
+  background: rgba(255,255,255,0.03);
+  color: #a1a1aa;
+  font-size: 0.8rem;
+  font-family: inherit;
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+
+.ed-engine-select:focus,
+.engine-select:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 2px rgba(59,130,246,0.15);
 }
 
 .ed-sync-action-btn {

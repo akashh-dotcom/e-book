@@ -22,7 +22,7 @@ export default function ReaderPage() {
 
   // Audio & sync data — pass translatedLang so we fetch language-specific audio
   const audio = useAudioPlayer(bookId, reader.chapterIndex, reader.translatedLang);
-  const overlay = useMediaOverlay(audio.syncData, audio.audioUrl);
+  const overlay = useMediaOverlay(audio.syncData, audio.audioUrl, audio.syncVersion);
   const [reSyncing, setReSyncing] = useState(false);
   const [editorMode, setEditorMode] = useState(false);
   const [translateOpen, setTranslateOpen] = useState(false);
@@ -86,8 +86,20 @@ export default function ReaderPage() {
   }
 
   // === READER MODE ===
+  // Build dynamic CSS override for custom highlight color
+  const hlColor = reader.highlightColor;
+  const hlStyleTag = hlColor ? (
+    <style>{`
+      .-epub-media-overlay-active {
+        color: ${hlColor} !important;
+        background: ${hlColor}1F !important;
+      }
+    `}</style>
+  ) : null;
+
   return (
     <div className={`reader-root theme-${reader.theme} ${hasSync ? 'audio-synced' : ''} ${overlay.isPlaying ? 'audio-playing' : ''}`}>
+      {hlStyleTag}
       <TopBar
         title={reader.book.title}
         onToggleEditor={() => setEditorMode(true)}
@@ -141,22 +153,22 @@ export default function ReaderPage() {
               hasAudio={audio.hasAudio}
               hasSyncData={audio.hasSyncData}
               onUpload={audio.uploadAudio}
-              onAutoSync={async (mode) => {
+              onAutoSync={async (mode, { engine } = {}) => {
                 const lang = reader.translatedLang || undefined;
-                const result = await audio.runAutoSync(mode, { lang });
-                await reader.reloadChapter();
+                const result = await audio.runAutoSync(mode, { lang, engine });
+                reader.reloadChapter();
                 return result;
               }}
               onGenerate={async (voice) => {
                 const lang = reader.translatedLang || undefined;
                 await audio.generateAudio(voice, { lang });
               }}
-              onRegenerate={async (voice) => {
+              onRegenerate={async (voice, { engine } = {}) => {
                 const lang = reader.translatedLang || undefined;
                 setRegenProgress({ percent: 5, message: 'Generating audio...' });
                 await audio.generateAudio(voice, { lang });
                 setRegenProgress({ percent: 50, message: 'Audio generated. Syncing...' });
-                await audio.runAutoSync('word', { lang });
+                await audio.runAutoSync('word', { lang, engine });
                 setRegenProgress({ percent: 95, message: 'Reloading...' });
                 await reader.reloadChapter();
                 setRegenProgress({ percent: 100, message: 'Done!' });
@@ -239,6 +251,8 @@ export default function ReaderPage() {
             setLineHeight={reader.setLineHeight}
             readingMode={reader.readingMode}
             setReadingMode={reader.setReadingMode}
+            highlightColor={reader.highlightColor}
+            setHighlightColor={reader.setHighlightColor}
           />
         )}
 
