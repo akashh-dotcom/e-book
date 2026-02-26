@@ -80,6 +80,7 @@ body {
   flex: 1;
   display: flex;
   overflow: hidden;
+  margin-top: 42px;
 }
 
 .reader-content {
@@ -103,15 +104,17 @@ body {
   align-items: center;
   justify-content: space-between;
   padding: 0 16px;
-  height: 52px;
+  height: 42px;
   background: var(--chrome-bg) !important;
   backdrop-filter: saturate(180%) blur(20px);
   -webkit-backdrop-filter: saturate(180%) blur(20px);
   border-bottom: 1px solid var(--chrome-border);
   flex-shrink: 0;
-  z-index: 50;
-  position: sticky;
+  z-index: 100;
+  position: fixed;
   top: 0;
+  left: 0;
+  right: 0;
 }
 
 .top-bar-left {
@@ -121,7 +124,7 @@ body {
 }
 
 .top-bar-title {
-  font-size: 0.95rem;
+  font-size: 0.88rem;
   font-weight: 600;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -140,13 +143,13 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
   border: none;
   background: none;
   color: var(--chrome-text-dim);
   cursor: pointer;
-  border-radius: 8px;
+  border-radius: 6px;
   transition: background 0.2s, color 0.2s;
 }
 
@@ -445,10 +448,10 @@ body {
 
 .search-panel {
   position: absolute;
-  top: 52px;
+  top: 42px;
   right: 0;
   width: 380px;
-  max-height: calc(100vh - 96px);
+  max-height: calc(100vh - 86px);
   background: var(--chrome-surface);
   backdrop-filter: saturate(180%) blur(20px);
   -webkit-backdrop-filter: saturate(180%) blur(20px);
@@ -549,7 +552,7 @@ body {
 
 .settings-panel {
   position: absolute;
-  top: 52px;
+  top: 42px;
   right: 0;
   width: 320px;
   background: var(--chrome-surface);
@@ -758,10 +761,10 @@ body {
 
 .bookmarks-panel {
   position: absolute;
-  top: 52px;
+  top: 42px;
   right: 0;
   width: 340px;
-  max-height: calc(100vh - 96px);
+  max-height: calc(100vh - 86px);
   background: var(--chrome-surface);
   backdrop-filter: saturate(180%) blur(20px);
   -webkit-backdrop-filter: saturate(180%) blur(20px);
@@ -842,10 +845,10 @@ body {
 
 .translate-panel {
   position: absolute;
-  top: 52px;
+  top: 42px;
   right: 0;
   width: 320px;
-  max-height: calc(100vh - 96px);
+  max-height: calc(100vh - 86px);
   background: var(--chrome-surface);
   backdrop-filter: saturate(180%) blur(20px);
   -webkit-backdrop-filter: saturate(180%) blur(20px);
@@ -1292,23 +1295,40 @@ body {
 }
 
 .voice-selector {
-  padding: 4px 6px;
-  border-radius: 6px;
-  border: 1px solid rgba(16,185,129,0.2);
-  background: rgba(16,185,129,0.06);
-  color: #d1fae5;
-  font-size: 12px;
-  max-width: 180px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1.5px solid #10b981;
+  background: rgba(16,185,129,0.12);
+  color: #a7f3d0;
+  font-size: 0.82rem;
+  font-weight: 600;
+  min-width: 180px;
   cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 0 8px rgba(16,185,129,0.15);
+}
+
+.voice-selector:hover {
+  border-color: #34d399;
+  background: rgba(16,185,129,0.18);
+  box-shadow: 0 0 14px rgba(16,185,129,0.25);
 }
 
 .voice-selector:focus {
-  outline: 1px solid #10b981;
+  outline: none;
+  border-color: #34d399;
+  box-shadow: 0 0 0 2px rgba(16,185,129,0.2), 0 0 14px rgba(16,185,129,0.3);
 }
 
 .voice-selector option {
   background: #041a0e;
   color: #d1fae5;
+}
+
+.voice-selector optgroup {
+  background: #041a0e;
+  color: #6ee7b7;
+  font-weight: 600;
 }
 
 /* Translate toggle in audio generate row */
@@ -2218,10 +2238,10 @@ body {
 .edit-mode-btn {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  padding: 5px 14px;
+  gap: 4px;
+  padding: 4px 12px;
   border: 1px solid #10b981;
-  border-radius: 8px;
+  border-radius: 6px;
   background: linear-gradient(135deg, #10b981, #34d399);
   color: #020a06;
   font-size: 0.8rem;

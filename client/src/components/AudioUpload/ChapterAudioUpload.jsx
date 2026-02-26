@@ -13,6 +13,7 @@ export default function ChapterAudioUpload({
   onDeleteSync,
   bookId,
   chapterIndex,
+  bookLanguage,
   translatedLang,
   syncProgress,
   regenProgress,
@@ -90,6 +91,9 @@ export default function ChapterAudioUpload({
     setDeleting(false);
   };
 
+  // Filter voices to the active language: translated language takes priority, otherwise book's own language
+  const voiceFilterLang = translatedLang || (bookLanguage ? bookLanguage.split('-')[0] : null);
+
   const isBusy = regenerating || syncing || generating || deleting;
 
   return (
@@ -118,7 +122,7 @@ export default function ChapterAudioUpload({
               <VoiceSelector
                 value={selectedVoice}
                 onChange={setSelectedVoice}
-                filterLang={translatedLang}
+                filterLang={voiceFilterLang}
               />
 
               <button
@@ -243,7 +247,7 @@ export default function ChapterAudioUpload({
               <VoiceSelector
                 value={selectedVoice}
                 onChange={setSelectedVoice}
-                filterLang={translatedLang}
+                filterLang={voiceFilterLang}
                 disabled={isBusy}
               />
               <button
