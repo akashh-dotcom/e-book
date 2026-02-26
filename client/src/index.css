@@ -370,7 +370,7 @@ body {
 
 .chapter-content p {
   margin: 0 0 1.2em;
-  text-align: center;
+  text-align: left;
 }
 
 .chapter-content img {
@@ -2875,8 +2875,9 @@ body {
   animation: edSlideUp 0.4s ease-out 0.1s both;
 }
 
-.ed-canvas-inner .chapter-content {
-  text-align: left;
+.ed-canvas-inner .chapter-content,
+.ed-canvas-inner .chapter-content * {
+  text-align: left !important;
 }
 
 /* --- PROPERTIES (right) --- */
