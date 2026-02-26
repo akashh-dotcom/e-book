@@ -173,23 +173,30 @@ export default function useReader(bookId) {
     return () => window.removeEventListener('keydown', handler);
   }, [goNext, goPrev]);
 
-  // Reload chapter (respects current translation state)
-  const reloadChapter = useCallback(() => {
+  // Reload chapter (respects current translation state).
+  // Returns a Promise so callers (e.g. onRegenerate) can await it
+  // to ensure the DOM has updated before relying on word spans.
+  const reloadChapter = useCallback(async () => {
     if (!book || !bookId) return;
     setChapterLoading(true);
 
-    if (translatedLang) {
-      api.post(`/translate/${bookId}/${chapterIndex}`, { targetLang: translatedLang })
-        .then(r => { setChapterHtml(r.data.html); setChapterLoading(false); })
-        .catch(() => {
-          api.get(`/books/${bookId}/chapters/${chapterIndex}`)
-            .then(r => { setChapterHtml(r.data.html); setChapterLoading(false); })
-            .catch(() => setChapterLoading(false));
-        });
-    } else {
-      api.get(`/books/${bookId}/chapters/${chapterIndex}`)
-        .then(r => { setChapterHtml(r.data.html); setChapterLoading(false); })
-        .catch(() => setChapterLoading(false));
+    try {
+      if (translatedLang) {
+        try {
+          const r = await api.post(`/translate/${bookId}/${chapterIndex}`, { targetLang: translatedLang });
+          setChapterHtml(r.data.html);
+        } catch {
+          const r = await api.get(`/books/${bookId}/chapters/${chapterIndex}`);
+          setChapterHtml(r.data.html);
+        }
+      } else {
+        const r = await api.get(`/books/${bookId}/chapters/${chapterIndex}`);
+        setChapterHtml(r.data.html);
+      }
+    } catch {
+      // ignore
+    } finally {
+      setChapterLoading(false);
     }
   }, [book, bookId, chapterIndex, translatedLang]);
 

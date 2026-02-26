@@ -192,6 +192,7 @@ export function useMediaOverlay(syncData, audioUrl, syncVersion = 0) {
       audio.pause();
       audio.src = '';
       stopTimer();
+      clearHighlights();
     };
   }, [audioUrl]);
 
@@ -199,6 +200,13 @@ export function useMediaOverlay(syncData, audioUrl, syncVersion = 0) {
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
     rafRef.current = null;
   };
+
+  // Reset highlights when sync data changes (e.g. re-sync, chapter change)
+  // so stale activeWordRef doesn't prevent fresh highlighting.
+  useEffect(() => {
+    clearHighlights();
+    setActiveWordId(null);
+  }, [syncData]);
 
   // Mark skipped words in the DOM
   useEffect(() => {
@@ -323,6 +331,10 @@ export function useMediaOverlay(syncData, audioUrl, syncVersion = 0) {
     audioRef.current?.pause();
     setIsPlaying(false);
     stopTimer();
+    // Final accurate time update
+    if (audioRef.current) {
+      setCurrentTime(audioRef.current.currentTime);
+    }
   }, []);
 
   const togglePlay = useCallback(() => {
