@@ -644,6 +644,30 @@ body {
   pointer-events: none;
 }
 
+.hl-custom-swatch {
+  position: relative;
+  overflow: hidden;
+}
+
+.hl-custom-swatch:not([style]) {
+  background: var(--bg-alt);
+  border-style: dashed;
+}
+
+.hl-custom-swatch .hl-auto-label {
+  color: var(--text-dim);
+  text-shadow: none;
+  font-size: 0.85rem;
+}
+
+.hl-hidden-input {
+  position: absolute;
+  width: 0;
+  height: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
 /* === HIGHLIGHT POPUP === */
 
 .highlight-popup {
