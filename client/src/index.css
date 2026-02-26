@@ -2873,6 +2873,11 @@ body {
   animation: edSlideUp 0.4s ease-out 0.1s both;
 }
 
+.ed-canvas-inner .chapter-content {
+  max-width: 720px;
+  margin: 0 auto;
+}
+
 /* --- PROPERTIES (right) --- */
 
 .ed-properties {
