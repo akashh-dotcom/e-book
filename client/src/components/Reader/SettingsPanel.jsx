@@ -1,8 +1,20 @@
+const HIGHLIGHT_PRESETS = [
+  { name: 'Default', color: '' },
+  { name: 'Red', color: '#c0392b' },
+  { name: 'Orange', color: '#e67e22' },
+  { name: 'Yellow', color: '#d4a017' },
+  { name: 'Green', color: '#27ae60' },
+  { name: 'Blue', color: '#2563eb' },
+  { name: 'Purple', color: '#8e44ad' },
+  { name: 'Pink', color: '#e84393' },
+];
+
 export default function SettingsPanel({
   fontSize, setFontSize,
   theme, setTheme,
   lineHeight, setLineHeight,
   readingMode, setReadingMode,
+  highlightColor, setHighlightColor,
 }) {
   return (
     <div className="settings-panel">
@@ -34,6 +46,24 @@ export default function SettingsPanel({
             className={`theme-btn dark ${theme === 'dark' ? 'active' : ''}`}
             onClick={() => setTheme('dark')}
           >Dark</button>
+        </div>
+      </div>
+
+      {/* Highlight color */}
+      <div className="setting-row">
+        <label>Highlight Color</label>
+        <div className="highlight-color-options">
+          {HIGHLIGHT_PRESETS.map(p => (
+            <button
+              key={p.name}
+              className={`hl-color-swatch ${(highlightColor || '') === p.color ? 'active' : ''}`}
+              style={p.color ? { background: p.color } : undefined}
+              onClick={() => setHighlightColor(p.color)}
+              title={p.name}
+            >
+              {!p.color && <span className="hl-auto-label">A</span>}
+            </button>
+          ))}
         </div>
       </div>
 

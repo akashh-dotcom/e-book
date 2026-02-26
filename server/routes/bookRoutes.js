@@ -21,6 +21,7 @@ router.get('/:id', ctrl.getBook);
 router.get('/:id/chapters/:index', ctrl.getChapter);
 router.get('/:id/search', ctrl.searchBook);
 router.get('/:id/export-epub', ctrl.exportEpub);
+router.patch('/:id/settings', ctrl.updateBookSettings);
 router.delete('/:id', ctrl.deleteBook);
 
 // Bookmark routes

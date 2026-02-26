@@ -154,6 +154,21 @@ exports.exportEpub = async (req, res) => {
   }
 };
 
+// Update book settings (e.g. highlight color)
+exports.updateBookSettings = async (req, res) => {
+  try {
+    const book = await Book.findById(req.params.id);
+    if (!book) return res.status(404).json({ error: 'Not found' });
+    if (req.body.highlightColor !== undefined) {
+      book.highlightColor = req.body.highlightColor;
+    }
+    await book.save();
+    res.json({ highlightColor: book.highlightColor });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
 // --- Bookmark endpoints ---
 
 // Create bookmark or highlight

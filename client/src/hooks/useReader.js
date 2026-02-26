@@ -16,6 +16,7 @@ export default function useReader(bookId) {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [bookmarksOpen, setBookmarksOpen] = useState(false);
   const [bookmarks, setBookmarks] = useState([]);
+  const [highlightColor, setHighlightColorState] = useState('');
   const [translatedLang, setTranslatedLang] = useState(() => {
     if (!bookId) return null;
     return localStorage.getItem(`voxbook_lang_${bookId}`) || null;
@@ -43,9 +44,17 @@ export default function useReader(bookId) {
     api.get(`/books/${bookId}`)
       .then(r => {
         setBook(r.data);
+        if (r.data.highlightColor) setHighlightColorState(r.data.highlightColor);
         setLoading(false);
       })
       .catch(() => setLoading(false));
+  }, [bookId]);
+
+  const setHighlightColor = useCallback((color) => {
+    setHighlightColorState(color);
+    if (bookId) {
+      api.patch(`/books/${bookId}/settings`, { highlightColor: color }).catch(() => {});
+    }
   }, [bookId]);
 
   // Load chapter (original or translated)
@@ -253,6 +262,8 @@ export default function useReader(bookId) {
     chapterRef,
     turnPage,
     reloadChapter,
+    highlightColor,
+    setHighlightColor,
     // Translation
     translatedLang,
     translating,

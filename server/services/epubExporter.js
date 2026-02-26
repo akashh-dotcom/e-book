@@ -39,9 +39,11 @@ class EpubExporter {
     const oebps = zip.folder('OEBPS');
 
     // ---- CSS for media-overlay active highlight ----
+    const hlColor = book.highlightColor || '#ffe082';
+    const hlBg = this._lightTint(hlColor, 0.25);
     oebps.file('style.css', `.-epub-media-overlay-active {
-  background-color: #ffe082;
-  color: #000;
+  background-color: ${hlBg};
+  color: ${hlColor};
 }
 `);
 
@@ -216,6 +218,20 @@ ${items}
       new RegExp(`<(${voidTags})(\\s[^>]*?)?\\s*\\/?>`, 'gi'),
       '<$1$2/>'
     );
+  }
+
+  /**
+   * Blend a hex color with white at given opacity to produce a light tint.
+   * Used for EPUB highlight backgrounds (rgba not supported in all readers).
+   */
+  _lightTint(hex, opacity = 0.25) {
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    const lr = Math.round(r * opacity + 255 * (1 - opacity));
+    const lg = Math.round(g * opacity + 255 * (1 - opacity));
+    const lb = Math.round(b * opacity + 255 * (1 - opacity));
+    return `#${lr.toString(16).padStart(2, '0')}${lg.toString(16).padStart(2, '0')}${lb.toString(16).padStart(2, '0')}`;
   }
 
   _escXml(str) {

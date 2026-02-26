@@ -86,8 +86,20 @@ export default function ReaderPage() {
   }
 
   // === READER MODE ===
+  // Build dynamic CSS override for custom highlight color
+  const hlColor = reader.highlightColor;
+  const hlStyleTag = hlColor ? (
+    <style>{`
+      .-epub-media-overlay-active {
+        color: ${hlColor} !important;
+        background: ${hlColor}1F !important;
+      }
+    `}</style>
+  ) : null;
+
   return (
     <div className={`reader-root theme-${reader.theme} ${hasSync ? 'audio-synced' : ''} ${overlay.isPlaying ? 'audio-playing' : ''}`}>
+      {hlStyleTag}
       <TopBar
         title={reader.book.title}
         onToggleEditor={() => setEditorMode(true)}
@@ -239,6 +251,8 @@ export default function ReaderPage() {
             setLineHeight={reader.setLineHeight}
             readingMode={reader.readingMode}
             setReadingMode={reader.setReadingMode}
+            highlightColor={reader.highlightColor}
+            setHighlightColor={reader.setHighlightColor}
           />
         )}
 

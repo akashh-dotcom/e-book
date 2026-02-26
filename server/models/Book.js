@@ -33,6 +33,7 @@ const bookSchema = new mongoose.Schema({
     of: { filename: String, duration: Number, uploadedAt: Date },
     default: {},
   },
+  highlightColor: { type: String, default: '' },
   createdAt: { type: Date, default: Date.now },
 });
 
