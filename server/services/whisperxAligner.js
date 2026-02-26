@@ -305,6 +305,46 @@ class WhisperXAligner {
   }
 
   /**
+   * Perform word-level alignment using stable-ts.
+   * stable-ts modifies Whisper's cross-attention weights to produce
+   * more accurate word timestamps than standard Whisper or edge-TTS timing.
+   * Particularly effective for TTS-generated audio where edge-TTS timing drifts.
+   */
+  async alignWithStableTs(audioPath, words, options = {}) {
+    const { language = 'en', modelSize = 'base', onProgress } = options;
+
+    const tmpDir = path.join(os.tmpdir(), 'stable_ts_' + Date.now());
+    await fs.mkdir(tmpDir, { recursive: true });
+
+    const textPath = path.join(tmpDir, 'words.txt');
+    await fs.writeFile(textPath, words.join('\n'));
+
+    const outputPath = path.join(tmpDir, 'alignment.json');
+
+    const scriptPath = path.join(
+      __dirname, '..', 'scripts', 'stable_ts_align.py'
+    );
+
+    try {
+      await runPythonWithProgress(
+        [scriptPath, audioPath, textPath, outputPath, language, modelSize],
+        { timeout: 900000, onProgress }
+      );
+
+      const timestamps = JSON.parse(
+        await fs.readFile(outputPath, 'utf-8')
+      );
+
+      return timestamps;
+    } catch (err) {
+      console.error('stable-ts alignment failed:', err.message);
+      throw new Error('stable-ts forced alignment failed: ' + err.message);
+    } finally {
+      await fs.rm(tmpDir, { recursive: true, force: true });
+    }
+  }
+
+  /**
    * Sentence-level alignment with even word distribution.
    * Fallback for uploaded (non-TTS) audio.
    */

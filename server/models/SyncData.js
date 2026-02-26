@@ -18,6 +18,7 @@ const syncDataSchema = new mongoose.Schema({
     enum: [
       'whisperx-word', 'whisperx-sentence',
       'edge-tts-word-boundary',
+      'stable-ts',
       'manual',
     ],
     default: 'whisperx-word',

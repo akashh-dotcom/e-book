@@ -121,6 +121,7 @@ export default function ChapterAudioUpload({
             disabled={syncing}
           >
             <option value="auto">Auto (TTS/WhisperX)</option>
+            <option value="stable-ts">Stable-TS (Best Accuracy)</option>
             <option value="whisperx">WhisperX</option>
           </select>
           <button
@@ -149,6 +150,32 @@ export default function ChapterAudioUpload({
       {hasSyncData && (
         <div className="sync-done-row">
           <span className="sync-ready">Audio synced</span>
+          <div className="resync-row">
+            <select
+              className="engine-select"
+              value={selectedEngine}
+              onChange={e => setSelectedEngine(e.target.value)}
+              disabled={isBusy}
+            >
+              <option value="auto">Auto (TTS/WhisperX)</option>
+              <option value="stable-ts">Stable-TS (Best Accuracy)</option>
+              <option value="whisperx">WhisperX</option>
+            </select>
+            <button
+              className="audio-upload-btn sync"
+              onClick={() => handleSync('word')}
+              disabled={isBusy}
+            >
+              {syncing ? <Loader size={14} className="spin" /> : <Wand2 size={14} />}
+              {syncing ? 'Re-syncing...' : 'Re-sync'}
+            </button>
+          </div>
+          {syncing && syncProgress && (
+            <div className="sync-progress-status">
+              <Loader size={12} className="spin" />
+              <span>{syncProgress.message}</span>
+            </div>
+          )}
           {onRegenerate && (
             <div className="audio-generate-row">
               <VoiceSelector

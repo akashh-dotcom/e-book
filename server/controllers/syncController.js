@@ -18,8 +18,9 @@ const smilGenerator = require('../services/smilGenerator');
  * }
  *
  * Engine behaviour:
- *   "auto"     — Use TTS timing if available, else WhisperX word-level
- *   "whisperx" — Force WhisperX alignment (word-level forced alignment)
+ *   "auto"      — Use TTS timing if available, else WhisperX word-level
+ *   "whisperx"  — Force WhisperX alignment (word-level forced alignment)
+ *   "stable-ts" — Use stable-ts (enhanced Whisper timestamps, best for fixing drift)
  */
 exports.autoAlign = async (req, res) => {
   // Set up SSE headers
@@ -107,6 +108,24 @@ exports.autoAlign = async (req, res) => {
         if (syncData) usedEngine = 'edge-tts-word-boundary';
       } catch {
         // No timing file — continue to WhisperX
+      }
+    }
+
+    // --- stable-ts alignment ---
+    if (!syncData && engine === 'stable-ts') {
+      send('progress', { step: 'stable_ts_start', message: 'Starting stable-ts alignment (enhanced timestamps)...' });
+
+      try {
+        const timestamps = await whisperxAligner.alignWithStableTs(
+          audioPath, wrapped.words,
+          { language: whisperLang, modelSize, onProgress }
+        );
+        syncData = whisperxAligner.buildSyncData(timestamps, wrapped.wordIds);
+        usedEngine = 'stable-ts';
+      } catch (err) {
+        console.error('stable-ts alignment failed:', err.message);
+        send('error', { error: 'stable-ts alignment failed: ' + err.message });
+        return res.end();
       }
     }
 
