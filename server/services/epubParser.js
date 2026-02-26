@@ -77,10 +77,13 @@ class EpubParser {
       console.warn('TOC extraction failed, using empty TOC:', e.message);
     }
 
-    // 5. Extract cover image
+    // 5. Split chapters that contain multiple TOC fragments
+    const splitChapters = this.splitChaptersByToc(chapters, toc, opfDir);
+
+    // 6. Extract cover image
     const coverHref = this.findCover(pkg, manifest);
 
-    return { metadata, manifest, spine, chapters, toc, coverHref, zip, opfDir };
+    return { metadata, manifest, spine, chapters: splitChapters, toc, coverHref, zip, opfDir };
   }
 
   parseMetadata(meta) {
@@ -219,6 +222,121 @@ class EpubParser {
     };
 
     return processNavPoints(navMap.navPoint);
+  }
+
+  /**
+   * Split spine files that contain multiple TOC-referenced sections into
+   * separate chapters so each TOC entry becomes its own chapter.
+   */
+  splitChaptersByToc(chapters, toc, opfDir) {
+    // Collect all TOC entries with fragment anchors, grouped by file
+    const tocByFile = {};
+    const collectEntries = (entries) => {
+      for (const entry of entries) {
+        if (entry.href) {
+          const hashIdx = entry.href.indexOf('#');
+          if (hashIdx > -1) {
+            const filePart = entry.href.substring(0, hashIdx);
+            const anchor = entry.href.substring(hashIdx + 1);
+            if (anchor) {
+              if (!tocByFile[filePart]) tocByFile[filePart] = [];
+              // Avoid duplicate anchors
+              if (!tocByFile[filePart].some(a => a.anchor === anchor)) {
+                tocByFile[filePart].push({ title: entry.title, anchor });
+              }
+            }
+          }
+        }
+        if (entry.children) collectEntries(entry.children);
+      }
+    };
+    collectEntries(toc);
+
+    // If no file has multiple fragment anchors, return as-is
+    const hasMultiAnchor = Object.values(tocByFile).some(arr => arr.length > 1);
+    if (!hasMultiAnchor) return chapters;
+
+    const result = [];
+    let newIndex = 0;
+
+    for (const ch of chapters) {
+      const relHref = opfDir && opfDir !== '.'
+        ? ch.href.replace(opfDir + '/', '')
+        : ch.href;
+
+      const anchors = tocByFile[relHref]
+        || tocByFile[path.posix.basename(ch.href)];
+
+      if (!anchors || anchors.length <= 1) {
+        result.push({ ...ch, index: newIndex++ });
+        continue;
+      }
+
+      // This chapter has multiple TOC fragments — split it
+      const $ = cheerio.load(ch.content, { xmlMode: false });
+      const body = $('body');
+      if (!body.length) {
+        result.push({ ...ch, index: newIndex++ });
+        continue;
+      }
+
+      const bodyChildren = body.contents().toArray();
+
+      // Find DOM positions of each anchor element
+      const anchorPositions = [];
+      for (const a of anchors) {
+        const el = $(`[id="${a.anchor}"]`).first();
+        if (!el.length) continue;
+
+        // Walk up to the top-level body child
+        let topLevel = el[0];
+        while (topLevel.parentNode && topLevel.parentNode !== body[0]) {
+          topLevel = topLevel.parentNode;
+        }
+
+        const idx = bodyChildren.indexOf(topLevel);
+        if (idx >= 0) {
+          anchorPositions.push({ ...a, domIndex: idx });
+        }
+      }
+
+      if (anchorPositions.length <= 1) {
+        result.push({ ...ch, index: newIndex++ });
+        continue;
+      }
+
+      // Sort by DOM position
+      anchorPositions.sort((a, b) => a.domIndex - b.domIndex);
+
+      // Preserve <head> for stylesheets
+      const headHtml = $('head').html() || '';
+
+      for (let i = 0; i < anchorPositions.length; i++) {
+        // Include pre-anchor content in the first split
+        const start = i === 0 ? 0 : anchorPositions[i].domIndex;
+        const end = i + 1 < anchorPositions.length
+          ? anchorPositions[i + 1].domIndex
+          : bodyChildren.length;
+
+        let sectionHtml = '';
+        for (let j = start; j < end; j++) {
+          sectionHtml += $.html(bodyChildren[j]);
+        }
+
+        const fullContent = `<!DOCTYPE html><html><head>${headHtml}</head><body>${sectionHtml}</body></html>`;
+
+        result.push({
+          index: newIndex++,
+          id: `${ch.id}_part${i}`,
+          href: ch.href,
+          anchor: anchorPositions[i].anchor,
+          content: fullContent,
+          tocTitle: anchorPositions[i].title,
+        });
+      }
+    }
+
+    return result;
   }
 
   findCover(pkg, manifest) {

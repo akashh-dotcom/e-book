@@ -26,7 +26,7 @@ class EpubToWeb {
 
         processedChapters.push({
           index: ch.index,
-          title: processed.title || `Chapter ${ch.index + 1}`,
+          title: ch.tocTitle || processed.title || `Chapter ${ch.index + 1}`,
           wordCount: processed.wordCount,
           filename: `${ch.index}.html`,
         });
@@ -101,22 +101,43 @@ class EpubToWeb {
    * TOC hrefs are relative to nav/ncx location; chapter hrefs are full zip paths.
    */
   resolveToc(toc, chapters, opfDir) {
-    // Build lookup: relative path (stripped of opfDir) → chapter index
+    // Build lookups for file-only and file+anchor matching
     const hrefToIndex = {};
+    const hrefAnchorToIndex = {};
+
     for (const ch of chapters) {
       const rel = opfDir && opfDir !== '.'
         ? ch.href.replace(opfDir + '/', '')
         : ch.href;
-      hrefToIndex[rel] = ch.index;
-      // Also store basename for fuzzy matching
-      hrefToIndex[path.posix.basename(ch.href)] = ch.index;
+      const base = path.posix.basename(ch.href);
+
+      // File-only mapping (first chapter for each file wins)
+      if (hrefToIndex[rel] === undefined) hrefToIndex[rel] = ch.index;
+      if (hrefToIndex[base] === undefined) hrefToIndex[base] = ch.index;
+
+      // File + anchor mapping for split chapters
+      if (ch.anchor) {
+        hrefAnchorToIndex[`${rel}#${ch.anchor}`] = ch.index;
+        hrefAnchorToIndex[`${base}#${ch.anchor}`] = ch.index;
+      }
     }
 
     const resolve = (href) => {
       if (!href) return 0;
+
+      // Try full href with anchor first (for split chapters)
+      if (href.includes('#')) {
+        const filePart = href.split('#')[0];
+        const anchor = href.split('#')[1];
+        const key1 = `${filePart}#${anchor}`;
+        if (hrefAnchorToIndex[key1] !== undefined) return hrefAnchorToIndex[key1];
+        const key2 = `${path.posix.basename(filePart)}#${anchor}`;
+        if (hrefAnchorToIndex[key2] !== undefined) return hrefAnchorToIndex[key2];
+      }
+
+      // Fall back to file-only match
       const filePart = href.split('#')[0];
       if (hrefToIndex[filePart] !== undefined) return hrefToIndex[filePart];
-      // Try basename
       const base = path.posix.basename(filePart);
       if (hrefToIndex[base] !== undefined) return hrefToIndex[base];
       return 0;
