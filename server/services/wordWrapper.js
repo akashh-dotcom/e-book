@@ -3,9 +3,11 @@ const cheerio = require('cheerio');
 // Content elements whose text nodes should be wrapped / extracted.
 // Must match between wrap() and getPlainText() so TTS audio and
 // sync highlighting use the exact same word list in the same order.
+// NOTE: h1-h3 are excluded — they are chapter/section titles that
+// are typically not narrated in audiobooks and would misalign sync.
 const CONTENT_TAGS = new Set([
   // Block elements
-  'p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'li', 'td', 'th',
+  'p', 'h4', 'h5', 'h6', 'li', 'td', 'th',
   'blockquote', 'figcaption', 'dt', 'dd', 'div', 'section', 'article',
   'caption', 'label', 'pre',
   // Inline elements
@@ -21,6 +23,15 @@ const SKIP_TAGS = new Set([
   'head', 'title', 'meta', 'link',
   'audio', 'video', 'svg', 'canvas',
 ]);
+
+/**
+ * A syncable word must contain at least one letter or digit.
+ * Filters out emojis (🌕), decorative symbols (✦ ✧ ★ • —), and
+ * other non-text tokens that would misalign audio sync.
+ */
+function isWordToken(token) {
+  return /[\p{L}\p{N}]/u.test(token);
+}
 
 /**
  * Check whether a node is inside at least one content element.
@@ -73,15 +84,15 @@ class WordWrapper {
         const text = node.data;
         if (!text || !text.trim()) return;
 
-        plainTextParts.push(text.trim());
-
         const parts = text.split(/(\s+)/);
         const wrapped = parts.map(part => {
           if (!part.trim()) return part; // preserve whitespace
+          if (!isWordToken(part)) return part; // keep in HTML but don't wrap
           wordIndex++;
           const id = 'w' + String(wordIndex).padStart(5, '0');
           words.push(part);
           wordIds.push(id);
+          plainTextParts.push(part);
           return `<span id="${id}">${part}</span>`;
         }).join('');
 
@@ -127,7 +138,10 @@ class WordWrapper {
       if (node.type === 'text') {
         if (!isInsideContentElement(node)) return;
         const text = node.data?.trim();
-        if (text) parts.push(text);
+        if (!text) return;
+        // Filter out non-word tokens (emojis, symbols) to match wrap()
+        const filtered = text.split(/\s+/).filter(w => w && isWordToken(w)).join(' ');
+        if (filtered) parts.push(filtered);
         return;
       }
       if (node.type === 'tag' && SKIP_TAGS.has(node.name)) return;
