@@ -284,6 +284,13 @@ export function useMediaOverlay(syncData, audioUrl, syncVersion = 0) {
 
       // Update every frame (~16ms / 60fps) for precise word highlighting
       if (timestamp - lastUpdate >= 16) {
+        // Skip updates while the audio is actively seeking — currentTime
+        // is stale and would flash the highlight to the wrong word.
+        if (audioRef.current.seeking) {
+          rafRef.current = requestAnimationFrame(tick);
+          return;
+        }
+
         lastUpdate = timestamp;
         const audioTime = audioRef.current.currentTime;
 
