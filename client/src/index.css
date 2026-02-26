@@ -2431,6 +2431,27 @@ body {
   box-shadow: 0 0 12px rgba(139,92,246,0.15);
 }
 
+.ed-engine-select,
+.engine-select {
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.06);
+  background: rgba(255,255,255,0.03);
+  color: #a1a1aa;
+  font-size: 0.8rem;
+  font-family: inherit;
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+
+.ed-engine-select:focus,
+.engine-select:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 2px rgba(59,130,246,0.15);
+}
+
 .ed-sync-action-btn {
   background: linear-gradient(135deg, rgba(59,130,246,0.12), rgba(37,99,235,0.08));
   border-color: rgba(59,130,246,0.25);

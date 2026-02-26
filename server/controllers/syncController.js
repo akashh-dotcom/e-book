@@ -5,16 +5,82 @@ const Book = require('../models/Book');
 const SyncData = require('../models/SyncData');
 const wordWrapper = require('../services/wordWrapper');
 const whisperxAligner = require('../services/whisperxAligner');
+const aeneasAligner = require('../services/aeneasAligner');
 const smilGenerator = require('../services/smilGenerator');
 
 /**
- * Auto-align audio to chapter text using WhisperX (SSE streaming).
+ * Merge two sync-data arrays (same length, same word IDs) by averaging
+ * their clipBegin/clipEnd values. This produces timestamps that are
+ * more robust than either engine alone — Aeneas is strong on rhythmic
+ * DTW alignment while WhisperX excels at phoneme-level precision.
+ */
+function ensembleMerge(syncA, syncB) {
+  if (!syncA?.length) return syncB;
+  if (!syncB?.length) return syncA;
+
+  const len = Math.min(syncA.length, syncB.length);
+  const merged = [];
+
+  for (let i = 0; i < len; i++) {
+    const a = syncA[i];
+    const b = syncB[i];
+
+    const aBegin = a.clipBegin ?? a.clipBegin;
+    const bBegin = b.clipBegin ?? b.clipBegin;
+    const aEnd = a.clipEnd ?? a.clipEnd;
+    const bEnd = b.clipEnd ?? b.clipEnd;
+
+    // If one engine has null timing, use the other
+    if (aBegin === null || aEnd === null) {
+      merged.push({ ...b });
+      continue;
+    }
+    if (bBegin === null || bEnd === null) {
+      merged.push({ ...a });
+      continue;
+    }
+
+    merged.push({
+      id: a.id,
+      word: a.word,
+      clipBegin: Math.round(((aBegin + bBegin) / 2) * 1000) / 1000,
+      clipEnd: Math.round(((aEnd + bEnd) / 2) * 1000) / 1000,
+    });
+  }
+
+  // If one list is longer, append the extra entries
+  const longer = syncA.length > syncB.length ? syncA : syncB;
+  for (let i = len; i < longer.length; i++) {
+    merged.push({ ...longer[i] });
+  }
+
+  // Close gaps in the merged result
+  for (let i = 0; i < merged.length - 1; i++) {
+    if (merged[i].clipEnd === null || merged[i + 1].clipBegin === null) continue;
+    const gap = merged[i + 1].clipBegin - merged[i].clipEnd;
+    if (gap > 0 && gap < 2.0) {
+      merged[i].clipEnd = merged[i + 1].clipBegin;
+    }
+  }
+
+  return merged;
+}
+
+/**
+ * Auto-align audio to chapter text (SSE streaming).
  * POST /api/sync/:bookId/:chapterIndex/auto
- * Body: { mode: "word" | "sentence", modelSize: "tiny"|"base"|"small"|"medium"|"large-v2", lang?: string }
+ * Body: {
+ *   mode: "word" | "sentence",
+ *   engine: "auto" | "whisperx" | "aeneas" | "ensemble",
+ *   modelSize: "tiny"|"base"|"small"|"medium"|"large-v2",
+ *   lang?: string
+ * }
  *
- * Streams progress events as SSE, then closes the connection.
- * When lang is provided (e.g. "kn"), aligns against the translated chapter
- * so that sync data matches the translated word spans.
+ * Engine behaviour:
+ *   "auto"     — Use TTS timing if available, else WhisperX word-level
+ *   "whisperx" — Force WhisperX alignment (word-level forced alignment)
+ *   "aeneas"   — Force Aeneas DTW alignment
+ *   "ensemble"  — Run both WhisperX + Aeneas, average timestamps
  */
 exports.autoAlign = async (req, res) => {
   // Set up SSE headers
@@ -30,7 +96,7 @@ exports.autoAlign = async (req, res) => {
 
   try {
     const { bookId, chapterIndex } = req.params;
-    const { mode = 'word', modelSize = 'tiny', lang } = req.body;
+    const { mode = 'word', engine = 'auto', modelSize = 'tiny', lang } = req.body;
 
     send('progress', { step: 'preparing', message: 'Preparing chapter...' });
 
@@ -81,7 +147,7 @@ exports.autoAlign = async (req, res) => {
     // Save word-wrapped HTML back
     await fs.writeFile(chapterPath, wrapped.html);
 
-    send('progress', { step: 'wrapping_done', message: 'Text prepared. Starting WhisperX...' });
+    send('progress', { step: 'wrapping_done', message: 'Text prepared. Starting alignment...' });
 
     const audioPath = path.join(book.storagePath, 'audio', audioInfo.filename);
 
@@ -90,33 +156,100 @@ exports.autoAlign = async (req, res) => {
     };
 
     let syncData;
+    let usedEngine = engine;
 
-    // Try edge-tts per-word timing JSON first (instant, exact for TTS-generated audio)
-    const timingPath = audioPath.replace(/\.mp3$/, '_timing.json');
-    let usedTtsTiming = false;
-    try {
-      await fs.access(timingPath);
-      send('progress', { step: 'tts_timing_found', message: 'Using TTS per-word timing...' });
-      syncData = await whisperxAligner.buildSyncFromTiming(timingPath, wrapped.words, wrapped.wordIds);
-      if (syncData) usedTtsTiming = true;
-    } catch {
-      // No timing file — fall back to WhisperX
+    // --- TTS timing shortcut (only for "auto" engine) ---
+    if (engine === 'auto') {
+      const timingPath = audioPath.replace(/\.mp3$/, '_timing.json');
+      try {
+        await fs.access(timingPath);
+        send('progress', { step: 'tts_timing_found', message: 'Using TTS per-word timing...' });
+        syncData = await whisperxAligner.buildSyncFromTiming(timingPath, wrapped.words, wrapped.wordIds);
+        if (syncData) usedEngine = 'edge-tts-word-boundary';
+      } catch {
+        // No timing file — continue to WhisperX
+      }
+    }
+
+    // --- WhisperX alignment ---
+    if (!syncData && (engine === 'auto' || engine === 'whisperx' || engine === 'ensemble')) {
+      send('progress', { step: 'whisperx_start', message: 'Starting WhisperX alignment...' });
+
+      try {
+        if (mode === 'sentence') {
+          syncData = await whisperxAligner.alignSentencesThenDistribute(
+            audioPath, wrapped.plainText, wrapped.wordIds,
+            { language: whisperLang, modelSize, onProgress }
+          );
+        } else {
+          const timestamps = await whisperxAligner.alignWords(
+            audioPath, wrapped.words,
+            { language: whisperLang, modelSize, onProgress }
+          );
+          syncData = whisperxAligner.buildSyncData(timestamps, wrapped.wordIds);
+        }
+        if (engine !== 'ensemble') usedEngine = `whisperx-${mode}`;
+      } catch (err) {
+        console.error('WhisperX alignment failed:', err.message);
+        if (engine === 'whisperx') {
+          send('error', { error: 'WhisperX alignment failed: ' + err.message });
+          return res.end();
+        }
+        // For auto/ensemble, continue without WhisperX data
+        send('progress', { step: 'whisperx_failed', message: 'WhisperX failed, trying fallback...' });
+      }
+    }
+
+    // --- Aeneas alignment ---
+    let aeneasSyncData = null;
+    if (engine === 'aeneas' || engine === 'ensemble') {
+      send('progress', { step: 'aeneas_start', message: 'Starting Aeneas DTW alignment...' });
+
+      try {
+        if (mode === 'sentence') {
+          aeneasSyncData = await aeneasAligner.alignSentencesThenDistribute(
+            audioPath, wrapped.plainText, wrapped.wordIds,
+            { language: whisperLang, onProgress }
+          );
+        } else {
+          const timestamps = await aeneasAligner.alignWords(
+            audioPath, wrapped.words,
+            { language: whisperLang, onProgress }
+          );
+          aeneasSyncData = aeneasAligner.buildSyncData(timestamps, wrapped.wordIds);
+        }
+
+        if (engine === 'aeneas') {
+          syncData = aeneasSyncData;
+          usedEngine = `aeneas-${mode}`;
+        }
+      } catch (err) {
+        console.error('Aeneas alignment failed:', err.message);
+        if (engine === 'aeneas') {
+          send('error', { error: 'Aeneas alignment failed: ' + err.message });
+          return res.end();
+        }
+        send('progress', { step: 'aeneas_failed', message: 'Aeneas failed, using WhisperX only...' });
+      }
+    }
+
+    // --- Ensemble merge ---
+    if (engine === 'ensemble') {
+      if (syncData && aeneasSyncData) {
+        send('progress', { step: 'ensemble_merge', message: 'Merging WhisperX + Aeneas timestamps...' });
+        syncData = ensembleMerge(syncData, aeneasSyncData);
+        usedEngine = `ensemble-${mode}`;
+      } else if (aeneasSyncData) {
+        syncData = aeneasSyncData;
+        usedEngine = `aeneas-${mode}`;
+      } else if (syncData) {
+        usedEngine = `whisperx-${mode}`;
+      }
     }
 
     if (!syncData) {
-      // Fallback: WhisperX alignment (for uploaded/non-TTS audio)
-      if (mode === 'sentence') {
-        syncData = await whisperxAligner.alignSentencesThenDistribute(
-          audioPath, wrapped.plainText, wrapped.wordIds,
-          { language: whisperLang, modelSize, onProgress }
-        );
-      } else {
-        const timestamps = await whisperxAligner.alignWords(
-          audioPath, wrapped.words,
-          { language: whisperLang, modelSize, onProgress }
-        );
-        syncData = whisperxAligner.buildSyncData(timestamps, wrapped.wordIds);
-      }
+      send('error', { error: 'All alignment engines failed' });
+      return res.end();
     }
 
     send('progress', { step: 'saving', message: 'Saving sync data...' });
@@ -139,7 +272,7 @@ exports.autoAlign = async (req, res) => {
         chapterIndex: parseInt(chapterIndex),
         lang: syncLang,
         syncData,
-        engine: usedTtsTiming ? 'edge-tts-word-boundary' : `whisperx-${mode}`,
+        engine: usedEngine,
         wordCount: wrapped.wordCount,
         duration: audioInfo.duration,
         status: 'complete',
@@ -148,7 +281,8 @@ exports.autoAlign = async (req, res) => {
     );
 
     send('done', {
-      message: 'WhisperX alignment complete',
+      message: `Alignment complete (${usedEngine})`,
+      engine: usedEngine,
       mode,
       wordCount: wrapped.wordCount,
       syncDataCount: syncData.length,

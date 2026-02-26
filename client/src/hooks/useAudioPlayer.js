@@ -82,7 +82,7 @@ export function useAudioPlayer(bookId, chapterIndex, lang) {
     return res.data;
   }, [bookId, chapterIndex, langQuery, setBlobAudioUrl]);
 
-  const runAutoSync = useCallback(async (mode = 'word', { lang: syncLang } = {}) => {
+  const runAutoSync = useCallback(async (mode = 'word', { lang: syncLang, engine = 'auto' } = {}) => {
     const effectiveLang = syncLang || lang;
     setSyncProgress({ step: 'starting', message: 'Starting sync...' });
 
@@ -95,7 +95,7 @@ export function useAudioPlayer(bookId, chapterIndex, lang) {
           'Content-Type': 'application/json',
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        body: JSON.stringify({ mode, lang: effectiveLang }),
+        body: JSON.stringify({ mode, engine, lang: effectiveLang }),
       });
 
       const reader = response.body.getReader();
