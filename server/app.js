@@ -15,7 +15,7 @@ const paymentRoutes = require('./routes/paymentRoutes');
 const { handleWebhook } = require('./controllers/paymentController');
 
 const app = express();
-app.use(cors());
+app.use(cors({ exposedHeaders: ['Content-Disposition'] }));
 
 // Stripe webhook needs the raw body — must be before express.json()
 app.post('/api/payment/webhook', express.raw({ type: 'application/json' }), handleWebhook);
