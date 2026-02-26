@@ -107,6 +107,9 @@ class EpubExporter {
         audioTag = `\n<div style="margin:1em 0"><audio controls="controls" src="audio/${audioInfo.filename}">Your reader does not support audio.</audio></div>`;
       }
 
+      // Convert to valid XHTML (self-close void elements like <br>, <img>, etc.)
+      const xhtmlBody = this._toXhtml(html);
+
       // Wrap in valid XHTML with CSS and epub namespace
       const xhtml = `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE html>
@@ -116,7 +119,7 @@ class EpubExporter {
   <link rel="stylesheet" type="text/css" href="style.css"/>
 </head>
 <body>
-${html}${audioTag}
+${xhtmlBody}${audioTag}
 </body>
 </html>`;
 
@@ -200,6 +203,19 @@ ${items}
   </nav>
 </body>
 </html>`;
+  }
+
+  /**
+   * Convert HTML to valid XHTML by self-closing void elements.
+   * Cheerio with xmlMode:false outputs <br>, <hr>, <img …> etc.
+   * which are invalid in EPUB3 XHTML and break strict parsers like Thorium.
+   */
+  _toXhtml(html) {
+    const voidTags = 'area|base|br|col|embed|hr|img|input|link|meta|param|source|track|wbr';
+    return html.replace(
+      new RegExp(`<(${voidTags})(\\s[^>]*?)?\\s*\\/?>`, 'gi'),
+      '<$1$2/>'
+    );
   }
 
   _escXml(str) {
