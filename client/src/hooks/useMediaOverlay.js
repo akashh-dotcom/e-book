@@ -1,8 +1,44 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 
+/**
+ * Binary search for the word whose [clipBegin, clipEnd) contains `time`.
+ * Assumes `data` is sorted by clipBegin (ascending).
+ * Returns the index into `data`, or -1 if in a gap / out of range.
+ */
+function findActiveIndex(data, time) {
+  let lo = 0;
+  let hi = data.length - 1;
+  while (lo <= hi) {
+    const mid = (lo + hi) >>> 1;
+    const entry = data[mid];
+    // Skip entries with null timing (skipped words)
+    if (entry.clipBegin === null || entry.clipEnd === null) {
+      // Search both sides from this null entry
+      let found = -1;
+      for (let j = mid - 1; j >= lo; j--) {
+        if (data[j].clipBegin !== null && time >= data[j].clipBegin && time < data[j].clipEnd) return j;
+        if (data[j].clipEnd !== null && data[j].clipEnd <= time) break;
+      }
+      for (let j = mid + 1; j <= hi; j++) {
+        if (data[j].clipBegin !== null && time >= data[j].clipBegin && time < data[j].clipEnd) return j;
+        if (data[j].clipBegin !== null && data[j].clipBegin > time) break;
+      }
+      return found;
+    }
+    if (time < entry.clipBegin) {
+      hi = mid - 1;
+    } else if (time >= entry.clipEnd) {
+      lo = mid + 1;
+    } else {
+      return mid; // time is within [clipBegin, clipEnd)
+    }
+  }
+  return -1;
+}
+
 export function useMediaOverlay(syncData, audioUrl) {
   const audioRef = useRef(null);
-  const timerRef = useRef(null);
+  const rafRef = useRef(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);  // virtual time
   const [duration, setDuration] = useState(0);
@@ -13,7 +49,7 @@ export function useMediaOverlay(syncData, audioUrl) {
   const syncDataRef = useRef(syncData);
   syncDataRef.current = syncData;
   const playbackRateRef = useRef(1);
-  const activeWordRef = useRef(null);
+  const lastActiveIdxRef = useRef(-1);
 
   // Original sync data — the alignment before any word-edge drags.
   // Resets when word IDs change (e.g. after re-sync from aeneas).
@@ -95,7 +131,7 @@ export function useMediaOverlay(syncData, audioUrl) {
   useEffect(() => {
     // Clear stale highlights from previous audio/sync
     clearHighlights();
-    activeWordRef.current = null;
+    lastActiveIdxRef.current = -1;
     setActiveWordId(null);
     setCurrentTime(0);
     setIsPlaying(false);
@@ -110,8 +146,18 @@ export function useMediaOverlay(syncData, audioUrl) {
     audio.addEventListener('loadedmetadata', () => setDuration(audio.duration));
     audio.addEventListener('ended', () => {
       setIsPlaying(false);
-      clearHighlights();
-      activeWordRef.current = null;
+      // Mark all words as spoken at the end
+      const data = syncDataRef.current;
+      if (data?.length) {
+        for (const entry of data) {
+          const el = document.getElementById(entry.id);
+          if (el) {
+            el.classList.remove('-epub-media-overlay-active');
+            el.classList.add('mo-spoken');
+          }
+        }
+      }
+      lastActiveIdxRef.current = -1;
     });
     audio.src = audioUrl;
     audio.load();
@@ -123,7 +169,8 @@ export function useMediaOverlay(syncData, audioUrl) {
   }, [audioUrl]);
 
   const stopTimer = () => {
-    if (timerRef.current) clearInterval(timerRef.current);
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    rafRef.current = null;
   };
 
   // Mark skipped words in the DOM
@@ -137,59 +184,96 @@ export function useMediaOverlay(syncData, audioUrl) {
     }
   }, [syncData]);
 
-  // ---- Highlights use virtual time against current sync data ----
+  // ---- Highlights: binary search + incremental DOM updates ----
 
   const updateHighlights = useCallback((vt) => {
     const data = syncDataRef.current;
     if (!data?.length) return;
-    let newActive = null;
-    for (const entry of data) {
-      const el = document.getElementById(entry.id);
-      if (!el || entry.clipBegin === null) continue;
-      if (vt >= entry.clipBegin && vt < entry.clipEnd) {
-        newActive = entry.id;
-        el.classList.add('-epub-media-overlay-active');
-        el.classList.remove('mo-spoken');
-      } else if (vt >= entry.clipEnd) {
+
+    const newIdx = findActiveIndex(data, vt);
+    const prevIdx = lastActiveIdxRef.current;
+
+    if (newIdx === prevIdx) return; // same word — nothing to do
+
+    // Remove highlight from previous active word
+    if (prevIdx >= 0 && prevIdx < data.length) {
+      const el = document.getElementById(data[prevIdx].id);
+      if (el) {
         el.classList.remove('-epub-media-overlay-active');
         el.classList.add('mo-spoken');
-      } else {
-        el.classList.remove('-epub-media-overlay-active', 'mo-spoken');
       }
     }
-    // Only scroll when the active word changes to avoid jittery 40ms scrolling
-    if (newActive !== activeWordRef.current) {
-      activeWordRef.current = newActive;
-      setActiveWordId(newActive);
-      if (newActive) {
-        const el = document.getElementById(newActive);
-        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+    if (newIdx > prevIdx) {
+      // Moving forward — mark words between prevIdx+1 and newIdx-1 as spoken
+      const start = Math.max(0, prevIdx + 1);
+      for (let i = start; i < newIdx; i++) {
+        const el = document.getElementById(data[i].id);
+        if (el) {
+          el.classList.remove('-epub-media-overlay-active');
+          el.classList.add('mo-spoken');
+        }
+      }
+    } else if (newIdx < prevIdx) {
+      // Seeking backward — remove 'mo-spoken' from words after new position
+      const start = Math.max(0, newIdx + 1);
+      const end = Math.min(data.length, prevIdx + 1);
+      for (let i = start; i < end; i++) {
+        const el = document.getElementById(data[i].id);
+        if (el) el.classList.remove('-epub-media-overlay-active', 'mo-spoken');
       }
     }
+
+    // Add highlight to the new active word
+    if (newIdx >= 0) {
+      const entry = data[newIdx];
+      const el = document.getElementById(entry.id);
+      if (el) {
+        el.classList.add('-epub-media-overlay-active');
+        el.classList.remove('mo-spoken');
+        // Scroll only when the active word changes
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+      setActiveWordId(entry.id);
+    }
+
+    lastActiveIdxRef.current = newIdx;
   }, []);
 
   const clearHighlights = () => {
     document.querySelectorAll('.-epub-media-overlay-active, .mo-spoken')
       .forEach(el => el.classList.remove('-epub-media-overlay-active', 'mo-spoken'));
+    lastActiveIdxRef.current = -1;
   };
 
-  // ---- Playback timer: adjusts rate per word, maps to virtual time ----
+  // ---- Playback loop using requestAnimationFrame for smooth sync ----
 
   const startTimer = useCallback(() => {
     stopTimer();
-    timerRef.current = setInterval(() => {
+    let lastUpdate = 0;
+
+    const tick = (timestamp) => {
       if (!audioRef.current) return;
-      const audioTime = audioRef.current.currentTime;
 
-      // Adjust audio speed for the current word
-      const wordRate = getRateForAudioPos(audioTime);
-      audioRef.current.playbackRate = wordRate * playbackRateRef.current;
+      // Throttle updates to ~every 30ms (33fps) to avoid excessive work
+      if (timestamp - lastUpdate >= 30) {
+        lastUpdate = timestamp;
+        const audioTime = audioRef.current.currentTime;
 
-      // Map audio position → virtual timeline position
-      const vt = audioToVirtual(audioTime);
-      setCurrentTime(vt);
-      updateHighlights(vt);
-    }, 40);
+        // Adjust audio speed for the current word
+        const wordRate = getRateForAudioPos(audioTime);
+        audioRef.current.playbackRate = wordRate * playbackRateRef.current;
+
+        // Map audio position → virtual timeline position
+        const vt = audioToVirtual(audioTime);
+        setCurrentTime(vt);
+        updateHighlights(vt);
+      }
+
+      rafRef.current = requestAnimationFrame(tick);
+    };
+
+    rafRef.current = requestAnimationFrame(tick);
   }, [updateHighlights, audioToVirtual, getRateForAudioPos]);
 
   const play = useCallback(() => {
@@ -224,9 +308,30 @@ export function useMediaOverlay(syncData, audioUrl) {
       const audioTime = virtualToAudio(vt);
       audioRef.current.currentTime = audioTime;
       setCurrentTime(vt);
-      updateHighlights(vt);
+      // Full clear + re-highlight on seek for correctness
+      clearHighlights();
+      const data = syncDataRef.current;
+      if (data?.length) {
+        const idx = findActiveIndex(data, vt);
+        // Mark all words before the seek position as spoken
+        for (let i = 0; i < (idx >= 0 ? idx : data.length); i++) {
+          const el = document.getElementById(data[i].id);
+          if (el && data[i].clipEnd !== null && vt >= data[i].clipEnd) {
+            el.classList.add('mo-spoken');
+          }
+        }
+        if (idx >= 0) {
+          const el = document.getElementById(data[idx].id);
+          if (el) {
+            el.classList.add('-epub-media-overlay-active');
+            el.classList.remove('mo-spoken');
+          }
+          setActiveWordId(data[idx].id);
+          lastActiveIdxRef.current = idx;
+        }
+      }
     }
-  }, [updateHighlights, virtualToAudio]);
+  }, [virtualToAudio]);
 
   const seekToWord = useCallback((wordId) => {
     const data = syncDataRef.current;
