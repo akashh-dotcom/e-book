@@ -4,14 +4,23 @@ const cheerio = require('cheerio');
 // Must match between wrap() and getPlainText() so TTS audio and
 // sync highlighting use the exact same word list in the same order.
 const CONTENT_TAGS = new Set([
+  // Block elements
   'p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'li', 'td', 'th',
-  'blockquote', 'figcaption', 'dt', 'dd', 'span', 'em', 'strong', 'a',
-  'b', 'i', 'u', 's', 'sub', 'sup', 'small', 'mark', 'cite', 'q',
-  'abbr', 'dfn', 'time', 'label', 'caption',
+  'blockquote', 'figcaption', 'dt', 'dd', 'div', 'section', 'article',
+  'caption', 'label', 'pre',
+  // Inline elements
+  'span', 'em', 'strong', 'a', 'b', 'i', 'u', 's',
+  'sub', 'sup', 'small', 'mark', 'cite', 'q',
+  'abbr', 'dfn', 'time',
 ]);
 
 // Elements that should never have their text extracted.
-const SKIP_TAGS = new Set(['script', 'style', 'noscript']);
+const SKIP_TAGS = new Set([
+  'script', 'style', 'noscript',
+  'nav', 'header', 'footer', 'aside',
+  'head', 'title', 'meta', 'link',
+  'audio', 'video', 'svg', 'canvas',
+]);
 
 /**
  * Check whether a node is inside at least one content element.
