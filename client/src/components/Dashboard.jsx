@@ -1,8 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import {
-  BookOpen, Trash2, ChevronRight, Upload, Plus,
-  LayoutDashboard, Search, Loader, LogOut, ArrowLeft, User,
+  BookOpen, Trash2, Upload, Plus, Search, Loader, LogOut, ArrowLeft, User,
 } from 'lucide-react';
 import useBookStore from '../store/bookStore';
 import useAuthStore from '../store/authStore';
@@ -21,8 +20,8 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [paymentSuccess, setPaymentSuccess] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
 
-  // Show success banner after Stripe checkout redirect
   useEffect(() => {
     if (searchParams.get('payment') === 'success') {
       setPaymentSuccess(true);
@@ -62,166 +61,220 @@ export default function Dashboard() {
     }
   };
 
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setDragOver(false);
+    const file = e.dataTransfer?.files?.[0];
+    if (file) handleFile(file);
+  };
+
   const filtered = books.filter(b =>
     b.title?.toLowerCase().includes(search.toLowerCase()) ||
     b.author?.toLowerCase().includes(search.toLowerCase())
   );
 
   return (
-    <div className="flex min-h-screen bg-forest-950 text-forest-100 font-sans">
-      {/* Sidebar */}
-      <aside className="w-60 flex-shrink-0 flex flex-col bg-forest-950/70 border-r border-forest-500/8 p-5 sticky top-0 h-screen
-        max-md:w-full max-md:h-auto max-md:relative max-md:flex-row max-md:items-center max-md:p-3 max-md:gap-3">
-        <Link to="/" className="flex items-center gap-2.5 text-forest-100 no-underline text-lg font-bold tracking-tight px-2 mb-7 max-md:mb-0">
-          <BookOpen size={22} className="text-forest-400" />
-          <span>VoxBook</span>
-        </Link>
-
-        <nav className="flex flex-col gap-0.5 flex-1 max-md:flex-row max-md:flex-none">
-          <Link to="/"
-            className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium text-forest-200/50 no-underline hover:bg-white/[0.04] hover:text-forest-50 transition-all">
-            <ArrowLeft size={18} />
-            <span>Home</span>
-          </Link>
-          <div className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium text-forest-50 bg-forest-500/10">
-            <LayoutDashboard size={18} className="text-forest-400" />
-            <span>Library</span>
+    <div
+      className="min-h-screen bg-forest-950 text-forest-100 font-sans"
+      onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+      onDragLeave={() => setDragOver(false)}
+      onDrop={handleDrop}
+    >
+      {/* Drag overlay */}
+      {dragOver && (
+        <div className="fixed inset-0 z-50 bg-forest-950/80 backdrop-blur-sm flex items-center justify-center pointer-events-none">
+          <div className="flex flex-col items-center gap-4 p-10 rounded-3xl border-2 border-dashed border-forest-400 bg-forest-500/10 animate-pulse">
+            <Upload size={48} className="text-forest-400" />
+            <p className="text-xl font-semibold text-forest-200">Drop EPUB file here</p>
           </div>
-        </nav>
-
-        <div className="mt-auto pt-4 border-t border-forest-500/8 max-md:mt-0 max-md:ml-auto max-md:pt-0 max-md:border-0">
-          {/* User profile pill */}
-          {user && (
-            <button onClick={() => setProfileOpen(true)}
-              className="flex items-center gap-2.5 w-full px-3 py-2.5 mb-3 rounded-xl bg-white/[0.03] border border-white/[0.06] text-left
-                hover:bg-white/[0.06] transition-all cursor-pointer font-[inherit]">
-              {user.avatar ? (
-                <img src={user.avatar} alt="" className="w-8 h-8 rounded-full object-cover border border-forest-400/20 flex-shrink-0" />
-              ) : (
-                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-forest-500 to-forest-400 flex items-center justify-center text-xs font-bold text-white flex-shrink-0">
-                  {user.username?.charAt(0)?.toUpperCase()}
-                </div>
-              )}
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium text-forest-50 truncate">{user.username}</p>
-                <p className="text-[11px] text-forest-200/35 truncate">{user.email}</p>
-              </div>
-            </button>
-          )}
-
-          <button
-            className="flex items-center justify-center gap-2 w-full px-4 py-2.5 rounded-xl bg-gradient-to-r from-forest-500 to-forest-400 text-forest-950 text-sm font-semibold
-              shadow-[0_2px_12px_rgba(16,185,129,0.3)] hover:-translate-y-0.5 hover:shadow-[0_4px_20px_rgba(16,185,129,0.45)] active:translate-y-0
-              disabled:opacity-70 disabled:cursor-default transition-all cursor-pointer border-none font-[inherit]"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={uploading}
-          >
-            {uploading ? <Loader size={18} className="animate-spin" /> : <Plus size={18} />}
-            {uploading ? `Uploading ${progress}%` : 'Upload EPUB'}
-          </button>
-          <input ref={fileInputRef} type="file" accept=".epub" className="hidden"
-            onChange={e => handleFile(e.target.files[0])} />
-          {error && <p className="mt-2 text-xs text-candy-400 text-center">{error}</p>}
-          {user && (
-            <button onClick={() => { logout(); navigate('/login'); }}
-              className="flex items-center justify-center gap-2 w-full mt-3 px-4 py-2 rounded-xl bg-white/[0.04] border border-white/[0.06] text-forest-200/60 text-sm
-                hover:bg-white/[0.06] hover:text-forest-50 transition-all cursor-pointer font-[inherit]">
-              <LogOut size={16} />
-              Logout
-            </button>
-          )}
         </div>
-      </aside>
+      )}
 
-      {/* Main */}
-      <main className="flex-1 min-w-0 p-7 overflow-y-auto max-md:p-5">
-        {paymentSuccess && (
-          <div className="mb-5 px-4 py-3 rounded-xl bg-forest-500/15 border border-forest-500/25 text-forest-300 text-sm font-medium flex items-center gap-2 animate-fade-in-up">
-            <span className="text-lg">🎉</span> Payment successful! Your plan has been upgraded.
+      {/* ── Top Navigation Bar ── */}
+      <nav className="sticky top-0 z-40 backdrop-blur-xl bg-forest-950/80 border-b border-forest-500/8">
+        <div className="max-w-7xl mx-auto px-6 h-14 flex items-center justify-between gap-4">
+          {/* Left: Logo + nav */}
+          <div className="flex items-center gap-6">
+            <Link to="/" className="flex items-center gap-2 text-forest-100 no-underline font-bold text-lg tracking-tight">
+              <BookOpen size={22} className="text-forest-400" />
+              <span>VoxBook</span>
+            </Link>
+            <div className="hidden sm:flex items-center gap-1">
+              <Link to="/"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-forest-200/50 no-underline hover:text-forest-50 hover:bg-white/[0.04] transition-all">
+                <ArrowLeft size={14} />
+                Home
+              </Link>
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-forest-50 bg-forest-500/10">
+                Library
+              </div>
+            </div>
+          </div>
+
+          {/* Center: Search */}
+          <div className="flex-1 max-w-md mx-4">
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-forest-500/10 bg-forest-500/[0.04]
+              focus-within:border-forest-500/40 focus-within:shadow-[0_0_0_3px_rgba(16,185,129,0.1)] transition-all">
+              <Search size={14} className="text-forest-600 flex-shrink-0" />
+              <input type="text" placeholder="Search books..."
+                className="border-none bg-transparent outline-none text-forest-100 text-sm font-[inherit] w-full placeholder:text-forest-700"
+                value={search} onChange={e => setSearch(e.target.value)} />
+            </div>
+          </div>
+
+          {/* Right: Upload + User + Logout */}
+          <div className="flex items-center gap-3">
+            <button
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-forest-500 to-forest-400 text-forest-950 text-sm font-semibold
+                shadow-[0_2px_12px_rgba(16,185,129,0.3)] hover:-translate-y-0.5 hover:shadow-[0_4px_20px_rgba(16,185,129,0.45)] active:translate-y-0
+                disabled:opacity-70 disabled:cursor-default transition-all cursor-pointer border-none font-[inherit]"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading}
+            >
+              {uploading ? <Loader size={16} className="animate-spin" /> : <Plus size={16} />}
+              <span className="hidden sm:inline">{uploading ? `Uploading ${progress}%` : 'Upload EPUB'}</span>
+            </button>
+            <input ref={fileInputRef} type="file" accept=".epub" className="hidden"
+              onChange={e => handleFile(e.target.files[0])} />
+
+            {user && (
+              <button onClick={() => setProfileOpen(true)}
+                className="flex items-center justify-center w-8 h-8 rounded-full bg-white/[0.04] border border-white/[0.08]
+                  hover:bg-white/[0.08] transition-all cursor-pointer overflow-hidden flex-shrink-0"
+                title={user.username}
+              >
+                {user.avatar ? (
+                  <img src={user.avatar} alt="" className="w-full h-full object-cover" />
+                ) : (
+                  <span className="text-xs font-bold text-forest-300">
+                    {user.username?.charAt(0)?.toUpperCase()}
+                  </span>
+                )}
+              </button>
+            )}
+
+            {user && (
+              <button onClick={() => { logout(); navigate('/login'); }}
+                className="flex items-center justify-center w-8 h-8 rounded-full bg-white/[0.04] border border-white/[0.06] text-forest-200/40
+                  hover:bg-white/[0.08] hover:text-forest-50 transition-all cursor-pointer"
+                title="Logout">
+                <LogOut size={14} />
+              </button>
+            )}
+          </div>
+        </div>
+        {error && (
+          <div className="max-w-7xl mx-auto px-6 pb-2">
+            <p className="text-xs text-candy-400 text-center">{error}</p>
           </div>
         )}
-        <header className="flex items-end justify-between mb-8 gap-4 flex-wrap">
+      </nav>
+
+      {/* ── Main Content ── */}
+      <main className="max-w-7xl mx-auto px-6 py-8">
+        {paymentSuccess && (
+          <div className="mb-6 px-4 py-3 rounded-xl bg-forest-500/15 border border-forest-500/25 text-forest-300 text-sm font-medium flex items-center gap-2 animate-fade-in-up">
+            Payment successful! Your plan has been upgraded.
+          </div>
+        )}
+
+        {/* Header */}
+        <div className="flex items-end justify-between mb-8">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight bg-gradient-to-r from-forest-50 to-forest-300 bg-clip-text text-transparent">
+            <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-forest-50 to-forest-300 bg-clip-text text-transparent">
               Your Library
             </h1>
-            <p className="text-sm text-forest-500/60 mt-1">{books.length} {books.length === 1 ? 'book' : 'books'}</p>
+            <p className="text-sm text-forest-500/50 mt-1.5">{books.length} {books.length === 1 ? 'book' : 'books'} in your collection</p>
           </div>
-          <div className="flex items-center gap-2 px-3.5 py-2 rounded-xl border border-forest-500/10 bg-forest-500/[0.04] min-w-[220px]
-            focus-within:border-forest-500/40 focus-within:bg-forest-500/[0.06] focus-within:shadow-[0_0_0_3px_rgba(16,185,129,0.1)] transition-all">
-            <Search size={16} className="text-forest-600 flex-shrink-0" />
-            <input type="text" placeholder="Search books..."
-              className="border-none bg-transparent outline-none text-forest-100 text-sm font-[inherit] w-full placeholder:text-forest-700"
-              value={search} onChange={e => setSearch(e.target.value)} />
-          </div>
-        </header>
+        </div>
 
+        {/* States */}
         {loading ? (
-          <div className="flex flex-col items-center justify-center text-center py-20 text-forest-600">
-            <div className="w-6 h-6 border-3 border-forest-200 border-t-forest-500 rounded-full animate-spin mb-4" />
-            <p>Loading your library...</p>
+          <div className="flex flex-col items-center justify-center text-center py-24 text-forest-600">
+            <div className="w-10 h-10 border-[3px] border-forest-800 border-t-forest-400 rounded-full animate-spin mb-5" />
+            <p className="text-sm">Loading your library...</p>
           </div>
         ) : filtered.length === 0 ? (
-          <div className="flex flex-col items-center justify-center text-center py-20">
+          <div className="flex flex-col items-center justify-center text-center py-24">
             {books.length === 0 ? (
               <>
-                <div className="w-20 h-20 rounded-2xl bg-forest-500/8 flex items-center justify-center text-forest-600 mb-5">
+                <div className="w-24 h-24 rounded-3xl bg-forest-500/8 flex items-center justify-center text-forest-600 mb-6 animate-pulse-glow">
                   <BookOpen size={48} />
                 </div>
-                <h3 className="text-lg font-semibold text-forest-400 mb-1.5">No books yet</h3>
-                <p className="text-sm text-forest-600 mb-5">Upload your first EPUB to get started.</p>
+                <h3 className="text-xl font-semibold text-forest-300 mb-2">Your library is empty</h3>
+                <p className="text-sm text-forest-600 mb-6 max-w-sm">Upload your first EPUB to start reading with AI-powered audio sync.</p>
                 <button
-                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-dashed border-forest-500/30 bg-forest-500/[0.06] text-forest-300 text-sm font-semibold
-                    hover:bg-forest-500/[0.12] hover:border-forest-500/50 hover:text-forest-200 transition-all cursor-pointer font-[inherit]"
+                  className="inline-flex items-center gap-2.5 px-6 py-3 rounded-xl border border-dashed border-forest-500/30 bg-forest-500/[0.06] text-forest-300 text-sm font-semibold
+                    hover:bg-forest-500/[0.12] hover:border-forest-500/50 hover:text-forest-200 hover:-translate-y-0.5 transition-all cursor-pointer font-[inherit]"
                   onClick={() => fileInputRef.current?.click()}
                 >
                   <Upload size={18} />
-                  Upload EPUB
+                  Upload your first book
                 </button>
               </>
             ) : (
               <>
-                <div className="w-20 h-20 rounded-2xl bg-forest-500/8 flex items-center justify-center text-forest-600 mb-5">
+                <div className="w-24 h-24 rounded-3xl bg-forest-500/8 flex items-center justify-center text-forest-600 mb-6">
                   <Search size={48} />
                 </div>
-                <h3 className="text-lg font-semibold text-forest-400 mb-1.5">No results</h3>
-                <p className="text-sm text-forest-600">No books match "{search}"</p>
+                <h3 className="text-xl font-semibold text-forest-300 mb-2">No results</h3>
+                <p className="text-sm text-forest-600">No books match "<span className="text-forest-400">{search}</span>"</p>
               </>
             )}
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-4">
+          /* ── Book Grid: Vertical cards ── */
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-5">
             {filtered.map((book, i) => (
               <Link key={book._id} to={`/read/${book._id}`}
-                className="flex items-stretch no-underline text-inherit rounded-2xl border border-forest-500/8 bg-forest-500/[0.02] overflow-hidden
-                  hover:border-forest-500/25 hover:bg-forest-500/[0.05] hover:-translate-y-0.5 hover:shadow-[0_8px_30px_rgba(0,0,0,0.3),0_0_0_1px_rgba(16,185,129,0.1)]
-                  transition-all duration-300 cursor-pointer group"
-                style={{ animationDelay: `${i * 50}ms` }}>
-                <div className="w-[72px] flex-shrink-0 flex items-center justify-center bg-gradient-to-br from-forest-500/12 to-forest-600/8 text-forest-400 border-r border-forest-500/5 overflow-hidden">
+                className="group flex flex-col no-underline text-inherit rounded-2xl border border-forest-500/8 bg-forest-500/[0.02] overflow-hidden
+                  hover:border-forest-500/25 hover:bg-forest-500/[0.05] hover:-translate-y-1.5 hover:shadow-[0_12px_40px_rgba(0,0,0,0.4),0_0_0_1px_rgba(16,185,129,0.1)]
+                  transition-all duration-300 cursor-pointer animate-fade-in-up"
+                style={{ animationDelay: `${i * 60}ms` }}>
+
+                {/* Cover */}
+                <div className="relative aspect-[3/4] w-full bg-gradient-to-br from-forest-500/12 to-forest-900/40 flex items-center justify-center overflow-hidden">
                   {book.cover ? (
-                    <img src={`/storage/books/${book._id}/assets/${book.cover}`} alt={book.title} draggable={false} className="w-full h-full object-cover" />
+                    <img
+                      src={`/storage/books/${book._id}/assets/${book.cover}`}
+                      alt={book.title}
+                      draggable={false}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    />
                   ) : (
-                    <BookOpen size={28} />
+                    <div className="flex flex-col items-center gap-2 text-forest-600">
+                      <BookOpen size={36} className="group-hover:text-forest-500 transition-colors" />
+                    </div>
+                  )}
+                  {/* Chapters badge */}
+                  <div className="absolute top-2 right-2 px-2 py-0.5 rounded-md bg-forest-950/70 backdrop-blur-sm text-[10px] font-medium text-forest-300 border border-forest-500/10">
+                    {book.totalChapters} ch
+                  </div>
+                  {/* Hover overlay */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-forest-950/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                </div>
+
+                {/* Info */}
+                <div className="flex-1 px-3 pt-3 pb-2 flex flex-col gap-0.5 min-w-0">
+                  <div className="text-sm font-semibold text-forest-50 truncate leading-tight group-hover:text-forest-200 transition-colors">
+                    {book.title}
+                  </div>
+                  {book.author && (
+                    <div className="text-xs text-forest-400/50 truncate">{book.author}</div>
                   )}
                 </div>
-                <div className="flex-1 min-w-0 px-4 py-3.5 flex flex-col justify-center gap-0.5">
-                  <div className="text-sm font-semibold text-forest-50 truncate tracking-tight">{book.title}</div>
-                  {book.author && <div className="text-xs text-forest-400/60 truncate">{book.author}</div>}
-                  <div className="text-[11px] text-forest-600 mt-0.5">
-                    {book.totalChapters} {book.totalChapters === 1 ? 'chapter' : 'chapters'}
-                  </div>
-                </div>
-                <div className="flex flex-col items-center justify-center px-3 gap-2">
+
+                {/* Delete button */}
+                <div className="px-3 pb-3">
                   <button
-                    className="flex items-center justify-center w-7 h-7 rounded-lg bg-transparent text-forest-700 hover:bg-red-500/12 hover:text-candy-400 transition-all cursor-pointer border-none"
+                    className="flex items-center justify-center gap-1.5 w-full py-1.5 rounded-lg bg-transparent border border-transparent text-forest-700 text-xs
+                      opacity-0 group-hover:opacity-100 hover:!bg-candy-500/10 hover:!border-candy-500/20 hover:!text-candy-400 transition-all cursor-pointer font-[inherit]"
                     onClick={(e) => handleDelete(e, book._id)}
                     title="Delete book"
                   >
-                    <Trash2 size={14} />
+                    <Trash2 size={12} />
+                    <span>Delete</span>
                   </button>
-                  <span className="text-forest-800 group-hover:text-forest-400 group-hover:translate-x-0.5 transition-all">
-                    <ChevronRight size={16} />
-                  </span>
                 </div>
               </Link>
             ))}
