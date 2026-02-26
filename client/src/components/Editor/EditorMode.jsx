@@ -43,8 +43,8 @@ export default function EditorMode({
           hasSyncData={audio.hasSyncData}
           onUpload={audio.uploadAudio}
           onGenerate={async (voice) => { await audio.generateAudio(voice); }}
-          onAutoSync={async (mode) => {
-            const result = await audio.runAutoSync(mode);
+          onAutoSync={async (mode, { engine } = {}) => {
+            const result = await audio.runAutoSync(mode, { engine });
             reader.reloadChapter();
             return result;
           }}

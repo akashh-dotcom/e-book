@@ -141,9 +141,9 @@ export default function ReaderPage() {
               hasAudio={audio.hasAudio}
               hasSyncData={audio.hasSyncData}
               onUpload={audio.uploadAudio}
-              onAutoSync={async (mode) => {
+              onAutoSync={async (mode, { engine } = {}) => {
                 const lang = reader.translatedLang || undefined;
-                const result = await audio.runAutoSync(mode, { lang });
+                const result = await audio.runAutoSync(mode, { lang, engine });
                 reader.reloadChapter();
                 return result;
               }}
