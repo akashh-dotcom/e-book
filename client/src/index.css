@@ -2488,14 +2488,14 @@ body {
 
 .ed-body {
   display: grid;
-  grid-template-columns: 400px 1fr 340px;
+  grid-template-columns: 480px 1fr 340px;
   overflow: hidden;
   min-height: 0;
 }
 
 /* When no properties panel */
 .ed-body:not(:has(.ed-properties)) {
-  grid-template-columns: 400px 1fr;
+  grid-template-columns: 480px 1fr;
 }
 
 /* --- SIDEBAR (left) --- */
@@ -2556,7 +2556,7 @@ body {
 }
 
 .ed-chapter-list {
-  padding: 6px 4px;
+  padding: 8px 10px;
 }
 
 .ed-chapter-item {
@@ -2620,7 +2620,7 @@ body {
 /* Audio tab */
 
 .ed-audio-section {
-  padding: 14px;
+  padding: 16px 18px;
 }
 
 .ed-audio-status {
