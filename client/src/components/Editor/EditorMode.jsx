@@ -69,8 +69,8 @@ export default function EditorMode({
         />
 
         {/* Canvas area - the EPUB content */}
-        <main className="ed-canvas" ref={reader.chapterRef}>
-          <div className="ed-canvas-inner">
+        <main className="ed-canvas">
+          <div className="ed-canvas-inner" ref={reader.chapterRef}>
             <ChapterView
               html={reader.chapterHtml}
               fontSize={reader.fontSize}

@@ -2906,20 +2906,23 @@ body:has(.ed-root) {
 /* --- CANVAS (center) --- */
 
 .ed-canvas {
-  overflow-y: auto;
+  overflow: hidden;
   min-height: 0;
   background: #030d08;
   background-image: radial-gradient(ellipse at 50% 0%, rgba(16,185,129,0.04) 0%, transparent 60%);
-  scrollbar-width: thin;
-  scrollbar-color: #065f46 transparent;
-  overscroll-behavior: contain;
+  padding-right: 10px;
 }
 
 .ed-canvas-inner {
   max-width: 100%;
+  height: 100%;
+  overflow-y: auto;
   margin: 0 auto;
   padding: 36px 40px 80px 90px;
   animation: edSlideUp 0.4s ease-out 0.1s both;
+  scrollbar-width: thin;
+  scrollbar-color: #065f46 transparent;
+  overscroll-behavior: contain;
 }
 
 .ed-canvas-inner .chapter-content,
@@ -3374,7 +3377,7 @@ body:has(.ed-root) {
 .ed-timeline-scroll {
   overflow-x: auto;
   overflow-y: hidden;
-  height: 130px;
+  height: 100px;
   scrollbar-width: thin;
   scrollbar-color: rgba(16,185,129,0.3) rgba(2,10,6,0.5);
 }
