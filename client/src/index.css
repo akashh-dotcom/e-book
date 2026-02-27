@@ -3218,23 +3218,23 @@ body:has(.ed-root) {
   text-align: left !important;
 }
 
-.ed-canvas-inner .chapter-content.text-align-left,
-.ed-canvas-inner .chapter-content.text-align-left * {
+.chapter-content.text-align-left,
+.chapter-content.text-align-left * {
   text-align: left !important;
 }
 
-.ed-canvas-inner .chapter-content.text-align-center,
-.ed-canvas-inner .chapter-content.text-align-center * {
+.chapter-content.text-align-center,
+.chapter-content.text-align-center * {
   text-align: center !important;
 }
 
-.ed-canvas-inner .chapter-content.text-align-right,
-.ed-canvas-inner .chapter-content.text-align-right * {
+.chapter-content.text-align-right,
+.chapter-content.text-align-right * {
   text-align: right !important;
 }
 
-.ed-canvas-inner .chapter-content.text-align-justify,
-.ed-canvas-inner .chapter-content.text-align-justify * {
+.chapter-content.text-align-justify,
+.chapter-content.text-align-justify * {
   text-align: justify !important;
 }
 
