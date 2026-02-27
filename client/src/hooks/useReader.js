@@ -12,6 +12,7 @@ export default function useReader(bookId) {
   const [lineHeight, setLineHeight] = useState(1.8);
   const [theme, setTheme] = useState('light');
   const [readingMode, setReadingMode] = useState('scroll');
+  const [textAlign, setTextAlign] = useState('left');
   const [searchOpen, setSearchOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [bookmarksOpen, setBookmarksOpen] = useState(false);
@@ -276,6 +277,8 @@ export default function useReader(bookId) {
     setTheme,
     readingMode,
     setReadingMode,
+    textAlign,
+    setTextAlign,
     searchOpen,
     setSearchOpen,
     settingsOpen,

@@ -230,6 +230,7 @@ export default function ReaderPage() {
               loading={reader.chapterLoading}
               bookId={bookId}
               chapterIndex={reader.chapterIndex}
+              textAlign={reader.textAlign}
               onHighlight={(text, color) => {
                 reader.addBookmark({
                   type: 'highlight',
@@ -262,6 +263,8 @@ export default function ReaderPage() {
             setReadingMode={reader.setReadingMode}
             highlightColor={reader.highlightColor}
             setHighlightColor={reader.setHighlightColor}
+            textAlign={reader.textAlign}
+            setTextAlign={reader.setTextAlign}
           />
         )}
 

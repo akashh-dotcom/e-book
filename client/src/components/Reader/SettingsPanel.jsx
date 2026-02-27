@@ -62,6 +62,7 @@ export default function SettingsPanel({
   lineHeight, setLineHeight,
   readingMode, setReadingMode,
   highlightColor, setHighlightColor,
+  textAlign, setTextAlign,
 }) {
   return (
     <div className="settings-panel">
@@ -143,6 +144,21 @@ export default function SettingsPanel({
             onClick={() => setReadingMode('paginated')}
             style={{ background: 'rgba(16,185,129,0.06)', color: '#d1fae5' }}
           >Paginated</button>
+        </div>
+      </div>
+
+      {/* Text alignment */}
+      <div className="setting-row">
+        <label>Text Align</label>
+        <div className="theme-options">
+          {['left', 'center', 'right', 'justify'].map(align => (
+            <button
+              key={align}
+              className={`theme-btn ${textAlign === align ? 'active' : ''}`}
+              onClick={() => setTextAlign(align)}
+              style={{ background: 'rgba(16,185,129,0.06)', color: '#d1fae5', textTransform: 'capitalize' }}
+            >{align}</button>
+          ))}
         </div>
       </div>
     </div>
