@@ -69,8 +69,10 @@ export default function ChapterView({
   const wrapTextWithAnnotation = (container, annotation) => {
     const searchText = annotation.selectedText;
     const occurrenceTarget = annotation.occurrenceIndex || 0;
-    let occurrenceCount = 0;
 
+    // Collect all text nodes with their position in the full concatenated text
+    const textNodes = [];
+    let fullText = '';
     const walker = document.createTreeWalker(
       container,
       NodeFilter.SHOW_TEXT,
@@ -78,44 +80,67 @@ export default function ChapterView({
       false
     );
 
-    let node;
-    while ((node = walker.nextNode())) {
-      if (node.parentElement?.closest('[data-annotation-id]')) continue;
+    let tNode;
+    while ((tNode = walker.nextNode())) {
+      if (tNode.parentElement?.closest('[data-annotation-id]')) continue;
+      textNodes.push({ node: tNode, start: fullText.length });
+      fullText += tNode.textContent;
+    }
 
-      const text = node.textContent;
-      const idx = text.indexOf(searchText);
-      if (idx === -1) continue;
-
-      if (occurrenceCount < occurrenceTarget) {
-        occurrenceCount++;
-        continue;
+    // Find the nth occurrence in the concatenated text
+    let matchStart = -1;
+    let occurrenceCount = 0;
+    let searchFrom = 0;
+    while (searchFrom <= fullText.length - searchText.length) {
+      const idx = fullText.indexOf(searchText, searchFrom);
+      if (idx === -1) break;
+      if (occurrenceCount === occurrenceTarget) {
+        matchStart = idx;
+        break;
       }
+      occurrenceCount++;
+      searchFrom = idx + 1;
+    }
 
-      const range = document.createRange();
-      range.setStart(node, idx);
-      range.setEnd(node, idx + searchText.length);
+    if (matchStart === -1) return;
+    const matchEnd = matchStart + searchText.length;
 
+    // Wrap each text node segment that overlaps with the match.
+    // Because we wrap within individual text nodes, surroundContents
+    // never crosses element boundaries and cannot fail.
+    const makeSpan = () => {
       const span = document.createElement('span');
       span.setAttribute('data-annotation-id', annotation._id);
       span.className = 'annotation-span';
-      if (annotation.backgroundColor) {
-        span.style.backgroundColor = annotation.backgroundColor;
-      }
-      if (annotation.fontColor) {
-        span.style.color = annotation.fontColor;
-      }
+      if (annotation.backgroundColor) span.style.backgroundColor = annotation.backgroundColor;
+      if (annotation.fontColor) span.style.color = annotation.fontColor;
       if (annotation.translatedText) {
         span.setAttribute('data-translation', annotation.translatedText);
         span.setAttribute('data-translated-lang', annotation.translatedLang || '');
         span.classList.add('has-translation');
       }
+      return span;
+    };
 
-      try {
-        range.surroundContents(span);
-      } catch {
-        // surroundContents can fail if range crosses element boundaries
-      }
-      break;
+    // Process in reverse so earlier node offsets remain valid
+    const overlapping = [];
+    for (const entry of textNodes) {
+      const nodeStart = entry.start;
+      const nodeEnd = nodeStart + entry.node.textContent.length;
+      if (nodeEnd <= matchStart || nodeStart >= matchEnd) continue;
+      const overlapStart = Math.max(0, matchStart - nodeStart);
+      const overlapEnd = Math.min(entry.node.textContent.length, matchEnd - nodeStart);
+      overlapping.push({ node: entry.node, overlapStart, overlapEnd });
+    }
+
+    for (let i = overlapping.length - 1; i >= 0; i--) {
+      const { node, overlapStart, overlapEnd } = overlapping[i];
+      // Skip whitespace-only segments
+      if (!node.textContent.slice(overlapStart, overlapEnd).trim()) continue;
+      const range = document.createRange();
+      range.setStart(node, overlapStart);
+      range.setEnd(node, overlapEnd);
+      range.surroundContents(makeSpan());
     }
   };
 
