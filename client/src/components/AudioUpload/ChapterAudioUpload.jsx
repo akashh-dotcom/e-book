@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { Upload, Mic, Loader, Wand2, Volume2, RefreshCw } from 'lucide-react';
+import { Upload, Mic, Loader, Wand2, Volume2, RefreshCw, X, Trash2 } from 'lucide-react';
 import VoiceSelector, { DEFAULT_VOICE } from '../VoiceSelector';
 
 export default function ChapterAudioUpload({
@@ -9,8 +9,11 @@ export default function ChapterAudioUpload({
   onAutoSync,
   onGenerate,
   onRegenerate,
+  onDeleteAudio,
+  onDeleteSync,
   bookId,
   chapterIndex,
+  bookLanguage,
   translatedLang,
   syncProgress,
   regenProgress,
@@ -19,8 +22,9 @@ export default function ChapterAudioUpload({
   const [syncing, setSyncing] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [selectedVoice, setSelectedVoice] = useState(DEFAULT_VOICE);
-  const [selectedEngine, setSelectedEngine] = useState('auto');
+  const [selectedEngine, setSelectedEngine] = useState('stable-ts');
   const [error, setError] = useState('');
   const fileRef = useRef(null);
 
@@ -69,10 +73,32 @@ export default function ChapterAudioUpload({
     setRegenerating(false);
   };
 
-  const isBusy = regenerating || syncing;
+  const handleDeleteAudio = async () => {
+    if (!onDeleteAudio) return;
+    setDeleting(true);
+    setError('');
+    try { await onDeleteAudio(); }
+    catch (err) { setError(err.response?.data?.error || 'Delete failed'); }
+    setDeleting(false);
+  };
+
+  const handleDeleteSync = async () => {
+    if (!onDeleteSync) return;
+    setDeleting(true);
+    setError('');
+    try { await onDeleteSync(); }
+    catch (err) { setError(err.response?.data?.error || 'Delete failed'); }
+    setDeleting(false);
+  };
+
+  // Filter voices to the active language: translated language takes priority, otherwise book's own language
+  const voiceFilterLang = translatedLang || (bookLanguage ? bookLanguage.split('-')[0] : null);
+
+  const isBusy = regenerating || syncing || generating || deleting;
 
   return (
     <div className="audio-upload-bar">
+      {/* ── No audio ── */}
       {!hasAudio && (
         <>
           <button
@@ -96,7 +122,7 @@ export default function ChapterAudioUpload({
               <VoiceSelector
                 value={selectedVoice}
                 onChange={setSelectedVoice}
-                filterLang={translatedLang}
+                filterLang={voiceFilterLang}
               />
 
               <button
@@ -112,22 +138,26 @@ export default function ChapterAudioUpload({
         </>
       )}
 
+      {/* ── Audio loaded, not synced ── */}
       {hasAudio && !hasSyncData && (
         <div className="sync-options">
-          <select
-            className="engine-select"
-            value={selectedEngine}
-            onChange={e => setSelectedEngine(e.target.value)}
-            disabled={syncing}
-          >
-            <option value="auto">Auto (TTS/WhisperX)</option>
-            <option value="stable-ts">Stable-TS (Best Accuracy)</option>
-            <option value="whisperx">WhisperX</option>
-          </select>
+          <div className="engine-select-wrapper">
+            <label className="engine-select-label">Sync Engine</label>
+            <select
+              className="engine-select"
+              value={selectedEngine}
+              onChange={e => setSelectedEngine(e.target.value)}
+              disabled={isBusy}
+            >
+              <option value="stable-ts">Stable-TS (Default)</option>
+              <option value="whisperx">WhisperX</option>
+              <option value="auto">Auto (TTS timing)</option>
+            </select>
+          </div>
           <button
             className="audio-upload-btn sync"
             onClick={() => handleSync('word')}
-            disabled={syncing}
+            disabled={isBusy}
           >
             {syncing ? <Loader size={14} className="spin" /> : <Wand2 size={14} />}
             {syncing ? 'Syncing...' : 'Auto-Sync'}
@@ -138,6 +168,15 @@ export default function ChapterAudioUpload({
           >
             <Mic size={14} /> Manual Sync
           </a>
+          <button
+            className="audio-upload-btn remove"
+            onClick={handleDeleteAudio}
+            disabled={isBusy}
+            title="Remove audio and start over"
+          >
+            {deleting ? <Loader size={14} className="spin" /> : <X size={14} />}
+            Remove Audio
+          </button>
           {syncing && syncProgress && (
             <div className="sync-progress-status">
               <Loader size={12} className="spin" />
@@ -147,20 +186,47 @@ export default function ChapterAudioUpload({
         </div>
       )}
 
+      {/* ── Synced ── */}
       {hasSyncData && (
         <div className="sync-done-row">
           <span className="sync-ready">Audio synced</span>
-          <div className="resync-row">
-            <select
-              className="engine-select"
-              value={selectedEngine}
-              onChange={e => setSelectedEngine(e.target.value)}
+
+          {/* Revert buttons */}
+          <div className="revert-row">
+            <button
+              className="revert-btn"
+              onClick={handleDeleteSync}
               disabled={isBusy}
+              title="Remove sync data only (keep audio)"
             >
-              <option value="auto">Auto (TTS/WhisperX)</option>
-              <option value="stable-ts">Stable-TS (Best Accuracy)</option>
-              <option value="whisperx">WhisperX</option>
-            </select>
+              <X size={13} />
+              <span>Remove Sync</span>
+            </button>
+            <button
+              className="revert-btn revert-btn-danger"
+              onClick={handleDeleteAudio}
+              disabled={isBusy}
+              title="Remove audio and sync data"
+            >
+              <Trash2 size={13} />
+              <span>Remove Audio</span>
+            </button>
+          </div>
+
+          <div className="resync-row">
+            <div className="engine-select-wrapper">
+              <label className="engine-select-label">Sync Engine</label>
+              <select
+                className="engine-select"
+                value={selectedEngine}
+                onChange={e => setSelectedEngine(e.target.value)}
+                disabled={isBusy}
+              >
+                <option value="stable-ts">Stable-TS (Default)</option>
+                <option value="whisperx">WhisperX</option>
+                <option value="auto">Auto (TTS timing)</option>
+              </select>
+            </div>
             <button
               className="audio-upload-btn sync"
               onClick={() => handleSync('word')}
@@ -181,7 +247,7 @@ export default function ChapterAudioUpload({
               <VoiceSelector
                 value={selectedVoice}
                 onChange={setSelectedVoice}
-                filterLang={translatedLang}
+                filterLang={voiceFilterLang}
                 disabled={isBusy}
               />
               <button
@@ -192,7 +258,7 @@ export default function ChapterAudioUpload({
                 {regenerating
                   ? <Loader size={14} className="spin" />
                   : <RefreshCw size={14} />}
-                {regenerating ? 'Re-generating...' : 'Re-generate & Sync'}
+                {regenerating ? 'Regenerating...' : 'Regenerate Audio'}
               </button>
             </div>
           )}

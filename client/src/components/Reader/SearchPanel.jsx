@@ -24,7 +24,7 @@ export default function SearchPanel({ bookId, onNavigate, onClose }) {
   return (
     <div className="search-panel">
       <div className="search-input-row">
-        <Search size={16} style={{ color: 'var(--text-dim)', flexShrink: 0 }} />
+        <Search size={16} style={{ color: 'var(--chrome-text-dim)', flexShrink: 0 }} />
         <input
           type="text"
           placeholder="Search in this book..."

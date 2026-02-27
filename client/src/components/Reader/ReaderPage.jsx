@@ -174,8 +174,17 @@ export default function ReaderPage() {
                 setRegenProgress({ percent: 100, message: 'Done!' });
                 setTimeout(() => setRegenProgress(null), 1500);
               }}
+              onDeleteAudio={async () => {
+                await audio.deleteAudio();
+                reader.reloadChapter();
+              }}
+              onDeleteSync={async () => {
+                await audio.deleteSync();
+                reader.reloadChapter();
+              }}
               bookId={bookId}
               chapterIndex={reader.chapterIndex}
+              bookLanguage={reader.book.language}
               translatedLang={reader.translatedLang}
               syncProgress={audio.syncProgress}
               regenProgress={regenProgress}

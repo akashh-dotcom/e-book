@@ -53,6 +53,14 @@ export default function EditorMode({
             await audio.runAutoSync('word', { engine });
             reader.reloadChapter();
           }}
+          onDeleteAudio={async () => {
+            await audio.deleteAudio();
+            reader.reloadChapter();
+          }}
+          onDeleteSync={async () => {
+            await audio.deleteSync();
+            reader.reloadChapter();
+          }}
           bookId={bookId}
           syncProgress={audio.syncProgress}
         />

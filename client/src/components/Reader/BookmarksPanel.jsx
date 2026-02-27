@@ -10,7 +10,7 @@ export default function BookmarksPanel({ bookmarks, onNavigate, onDelete, onClos
         <span>Bookmarks & Highlights</span>
         <button
           onClick={onClose}
-          style={{ background: 'none', border: 'none', color: 'var(--text-dim)', cursor: 'pointer' }}
+          style={{ background: 'none', border: 'none', color: 'var(--chrome-text-dim)', cursor: 'pointer' }}
         >
           <X size={16} />
         </button>
@@ -19,7 +19,7 @@ export default function BookmarksPanel({ bookmarks, onNavigate, onDelete, onClos
       <div className="bookmarks-list">
         {bookmarkItems.length > 0 && (
           <>
-            <div style={{ padding: '8px 16px', fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-dim)', textTransform: 'uppercase' }}>
+            <div style={{ padding: '8px 16px', fontSize: '0.78rem', fontWeight: 600, color: 'var(--chrome-text-dim)', textTransform: 'uppercase' }}>
               Bookmarks
             </div>
             {bookmarkItems.map(bm => (
@@ -28,7 +28,7 @@ export default function BookmarksPanel({ bookmarks, onNavigate, onDelete, onClos
                 className="bookmark-item"
                 onClick={() => onNavigate(bm.chapterIndex)}
               >
-                <Bookmark size={14} style={{ color: 'var(--accent)', flexShrink: 0, marginTop: 2 }} />
+                <Bookmark size={14} style={{ color: '#34d399', flexShrink: 0, marginTop: 2 }} />
                 <div className="bookmark-item-info">
                   <div className="bookmark-chapter">{bm.label}</div>
                   <div className="bookmark-text">Chapter {bm.chapterIndex + 1}</div>
@@ -46,7 +46,7 @@ export default function BookmarksPanel({ bookmarks, onNavigate, onDelete, onClos
 
         {highlightItems.length > 0 && (
           <>
-            <div style={{ padding: '8px 16px', fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-dim)', textTransform: 'uppercase' }}>
+            <div style={{ padding: '8px 16px', fontSize: '0.78rem', fontWeight: 600, color: 'var(--chrome-text-dim)', textTransform: 'uppercase' }}>
               Highlights
             </div>
             {highlightItems.map(hl => (
@@ -72,7 +72,7 @@ export default function BookmarksPanel({ bookmarks, onNavigate, onDelete, onClos
         )}
 
         {bookmarks.length === 0 && (
-          <div style={{ padding: 20, textAlign: 'center', color: 'var(--text-dim)', fontSize: '0.88rem' }}>
+          <div style={{ padding: 20, textAlign: 'center', color: 'var(--chrome-text-dim)', fontSize: '0.88rem' }}>
             No bookmarks or highlights yet
           </div>
         )}
