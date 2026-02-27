@@ -2294,6 +2294,14 @@ body {
   overflow: hidden;
   z-index: 200;
   animation: edFadeIn 0.35s ease-out;
+  overscroll-behavior: none;
+}
+
+/* Prevent body/html scroll when editor is open */
+body:has(.ed-root) {
+  overflow: hidden;
+  position: fixed;
+  inset: 0;
 }
 
 /* --- TOOLBAR (top) --- */
@@ -2591,6 +2599,7 @@ body {
   overflow-y: auto;
   scrollbar-width: thin;
   scrollbar-color: #27272a transparent;
+  overscroll-behavior: contain;
 }
 
 .ed-chapter-list {
@@ -2899,11 +2908,11 @@ body {
 .ed-canvas {
   overflow-y: auto;
   min-height: 0;
-  height: 100%;
   background: #030d08;
   background-image: radial-gradient(ellipse at 50% 0%, rgba(16,185,129,0.04) 0%, transparent 60%);
   scrollbar-width: thin;
   scrollbar-color: #065f46 transparent;
+  overscroll-behavior: contain;
 }
 
 .ed-canvas-inner {
