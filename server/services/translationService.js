@@ -101,6 +101,14 @@ async function translateParagraphs(paragraphs, srcLang, tgtLang, tmpDir, onProgr
       let stdout = '';
       let stderrBuf = '';
       let stderrFull = '';
+      let timedOut = false;
+
+      // 10 minute timeout for large chapters
+      const timeout = setTimeout(() => {
+        timedOut = true;
+        proc.kill('SIGTERM');
+        reject(new Error('Translation timed out after 10 minutes'));
+      }, 600000);
 
       proc.stdout.on('data', (data) => { stdout += data.toString(); });
 
@@ -124,14 +132,24 @@ async function translateParagraphs(paragraphs, srcLang, tgtLang, tmpDir, onProgr
       });
 
       proc.on('close', (code) => {
+        clearTimeout(timeout);
+        if (timedOut) return;
         if (code !== 0) {
-          reject(new Error(`Translation script exited with code ${code}. stderr: ${stderrFull.slice(-500)}`));
+          // Check for common crash codes
+          const isSegfault = code === 3221225477 || code === 139 || code === -11;
+          const hint = isSegfault
+            ? ' (memory crash — try closing other applications or ensure sufficient RAM for the NLLB model)'
+            : '';
+          reject(new Error(`Translation script exited with code ${code}${hint}. stderr: ${stderrFull.slice(-500)}`));
         } else {
           resolve(stdout);
         }
       });
 
-      proc.on('error', reject);
+      proc.on('error', (err) => {
+        clearTimeout(timeout);
+        reject(err);
+      });
     });
 
     const parsed = JSON.parse(result.trim().split('\n').pop());

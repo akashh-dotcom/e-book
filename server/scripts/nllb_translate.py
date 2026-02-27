@@ -100,6 +100,7 @@ def get_nllb_code(lang_code):
 def translate_one(text, tokenizer, model, src_lang, tgt_lang, max_length=512):
     """Translate a single paragraph. Splits into sentence chunks if too long."""
     import re
+    import torch
 
     text = text.strip()
     if not text:
@@ -127,14 +128,19 @@ def translate_one(text, tokenizer, model, src_lang, tgt_lang, max_length=512):
     tokenizer.src_lang = src_lang
 
     for chunk in chunks:
-        inputs = tokenizer(chunk, return_tensors="pt", truncation=True, max_length=max_length)
-        translated_tokens = model.generate(
-            **inputs,
-            forced_bos_token_id=tokenizer.convert_tokens_to_ids(tgt_lang),
-            max_new_tokens=max_length,
-        )
-        result = tokenizer.batch_decode(translated_tokens, skip_special_tokens=True)[0]
-        translated_chunks.append(result)
+        try:
+            inputs = tokenizer(chunk, return_tensors="pt", truncation=True, max_length=max_length)
+            with torch.no_grad():
+                translated_tokens = model.generate(
+                    **inputs,
+                    forced_bos_token_id=tokenizer.convert_tokens_to_ids(tgt_lang),
+                    max_new_tokens=max_length,
+                )
+            result = tokenizer.batch_decode(translated_tokens, skip_special_tokens=True)[0]
+            translated_chunks.append(result)
+        except Exception as e:
+            print(f"CHUNK_ERROR:{e}", file=sys.stderr, flush=True)
+            translated_chunks.append(chunk)
 
     return ' '.join(translated_chunks)
 
@@ -155,10 +161,12 @@ def main():
 
     # Load model once
     print("LOADING_MODEL", file=sys.stderr, flush=True)
+    import torch
     from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
     model_name = "facebook/nllb-200-distilled-600M"
     tokenizer = AutoTokenizer.from_pretrained(model_name)
-    model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
+    model = AutoModelForSeq2SeqLM.from_pretrained(model_name, low_cpu_mem_usage=True)
+    model.eval()
     print("MODEL_READY", file=sys.stderr, flush=True)
 
     if args.json:
@@ -168,10 +176,16 @@ def main():
 
         total = len(paragraphs)
         translated = []
+        errors = 0
 
         for idx, para in enumerate(paragraphs):
-            result = translate_one(para, tokenizer, model, src_nllb, tgt_nllb)
-            translated.append(result)
+            try:
+                result = translate_one(para, tokenizer, model, src_nllb, tgt_nllb)
+                translated.append(result)
+            except Exception as e:
+                print(f"PARAGRAPH_ERROR:{idx}:{e}", file=sys.stderr, flush=True)
+                translated.append(para)  # fallback to original text
+                errors += 1
 
             pct = round(((idx + 1) / total) * 100)
             print(f"PROGRESS:{idx + 1}/{total}/{pct}", file=sys.stderr, flush=True)
@@ -184,6 +198,7 @@ def main():
             "src": src_nllb,
             "tgt": tgt_nllb,
             "paragraphs": total,
+            "errors": errors,
         }))
     else:
         # Legacy single-text mode
@@ -194,7 +209,11 @@ def main():
             print(json.dumps({"error": "Empty input text"}))
             sys.exit(1)
 
-        translated = translate_one(text, tokenizer, model, src_nllb, tgt_nllb)
+        try:
+            translated = translate_one(text, tokenizer, model, src_nllb, tgt_nllb)
+        except Exception as e:
+            print(json.dumps({"error": f"Translation failed: {e}"}))
+            sys.exit(1)
 
         with open(args.output, 'w', encoding='utf-8') as f:
             f.write(translated)

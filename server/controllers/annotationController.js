@@ -116,6 +116,12 @@ exports.translateText = async (req, res) => {
     });
   } catch (err) {
     console.error('Text translation error:', err);
-    res.status(500).json({ error: err.message });
+    const isMemoryCrash = err.message && (
+      err.message.includes('3221225477') || err.message.includes('memory crash')
+    );
+    const userMessage = isMemoryCrash
+      ? 'Translation failed due to insufficient memory. Close other applications and try again, or ensure your system has enough RAM for the NLLB model (~2GB).'
+      : `Translation failed: ${err.message}`;
+    res.status(500).json({ error: userMessage });
   }
 };

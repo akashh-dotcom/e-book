@@ -57,6 +57,7 @@ export default function AnnotationContextMenu({
   onClose,
   existingAnnotation,
   translating,
+  translateError,
 }) {
   const [activeTab, setActiveTab] = useState(null); // 'bg' | 'font' | 'translate'
   const [customBg, setCustomBg] = useState(existingAnnotation?.backgroundColor || '');
@@ -215,6 +216,12 @@ export default function AnnotationContextMenu({
             <div className="acm-translating">
               <Loader size={14} className="spin" />
               <span>Translating...</span>
+            </div>
+          )}
+          {translateError && !translating && (
+            <div className="acm-translating" style={{ color: '#f87171', fontSize: '12px' }}>
+              <X size={14} />
+              <span>{translateError}</span>
             </div>
           )}
           <div className="acm-translate-list">

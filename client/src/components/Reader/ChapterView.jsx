@@ -18,6 +18,7 @@ export default function ChapterView({
   const [contextMenu, setContextMenu] = useState(null);
   const [annotations, setAnnotations] = useState([]);
   const [translating, setTranslating] = useState(false);
+  const [translateError, setTranslateError] = useState(null);
   const contentRef = useRef(null);
 
   // Load annotations for this chapter
@@ -262,6 +263,7 @@ export default function ChapterView({
   const handleTranslateSelection = async (targetLang) => {
     if (!contextMenu) return;
     setTranslating(true);
+    setTranslateError(null);
     try {
       const res = await api.post('/annotations/translate-text', {
         text: contextMenu.text,
@@ -285,6 +287,8 @@ export default function ChapterView({
       window.getSelection()?.removeAllRanges();
     } catch (err) {
       console.error('Translation failed:', err);
+      const msg = err.response?.data?.error || err.message || 'Translation failed';
+      setTranslateError(msg);
     } finally {
       setTranslating(false);
     }
@@ -367,6 +371,7 @@ export default function ChapterView({
           selectedText={contextMenu.text}
           existingAnnotation={contextMenu.existingAnnotation}
           translating={translating}
+          translateError={translateError}
           onApplyBgColor={handleApplyBgColor}
           onApplyFontColor={handleApplyFontColor}
           onTranslateSelection={handleTranslateSelection}
