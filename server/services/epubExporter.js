@@ -2,6 +2,7 @@ const JSZip = require('jszip');
 const fs = require('fs').promises;
 const path = require('path');
 const SyncData = require('../models/SyncData');
+const Annotation = require('../models/Annotation');
 const smilGenerator = require('./smilGenerator');
 
 class EpubExporter {
@@ -45,6 +46,15 @@ class EpubExporter {
   background-color: ${hlBg};
   color: ${hlColor};
 }
+.annotation {
+  border-radius: 2px;
+  padding: 0 1px;
+}
+.annotation-translation {
+  font-size: 0.65em;
+  color: #2563eb;
+  margin-left: 2px;
+}
 `);
 
     // ---- Gather sync data for all chapters ----
@@ -65,6 +75,14 @@ class EpubExporter {
       `    <item id="css" href="style.css" media-type="text/css"/>`
     );
 
+    // ---- Gather annotations for all chapters ----
+    const allAnnotations = await Annotation.find({ bookId: book._id });
+    const annotationMap = {};
+    for (const ann of allAnnotations) {
+      if (!annotationMap[ann.chapterIndex]) annotationMap[ann.chapterIndex] = [];
+      annotationMap[ann.chapterIndex].push(ann);
+    }
+
     // ---- Add chapters ----
     for (const ch of book.chapters) {
       const chapterPath = path.join(book.storagePath, 'chapters', ch.filename);
@@ -73,6 +91,12 @@ class EpubExporter {
         html = await fs.readFile(chapterPath, 'utf-8');
       } catch {
         continue;
+      }
+
+      // Apply annotations as inline styled spans
+      const chapterAnnotations = annotationMap[ch.index] || [];
+      if (chapterAnnotations.length > 0) {
+        html = this._applyAnnotations(html, chapterAnnotations);
       }
 
       const chId = `ch${ch.index}`;
@@ -289,6 +313,81 @@ ${items}
       '.woff2': 'font/woff2',
     };
     return map[ext] || 'application/octet-stream';
+  }
+
+  /**
+   * Apply annotations to chapter HTML by wrapping annotated text in styled spans.
+   * Uses inline styles so colors and translations persist in the exported EPUB.
+   */
+  _applyAnnotations(html, annotations) {
+    // Process each annotation: find the text and wrap it in a <span>
+    // Sort by occurrence index descending so replacements don't shift positions
+    const sorted = [...annotations].sort((a, b) => {
+      if (a.selectedText === b.selectedText) {
+        return (b.occurrenceIndex || 0) - (a.occurrenceIndex || 0);
+      }
+      return 0;
+    });
+
+    for (const ann of sorted) {
+      if (!ann.selectedText) continue;
+      const hasStyle = ann.backgroundColor || ann.fontColor;
+      const hasTranslation = ann.translatedText;
+      if (!hasStyle && !hasTranslation) continue;
+
+      // Build inline style
+      const styles = [];
+      if (ann.backgroundColor) styles.push(`background-color:${ann.backgroundColor}`);
+      if (ann.fontColor) styles.push(`color:${ann.fontColor}`);
+      const styleAttr = styles.length > 0 ? ` style="${styles.join(';')}"` : '';
+
+      // Build the replacement span
+      const escapedText = this._escXml(ann.selectedText);
+      let replacement;
+      if (hasTranslation) {
+        // Include translation as a tooltip (title attribute) and as a visible ruby-like annotation
+        const escapedTranslation = this._escXml(ann.translatedText);
+        replacement = `<span class="annotation"${styleAttr} title="${escapedTranslation} (${ann.translatedLang || ''})">${ann.selectedText}<sup class="annotation-translation" style="font-size:0.65em;color:#2563eb;margin-left:2px">[${escapedTranslation}]</sup></span>`;
+      } else {
+        replacement = `<span class="annotation"${styleAttr}>${ann.selectedText}</span>`;
+      }
+
+      // Find and replace the nth occurrence
+      const target = ann.occurrenceIndex || 0;
+      let count = 0;
+      let result = '';
+      let searchFrom = 0;
+
+      // We need to search in text content only (not in HTML tags)
+      // Simple approach: find occurrence in full HTML string outside of tags
+      const text = ann.selectedText;
+      while (searchFrom < html.length) {
+        const idx = html.indexOf(text, searchFrom);
+        if (idx === -1) break;
+
+        // Check that this occurrence is not inside an HTML tag
+        const beforeSlice = html.slice(0, idx);
+        const lastOpenTag = beforeSlice.lastIndexOf('<');
+        const lastCloseTag = beforeSlice.lastIndexOf('>');
+        const insideTag = lastOpenTag > lastCloseTag;
+
+        if (insideTag) {
+          // Skip this occurrence — it's inside a tag
+          searchFrom = idx + 1;
+          continue;
+        }
+
+        if (count === target) {
+          result = html.slice(0, idx) + replacement + html.slice(idx + text.length);
+          html = result;
+          break;
+        }
+        count++;
+        searchFrom = idx + 1;
+      }
+    }
+
+    return html;
   }
 
   _escXml(str) {

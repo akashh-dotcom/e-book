@@ -11,6 +11,7 @@ const audioRoutes = require('./routes/audioRoutes');
 const syncRoutes = require('./routes/syncRoutes');
 const authRoutes = require('./routes/authRoutes');
 const translateRoutes = require('./routes/translateRoutes');
+const annotationRoutes = require('./routes/annotationRoutes');
 const paymentRoutes = require('./routes/paymentRoutes');
 const { handleWebhook } = require('./controllers/paymentController');
 
@@ -31,6 +32,7 @@ app.use('/api/books', bookRoutes);
 app.use('/api/audio', audioRoutes);
 app.use('/api/sync', syncRoutes);
 app.use('/api/translate', translateRoutes);
+app.use('/api/annotations', annotationRoutes);
 app.use('/api/payment', paymentRoutes);
 
 // MongoDB
