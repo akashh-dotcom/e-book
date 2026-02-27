@@ -96,7 +96,14 @@ async function translateParagraphs(paragraphs, srcLang, tgtLang, tmpDir, onProgr
         '--src', srcLang,
         '--tgt', tgtLang,
         '--json',
-      ]);
+      ], {
+        env: {
+          ...process.env,
+          OMP_NUM_THREADS: '1',
+          MKL_NUM_THREADS: '1',
+          TOKENIZERS_PARALLELISM: 'false',
+        },
+      });
 
       let stdout = '';
       let stderrBuf = '';

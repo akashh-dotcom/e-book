@@ -13,9 +13,16 @@ Supports two modes:
 The model is downloaded on first run (~1.2GB) and cached locally.
 """
 
+import os
 import argparse
 import sys
 import json
+
+# Prevent OpenMP/MKL threading crashes on Windows (exit code 0xC0000005).
+# Must be set BEFORE importing torch/transformers.
+os.environ['OMP_NUM_THREADS'] = '1'
+os.environ['MKL_NUM_THREADS'] = '1'
+os.environ['TOKENIZERS_PARALLELISM'] = 'false'
 
 
 def get_nllb_code(lang_code):
@@ -130,11 +137,12 @@ def translate_one(text, tokenizer, model, src_lang, tgt_lang, max_length=512):
     for chunk in chunks:
         try:
             inputs = tokenizer(chunk, return_tensors="pt", truncation=True, max_length=max_length)
-            with torch.no_grad():
+            with torch.inference_mode():
                 translated_tokens = model.generate(
                     **inputs,
                     forced_bos_token_id=tokenizer.convert_tokens_to_ids(tgt_lang),
-                    max_new_tokens=max_length,
+                    max_new_tokens=min(max_length, 256),
+                    num_beams=1,
                 )
             result = tokenizer.batch_decode(translated_tokens, skip_special_tokens=True)[0]
             translated_chunks.append(result)
@@ -162,6 +170,8 @@ def main():
     # Load model once
     print("LOADING_MODEL", file=sys.stderr, flush=True)
     import torch
+    torch.set_num_threads(1)
+    torch.set_num_interop_threads(1)
     from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
     model_name = "facebook/nllb-200-distilled-600M"
     tokenizer = AutoTokenizer.from_pretrained(model_name)
