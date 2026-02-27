@@ -8,6 +8,7 @@ export default function ChapterView({
   loading,
   onHighlight,
   onWordClick,
+  textAlign,
 }) {
   const [highlightPopup, setHighlightPopup] = useState(null);
 
@@ -61,7 +62,7 @@ export default function ChapterView({
   return (
     <>
       <div
-        className={`chapter-content ${readingMode === 'paginated' ? 'paginated' : ''}`}
+        className={`chapter-content ${readingMode === 'paginated' ? 'paginated' : ''}${textAlign ? ` text-align-${textAlign}` : ''}`}
         style={{ fontSize: `${fontSize}px`, lineHeight }}
         dangerouslySetInnerHTML={{ __html: html }}
         onMouseUp={handleMouseUp}

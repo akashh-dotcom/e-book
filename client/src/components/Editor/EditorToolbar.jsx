@@ -2,10 +2,17 @@ import { useState } from 'react';
 import {
   ArrowLeft, Play, Pause, SkipBack, SkipForward,
   Download, Loader, Undo2, Redo2, ZoomIn, ZoomOut,
-  Volume2, VolumeX,
+  Volume2, VolumeX, AlignLeft, AlignCenter, AlignRight, AlignJustify,
 } from 'lucide-react';
 import { formatTimeMs } from '../../utils/timeFormatter';
 import api from '../../services/api';
+
+const alignOptions = [
+  { value: 'left', icon: AlignLeft, label: 'Align Left' },
+  { value: 'center', icon: AlignCenter, label: 'Align Center' },
+  { value: 'right', icon: AlignRight, label: 'Align Right' },
+  { value: 'justify', icon: AlignJustify, label: 'Justify' },
+];
 
 export default function EditorToolbar({
   bookTitle,
@@ -14,6 +21,8 @@ export default function EditorToolbar({
   bookId,
   hasSyncData,
   onExitEditor,
+  textAlign,
+  onTextAlignChange,
 }) {
   const [exporting, setExporting] = useState(false);
 
@@ -92,6 +101,18 @@ export default function EditorToolbar({
       </div>
 
       <div className="ed-toolbar-right">
+        <div className="ed-align-group">
+          {alignOptions.map(opt => (
+            <button
+              key={opt.value}
+              className={`ed-align-btn${textAlign === opt.value ? ' active' : ''}`}
+              onClick={() => onTextAlignChange(opt.value)}
+              title={opt.label}
+            >
+              <opt.icon size={15} />
+            </button>
+          ))}
+        </div>
         <button
           className="ed-toolbar-btn ed-export-btn"
           onClick={handleExport}

@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import EditorToolbar from './EditorToolbar';
 import EditorTimeline from './EditorTimeline';
 import EditorSidebar from './EditorSidebar';
@@ -16,6 +16,7 @@ export default function EditorMode({
   reSyncing,
 }) {
   const hasSync = audio.hasSyncData;
+  const [textAlign, setTextAlign] = useState('left');
 
   const handleWordClick = useCallback((wordId) => {
     if (hasSync) overlay.seekToWord(wordId);
@@ -31,6 +32,8 @@ export default function EditorMode({
         bookId={bookId}
         hasSyncData={hasSync}
         onExitEditor={onExitEditor}
+        textAlign={textAlign}
+        onTextAlignChange={setTextAlign}
       />
 
       {/* Main body: sidebar + canvas + properties */}
@@ -76,6 +79,7 @@ export default function EditorMode({
               loading={reader.chapterLoading}
               bookId={bookId}
               chapterIndex={reader.chapterIndex}
+              textAlign={textAlign}
               onHighlight={(text, color) => {
                 reader.addBookmark({
                   type: 'highlight',

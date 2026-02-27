@@ -2446,6 +2446,44 @@ body {
   gap: 8px;
 }
 
+.ed-align-group {
+  display: flex;
+  align-items: center;
+  border: 1px solid rgba(16,185,129,0.15);
+  border-radius: 8px;
+  overflow: hidden;
+  background: rgba(16,185,129,0.04);
+}
+
+.ed-align-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 30px;
+  border: none;
+  background: transparent;
+  color: #6ee7b7;
+  opacity: 0.45;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.ed-align-btn:not(:last-child) {
+  border-right: 1px solid rgba(16,185,129,0.1);
+}
+
+.ed-align-btn:hover {
+  background: rgba(16,185,129,0.1);
+  opacity: 0.75;
+}
+
+.ed-align-btn.active {
+  background: rgba(16,185,129,0.18);
+  color: #34d399;
+  opacity: 1;
+}
+
 .ed-toolbar-btn {
   display: inline-flex;
   align-items: center;
@@ -2878,6 +2916,26 @@ body {
 .ed-canvas-inner .chapter-content,
 .ed-canvas-inner .chapter-content * {
   text-align: left !important;
+}
+
+.ed-canvas-inner .chapter-content.text-align-left,
+.ed-canvas-inner .chapter-content.text-align-left * {
+  text-align: left !important;
+}
+
+.ed-canvas-inner .chapter-content.text-align-center,
+.ed-canvas-inner .chapter-content.text-align-center * {
+  text-align: center !important;
+}
+
+.ed-canvas-inner .chapter-content.text-align-right,
+.ed-canvas-inner .chapter-content.text-align-right * {
+  text-align: right !important;
+}
+
+.ed-canvas-inner .chapter-content.text-align-justify,
+.ed-canvas-inner .chapter-content.text-align-justify * {
+  text-align: justify !important;
 }
 
 /* --- PROPERTIES (right) --- */
