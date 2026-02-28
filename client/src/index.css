@@ -1013,34 +1013,60 @@ body {
 
 .annotation-span.has-translation {
   border-bottom: 1px dashed #2563eb;
-  cursor: help;
+  cursor: default;
 }
 
-.annotation-span.has-translation::after {
-  content: attr(data-translation);
-  position: absolute;
-  bottom: 100%;
-  left: 50%;
-  transform: translateX(-50%);
+/* Word-level translation tooltip (positioned via JS) */
+.word-translation-tooltip {
+  position: fixed;
+  z-index: 200;
   background: var(--chrome-bg, #020a06);
   color: var(--chrome-text, #d1fae5);
   border: 1px solid var(--chrome-border, rgba(16,185,129,0.12));
-  padding: 4px 8px;
+  padding: 5px 10px;
   border-radius: 6px;
-  font-size: 0.75rem;
+  font-size: 0.8rem;
   white-space: nowrap;
-  max-width: 280px;
+  max-width: 300px;
   overflow: hidden;
   text-overflow: ellipsis;
   pointer-events: none;
-  opacity: 0;
-  transition: opacity 0.15s;
-  z-index: 100;
   box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  animation: wordTipFadeIn 0.15s ease;
 }
 
-.annotation-span.has-translation:hover::after {
-  opacity: 1;
+.word-translation-tooltip.loading {
+  color: rgba(209,250,229,0.5);
+  font-style: italic;
+}
+
+@keyframes wordTipFadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Full translation display in context menu */
+.acm-translation-display {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--chrome-border, rgba(16,185,129,0.12));
+}
+
+.acm-translation-label {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: rgba(209,250,229,0.45);
+  margin-bottom: 4px;
+}
+
+.acm-translation-text {
+  font-size: 0.82rem;
+  color: var(--chrome-text, #d1fae5);
+  line-height: 1.45;
+  max-height: 120px;
+  overflow-y: auto;
+  word-break: break-word;
+  white-space: pre-wrap;
 }
 
 /* === BOOKMARKS PANEL === */

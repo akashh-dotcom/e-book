@@ -19,7 +19,10 @@ export default function ChapterView({
   const [annotations, setAnnotations] = useState([]);
   const [translating, setTranslating] = useState(false);
   const [translateError, setTranslateError] = useState(null);
+  const [wordTooltip, setWordTooltip] = useState(null); // { x, y, word, translation, loading }
   const contentRef = useRef(null);
+  const wordTranslationCache = useRef({}); // cache: { "word|lang" -> translation }
+  const wordHoverTimer = useRef(null);
 
   // Load annotations for this chapter
   useEffect(() => {
@@ -165,6 +168,87 @@ export default function ChapterView({
     }
   };
 
+  // Word-level hover translation
+  const handleWordHover = useCallback((e) => {
+    const target = e.target;
+    // Check if we're hovering over a word span inside a has-translation annotation
+    const annotationSpan = target.closest('.annotation-span.has-translation');
+    if (!annotationSpan) {
+      if (wordTooltip) setWordTooltip(null);
+      clearTimeout(wordHoverTimer.current);
+      return;
+    }
+
+    // Get the word text - either from a word span (id starting with 'w') or the direct text
+    let wordText = '';
+    if (target.id && target.id.startsWith('w')) {
+      wordText = target.textContent.trim();
+    } else if (target.closest('[id^="w"]')) {
+      wordText = target.closest('[id^="w"]').textContent.trim();
+    } else {
+      return;
+    }
+
+    if (!wordText || wordText.length < 1) return;
+
+    const lang = annotationSpan.getAttribute('data-translated-lang');
+    if (!lang) return;
+
+    const cacheKey = `${wordText.toLowerCase()}|${lang}`;
+    const rect = (target.id?.startsWith('w') ? target : target.closest('[id^="w"]')).getBoundingClientRect();
+    const tooltipX = rect.left + rect.width / 2;
+    const tooltipY = rect.top - 8;
+
+    // If cached, show immediately
+    if (wordTranslationCache.current[cacheKey]) {
+      setWordTooltip({
+        x: tooltipX, y: tooltipY,
+        word: wordText,
+        translation: wordTranslationCache.current[cacheKey],
+        loading: false,
+      });
+      return;
+    }
+
+    // Show loading tooltip after a small delay
+    clearTimeout(wordHoverTimer.current);
+    wordHoverTimer.current = setTimeout(async () => {
+      setWordTooltip({
+        x: tooltipX, y: tooltipY,
+        word: wordText,
+        translation: '',
+        loading: true,
+      });
+
+      try {
+        const res = await api.post('/annotations/translate-text', {
+          text: wordText,
+          targetLang: lang,
+          bookId,
+        });
+        const translated = res.data.translatedText;
+        wordTranslationCache.current[cacheKey] = translated;
+        setWordTooltip(prev => prev && prev.word === wordText
+          ? { ...prev, translation: translated, loading: false }
+          : prev
+        );
+      } catch {
+        setWordTooltip(prev => prev && prev.word === wordText
+          ? { ...prev, translation: wordText, loading: false }
+          : prev
+        );
+      }
+    }, 200);
+  }, [wordTooltip, bookId]);
+
+  const handleWordLeave = useCallback((e) => {
+    const related = e.relatedTarget;
+    // Don't hide if moving to another word inside the same annotation
+    if (related && related.closest?.('.annotation-span.has-translation')) return;
+    clearTimeout(wordHoverTimer.current);
+    setWordTooltip(null);
+  }, []);
+
   const handleMouseUp = useCallback(() => {
     const selection = window.getSelection();
     if (!selection || selection.isCollapsed) {
@@ -230,12 +314,29 @@ export default function ChapterView({
       a => a.selectedText === text && a.occurrenceIndex === occurrenceIndex
     );
 
+    // Check if the right-click target is inside a translated annotation
+    // to show its full translation in the context menu
+    let fullTranslation = null;
+    const annotationSpan = e.target.closest?.('.annotation-span.has-translation');
+    if (annotationSpan) {
+      fullTranslation = annotationSpan.getAttribute('data-translation');
+    }
+    // Also check the existing annotation for translation
+    if (!fullTranslation && existingAnnotation?.translatedText) {
+      fullTranslation = existingAnnotation.translatedText;
+    }
+
+    // Hide word tooltip when context menu opens
+    clearTimeout(wordHoverTimer.current);
+    setWordTooltip(null);
+
     setContextMenu({
       x: e.clientX,
       y: e.clientY,
       text,
       occurrenceIndex,
       existingAnnotation,
+      fullTranslation,
     });
   }, [annotations]);
 
@@ -383,12 +484,28 @@ export default function ChapterView({
         dangerouslySetInnerHTML={{ __html: html }}
         onMouseUp={handleMouseUp}
         onContextMenu={handleContextMenu}
+        onMouseOver={handleWordHover}
+        onMouseOut={handleWordLeave}
         onClick={(e) => {
           if (onWordClick && e.target.id && e.target.id.startsWith('w')) {
             onWordClick(e.target.id);
           }
         }}
       />
+
+      {/* Word-level translation tooltip */}
+      {wordTooltip && (
+        <div
+          className={`word-translation-tooltip${wordTooltip.loading ? ' loading' : ''}`}
+          style={{
+            left: wordTooltip.x,
+            top: wordTooltip.y,
+            transform: 'translate(-50%, -100%)',
+          }}
+        >
+          {wordTooltip.loading ? 'Translating...' : wordTooltip.translation}
+        </div>
+      )}
 
       {highlightPopup && (
         <div
@@ -416,6 +533,7 @@ export default function ChapterView({
           y={contextMenu.y}
           selectedText={contextMenu.text}
           existingAnnotation={contextMenu.existingAnnotation}
+          fullTranslation={contextMenu.fullTranslation}
           translating={translating}
           translateError={translateError}
           onApplyBgColor={handleApplyBgColor}

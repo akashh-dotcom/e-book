@@ -56,6 +56,7 @@ export default function AnnotationContextMenu({
   onRemoveAnnotation,
   onClose,
   existingAnnotation,
+  fullTranslation,
   translating,
   translateError,
 }) {
@@ -64,8 +65,9 @@ export default function AnnotationContextMenu({
   const [customFont, setCustomFont] = useState(existingAnnotation?.fontColor || '');
 
   // Clamp menu position within viewport
-  const menuWidth = activeTab ? 260 : 220;
-  const menuHeight = activeTab === 'translate' ? 340 : activeTab ? 240 : 160;
+  const menuWidth = activeTab ? 260 : 240;
+  const baseHeight = fullTranslation ? 280 : 160;
+  const menuHeight = activeTab === 'translate' ? 340 : activeTab ? 240 : baseHeight;
   const clampedX = Math.min(x, window.innerWidth - menuWidth - 10);
   const clampedY = Math.min(y, window.innerHeight - menuHeight - 10);
 
@@ -84,6 +86,14 @@ export default function AnnotationContextMenu({
           <X size={14} />
         </button>
       </div>
+
+      {/* Full translation display (from existing annotation) */}
+      {!activeTab && fullTranslation && (
+        <div className="acm-translation-display">
+          <div className="acm-translation-label">Translation</div>
+          <div className="acm-translation-text">{fullTranslation}</div>
+        </div>
+      )}
 
       {/* Main menu items */}
       {!activeTab && (
