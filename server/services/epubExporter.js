@@ -24,7 +24,7 @@ class EpubExporter {
    * Packages chapters (with word spans), SMIL files, audio files,
    * a nav document, CSS for highlighting, and OPF with media-overlay attrs.
    */
-  async exportWithMediaOverlays(book) {
+  async exportWithMediaOverlays(book, { lang } = {}) {
     const zip = new JSZip();
 
     // mimetype (must be first, uncompressed)
@@ -104,13 +104,31 @@ class EpubExporter {
     }
 
     // ---- Add chapters ----
+    const shortLang = lang ? lang.split('-')[0] : null;
+
     for (const ch of book.chapters) {
-      const chapterPath = path.join(book.storagePath, 'chapters', ch.filename);
       let html;
-      try {
-        html = await fs.readFile(chapterPath, 'utf-8');
-      } catch {
-        continue;
+
+      // Try translated chapter file first when a language is specified
+      if (shortLang) {
+        const translatedPath = path.join(
+          book.storagePath, 'chapters', `${ch.index}_${shortLang}.html`
+        );
+        try {
+          html = await fs.readFile(translatedPath, 'utf-8');
+        } catch {
+          // translated file doesn't exist for this chapter, fall back to original
+        }
+      }
+
+      // Fall back to original chapter file
+      if (!html) {
+        const chapterPath = path.join(book.storagePath, 'chapters', ch.filename);
+        try {
+          html = await fs.readFile(chapterPath, 'utf-8');
+        } catch {
+          continue;
+        }
       }
 
       // Apply annotations as inline styled spans
@@ -236,7 +254,7 @@ ${xhtmlBody}${audioTag}
     <dc:identifier id="uid">${book._id}</dc:identifier>
     <dc:title>${this._escXml(book.title || 'Untitled')}</dc:title>
     <dc:creator>${this._escXml(book.author || '')}</dc:creator>
-    <dc:language>${book.language || 'en'}</dc:language>
+    <dc:language>${lang || book.language || 'en'}</dc:language>
     <meta property="dcterms:modified">${modified}</meta>
     <meta property="media:active-class">-epub-media-overlay-active</meta>
     <meta property="media:duration">${smilGenerator.formatDuration(totalDuration)}</meta>

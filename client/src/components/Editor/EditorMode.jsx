@@ -34,6 +34,7 @@ export default function EditorMode({
         onExitEditor={onExitEditor}
         textAlign={textAlign}
         onTextAlignChange={setTextAlign}
+        translatedLang={reader.translatedLang}
       />
 
       {/* Main body: sidebar + canvas + properties */}

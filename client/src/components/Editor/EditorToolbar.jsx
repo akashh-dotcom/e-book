@@ -23,13 +23,15 @@ export default function EditorToolbar({
   onExitEditor,
   textAlign,
   onTextAlignChange,
+  translatedLang,
 }) {
   const [exporting, setExporting] = useState(false);
 
   const handleExport = async () => {
     setExporting(true);
     try {
-      const res = await api.get(`/books/${bookId}/export-epub`, { responseType: 'blob' });
+      const params = translatedLang ? { lang: translatedLang } : {};
+      const res = await api.get(`/books/${bookId}/export-epub`, { params, responseType: 'blob' });
       const disposition = res.headers['content-disposition'] || '';
       const match = disposition.match(/filename="?([^"]+)"?/);
       const filename = match ? match[1] : `${bookTitle || 'book'}.epub`;

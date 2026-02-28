@@ -299,6 +299,7 @@ export default function ReaderPage() {
           overlay={overlay}
           bookId={bookId}
           hasSyncData={hasSync}
+          translatedLang={reader.translatedLang}
         />
       )}
 

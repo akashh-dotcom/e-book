@@ -7,6 +7,7 @@ export default function AudioBar({
   overlay,
   bookId,
   hasSyncData,
+  translatedLang,
 }) {
   const [exporting, setExporting] = useState(false);
 
@@ -18,7 +19,8 @@ export default function AudioBar({
   const handleExport = async () => {
     setExporting(true);
     try {
-      const res = await api.get(`/books/${bookId}/export-epub`, { responseType: 'blob' });
+      const params = translatedLang ? { lang: translatedLang } : {};
+      const res = await api.get(`/books/${bookId}/export-epub`, { params, responseType: 'blob' });
       const disposition = res.headers['content-disposition'] || '';
       const match = disposition.match(/filename="?([^"]+)"?/);
       const filename = match ? match[1] : 'book.epub';

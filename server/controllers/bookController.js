@@ -141,7 +141,8 @@ exports.exportEpub = async (req, res) => {
     if (!book) return res.status(404).json({ error: 'Not found' });
 
     const epubExporter = require('../services/epubExporter');
-    const epubBuffer = await epubExporter.exportWithMediaOverlays(book);
+    const lang = req.query.lang || null;
+    const epubBuffer = await epubExporter.exportWithMediaOverlays(book, { lang });
 
     const filename = book.originalFilename || `${book.title.replace(/[^a-zA-Z0-9]/g, '_')}.epub`;
     res.set({
