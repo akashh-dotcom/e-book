@@ -81,7 +81,7 @@ exports.deleteAnnotation = async (req, res) => {
   }
 };
 
-// Translate a short text selection
+// Translate a short text selection (with retry for Windows memory crashes)
 exports.translateText = async (req, res) => {
   try {
     const { text, targetLang, bookId } = req.body;
@@ -104,11 +104,29 @@ exports.translateText = async (req, res) => {
       return res.json({ translatedText: text, language: srcLang });
     }
 
-    // Translate using the existing NLLB service
+    // Translate using the existing NLLB service.
+    // Retry once on memory crash — the segfault kills the Python process but
+    // a fresh spawn often succeeds when system memory has been freed.
     const os = require('os');
-    const translated = await translation.translateParagraphs(
-      [text], srcLang, targetLang, os.tmpdir()
-    );
+    let translated;
+    let lastErr;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        translated = await translation.translateParagraphs(
+          [text], srcLang, targetLang, os.tmpdir()
+        );
+        break;
+      } catch (err) {
+        lastErr = err;
+        const isCrash = err.message && (
+          err.message.includes('3221225477') || err.message.includes('memory crash') ||
+          err.message.includes('code 139') || err.message.includes('code -11')
+        );
+        if (!isCrash || attempt === 1) throw err;
+        // Brief pause before retry to let OS reclaim memory
+        await new Promise(r => setTimeout(r, 1000));
+      }
+    }
 
     res.json({
       translatedText: translated[0] || text,
@@ -117,7 +135,8 @@ exports.translateText = async (req, res) => {
   } catch (err) {
     console.error('Text translation error:', err);
     const isMemoryCrash = err.message && (
-      err.message.includes('3221225477') || err.message.includes('memory crash')
+      err.message.includes('3221225477') || err.message.includes('memory crash') ||
+      err.message.includes('code 139') || err.message.includes('code -11')
     );
     const userMessage = isMemoryCrash
       ? 'Translation failed due to insufficient memory. Close other applications and try again, or ensure your system has enough RAM for the NLLB model (~2GB).'

@@ -102,6 +102,7 @@ async function translateParagraphs(paragraphs, srcLang, tgtLang, tmpDir, onProgr
           OMP_NUM_THREADS: '1',
           MKL_NUM_THREADS: '1',
           TOKENIZERS_PARALLELISM: 'false',
+          KMP_DUPLICATE_LIB_OK: 'TRUE',
         },
       });
 

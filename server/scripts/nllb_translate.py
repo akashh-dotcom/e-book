@@ -23,6 +23,9 @@ import json
 os.environ['OMP_NUM_THREADS'] = '1'
 os.environ['MKL_NUM_THREADS'] = '1'
 os.environ['TOKENIZERS_PARALLELISM'] = 'false'
+# Allow duplicate OpenMP runtimes (common crash cause when numpy/torch
+# ship different libiomp copies on Windows).
+os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
 
 
 def get_nllb_code(lang_code):
@@ -107,13 +110,25 @@ def get_nllb_code(lang_code):
 def translate_one(text, tokenizer, model, src_lang, tgt_lang, max_length=512):
     """Translate a single paragraph. Splits into sentence chunks if too long."""
     import re
+    import gc
     import torch
 
     text = text.strip()
     if not text:
         return ''
 
-    sentences = re.split(r'(?<=[.!?])\s+', text)
+    # For very short inputs (single words / fragments without punctuation),
+    # wrap in a minimal sentence so the model gets enough context tokens.
+    # NLLB can segfault on Windows with tiny (1-2 token) inputs.
+    short_input = False
+    token_count = len(tokenizer.encode(text))
+    if token_count <= 4:
+        short_input = True
+        padded_text = text + ' .'
+    else:
+        padded_text = text
+
+    sentences = re.split(r'(?<=[.!?])\s+', padded_text)
 
     # Batch sentences into chunks that fit max_length
     chunks = []
@@ -134,10 +149,16 @@ def translate_one(text, tokenizer, model, src_lang, tgt_lang, max_length=512):
     translated_chunks = []
     tokenizer.src_lang = src_lang
 
+    # Free memory before inference to reduce Windows crash risk.
+    gc.collect()
+
     for chunk in chunks:
         try:
-            inputs = tokenizer(chunk, return_tensors="pt", truncation=True, max_length=max_length)
-            with torch.inference_mode():
+            inputs = tokenizer(chunk, return_tensors="pt", truncation=True,
+                               max_length=max_length, padding=True)
+            # Use no_grad instead of inference_mode — inference_mode can
+            # trigger segfaults on certain Windows PyTorch builds.
+            with torch.no_grad():
                 translated_tokens = model.generate(
                     **inputs,
                     forced_bos_token_id=tokenizer.convert_tokens_to_ids(tgt_lang),
@@ -150,7 +171,13 @@ def translate_one(text, tokenizer, model, src_lang, tgt_lang, max_length=512):
             print(f"CHUNK_ERROR:{e}", file=sys.stderr, flush=True)
             translated_chunks.append(chunk)
 
-    return ' '.join(translated_chunks)
+    result = ' '.join(translated_chunks)
+
+    # Strip the trailing punctuation we added for short inputs.
+    if short_input and result:
+        result = re.sub(r'\s*[.\u3002\uFF0E]\s*$', '', result)
+
+    return result
 
 
 def main():
@@ -169,14 +196,22 @@ def main():
 
     # Load model once
     print("LOADING_MODEL", file=sys.stderr, flush=True)
+    import gc
     import torch
     torch.set_num_threads(1)
     torch.set_num_interop_threads(1)
-    from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
+    from transformers import AutoModelForSeq2SeqLM, AutoTokenizer, AutoConfig
     model_name = "facebook/nllb-200-distilled-600M"
     tokenizer = AutoTokenizer.from_pretrained(model_name)
-    model = AutoModelForSeq2SeqLM.from_pretrained(model_name, low_cpu_mem_usage=True)
+    # Explicitly set tie_word_embeddings=False to silence warnings and
+    # prevent potential weight-shape mismatches during generation.
+    config = AutoConfig.from_pretrained(model_name)
+    config.tie_word_embeddings = False
+    model = AutoModelForSeq2SeqLM.from_pretrained(
+        model_name, config=config, low_cpu_mem_usage=True
+    )
     model.eval()
+    gc.collect()
     print("MODEL_READY", file=sys.stderr, flush=True)
 
     if args.json:
