@@ -432,9 +432,7 @@ ${items}
 
       let replacement;
       if (hasTranslation) {
-        const et = this._escXml(ann.translatedText);
-        const lang = ann.translatedLang ? ` (${this._escXml(ann.translatedLang)})` : '';
-        replacement = `<span class="annotation has-translation"${styleAttr} data-translation="${et}${lang}" data-translated-lang="${this._escXml(ann.translatedLang || '')}" title="${et}${lang}">${matchedHtml}</span>`;
+        replacement = `<span class="annotation has-translation"${styleAttr} data-translated-lang="${this._escXml(ann.translatedLang || '')}">${matchedHtml}</span>`;
       } else {
         replacement = `<span class="annotation"${styleAttr}>${matchedHtml}</span>`;
       }
@@ -518,6 +516,7 @@ ${items}
         const key = `${word.toLowerCase()}|${lang}`;
         if (translationMap[key]) {
           $word.attr('data-translation', translationMap[key]);
+          $word.attr('title', translationMap[key]);
         }
       });
     });
