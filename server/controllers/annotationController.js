@@ -104,33 +104,32 @@ exports.translateText = async (req, res) => {
       return res.json({ translatedText: text, language: srcLang });
     }
 
-    // Translate using the existing NLLB service.
-    // Retry once on memory crash — the segfault kills the Python process but
-    // a fresh spawn often succeeds when system memory has been freed.
+    // Try local NLLB model first, fall back to free web API on crash
     const os = require('os');
     let translated;
-    let lastErr;
-    for (let attempt = 0; attempt < 2; attempt++) {
+    let usedWebAPI = false;
+
+    try {
+      translated = await translation.translateParagraphs(
+        [text], srcLang, targetLang, os.tmpdir()
+      );
+    } catch (nllbErr) {
+      console.warn('NLLB translation failed, falling back to web API:', nllbErr.message);
+      // Fall back to web API for any NLLB failure
       try {
-        translated = await translation.translateParagraphs(
-          [text], srcLang, targetLang, os.tmpdir()
-        );
-        break;
-      } catch (err) {
-        lastErr = err;
-        const isCrash = err.message && (
-          err.message.includes('3221225477') || err.message.includes('memory crash') ||
-          err.message.includes('code 139') || err.message.includes('code -11')
-        );
-        if (!isCrash || attempt === 1) throw err;
-        // Brief pause before retry to let OS reclaim memory
-        await new Promise(r => setTimeout(r, 1000));
+        const webResult = await translation.translateViaWebAPI(text, srcLang, targetLang);
+        translated = [webResult];
+        usedWebAPI = true;
+      } catch (webErr) {
+        // Both methods failed — throw the original NLLB error with web API context
+        throw new Error(`NLLB failed: ${nllbErr.message}. Web API fallback also failed: ${webErr.message}`);
       }
     }
 
     res.json({
       translatedText: translated[0] || text,
       language: translation.shortLang(targetLang),
+      source: usedWebAPI ? 'web-api' : 'nllb',
     });
   } catch (err) {
     console.error('Text translation error:', err);

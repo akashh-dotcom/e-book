@@ -4,6 +4,8 @@ const fs = require('fs').promises;
 const { execSync, spawn } = require('child_process');
 const cheerio = require('cheerio');
 const wordWrapper = require('./wordWrapper');
+const https = require('https');
+const http = require('http');
 
 /**
  * Detect the correct Python command for the current OS.
@@ -248,11 +250,52 @@ async function hasTranslation(storagePath, chapterIndex, targetLang) {
   }
 }
 
+/**
+ * Translate a short text using the free MyMemory Translation API.
+ * Used as a fallback when the local NLLB model is unavailable or crashes.
+ *
+ * @param {string} text - Text to translate
+ * @param {string} srcLang - Source language code (e.g. "en", "en-US")
+ * @param {string} tgtLang - Target language code (e.g. "ja", "ja-JP")
+ * @returns {string} Translated text
+ */
+async function translateViaWebAPI(text, srcLang, tgtLang) {
+  const src = shortLang(srcLang);
+  const tgt = shortLang(tgtLang);
+  const encoded = encodeURIComponent(text);
+  const url = `https://api.mymemory.translated.net/get?q=${encoded}&langpair=${src}|${tgt}`;
+
+  return new Promise((resolve, reject) => {
+    const request = https.get(url, { timeout: 15000 }, (res) => {
+      let data = '';
+      res.on('data', chunk => { data += chunk; });
+      res.on('end', () => {
+        try {
+          const json = JSON.parse(data);
+          if (json.responseStatus === 200 && json.responseData?.translatedText) {
+            resolve(json.responseData.translatedText);
+          } else {
+            reject(new Error(json.responseData?.translatedText || 'Web API translation failed'));
+          }
+        } catch (e) {
+          reject(new Error('Failed to parse translation API response'));
+        }
+      });
+    });
+    request.on('error', reject);
+    request.on('timeout', () => {
+      request.destroy();
+      reject(new Error('Translation API request timed out'));
+    });
+  });
+}
+
 module.exports = {
   translateParagraphs,
   translateChapterHtml,
   getTranslatedChapterPath,
   hasTranslation,
+  translateViaWebAPI,
   voiceLocaleToLang,
   shortLang,
   isSameLanguage,
