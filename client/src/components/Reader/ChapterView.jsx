@@ -198,7 +198,10 @@ export default function ChapterView({
         .filter(Boolean)
     )];
 
-    if (uniqueWords.length === 0) return;
+    if (uniqueWords.length === 0) {
+      batchTranslatingAnnotations.current.delete(annId);
+      return;
+    }
 
     try {
       const res = await api.post('/annotations/translate-batch', {
@@ -272,7 +275,14 @@ export default function ChapterView({
 
   const handleWordLeave = useCallback((e) => {
     const related = e.relatedTarget;
-    if (related && related.closest?.('.annotation-span.has-translation')) return;
+    if (related) {
+      // Standard: moving to another annotation element
+      if (related.closest?.('.annotation-span.has-translation')) return;
+      // Inverted DOM: annotation spans are inside word spans, so moving
+      // to a parent word span that contains an annotation should keep tooltip
+      if (related.matches?.('[id^="w"]') &&
+          related.querySelector?.('.annotation-span.has-translation')) return;
+    }
     clearTimeout(wordHoverTimer.current);
     setWordTooltip(null);
   }, []);
