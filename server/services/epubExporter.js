@@ -1,6 +1,7 @@
 const JSZip = require('jszip');
 const fs = require('fs').promises;
 const path = require('path');
+const cheerio = require('cheerio');
 const SyncData = require('../models/SyncData');
 const Annotation = require('../models/Annotation');
 const smilGenerator = require('./smilGenerator');
@@ -51,12 +52,14 @@ class EpubExporter {
   padding: 0 1px;
 }
 .annotation.has-translation {
-  position: relative;
   border-bottom: 1px dashed #2563eb;
   cursor: default;
 }
-.annotation.has-translation:hover::after,
-.annotation.has-translation:active::after {
+.annotation.has-translation [data-translation] {
+  position: relative;
+}
+.annotation.has-translation [data-translation]:hover::after,
+.annotation.has-translation [data-translation]:active::after {
   content: attr(data-translation);
   position: absolute;
   bottom: 100%;
@@ -68,7 +71,7 @@ class EpubExporter {
   border-radius: 4px;
   font-size: 0.85em;
   white-space: nowrap;
-  z-index: 10;
+  z-index: 20;
   pointer-events: none;
   box-shadow: 0 2px 6px rgba(0,0,0,0.18);
 }
@@ -114,6 +117,7 @@ class EpubExporter {
       const chapterAnnotations = annotationMap[ch.index] || [];
       if (chapterAnnotations.length > 0) {
         html = this._applyAnnotations(html, chapterAnnotations);
+        html = await this._addWordTranslations(html, chapterAnnotations, book);
       }
 
       const chId = `ch${ch.index}`;
@@ -430,7 +434,7 @@ ${items}
       if (hasTranslation) {
         const et = this._escXml(ann.translatedText);
         const lang = ann.translatedLang ? ` (${this._escXml(ann.translatedLang)})` : '';
-        replacement = `<span class="annotation has-translation"${styleAttr} data-translation="${et}${lang}" title="${et}${lang}">${matchedHtml}</span>`;
+        replacement = `<span class="annotation has-translation"${styleAttr} data-translation="${et}${lang}" data-translated-lang="${this._escXml(ann.translatedLang || '')}" title="${et}${lang}">${matchedHtml}</span>`;
       } else {
         replacement = `<span class="annotation"${styleAttr}>${matchedHtml}</span>`;
       }
@@ -439,6 +443,86 @@ ${items}
     }
 
     return html;
+  }
+
+  /**
+   * Batch-translate individual words inside annotation spans so the exported
+   * EPUB supports word-level hover tooltips (CSS-only, no JS needed).
+   */
+  async _addWordTranslations(html, annotations, book) {
+    const translation = require('./translationService');
+    const os = require('os');
+
+    const translatedAnns = annotations.filter(a => a.translatedText && a.translatedLang);
+    if (translatedAnns.length === 0) return html;
+
+    const $ = cheerio.load(`<div id="_ew">${html}</div>`, { xmlMode: false, decodeEntities: false });
+
+    // Collect unique words per target language
+    const wordsByLang = {};
+
+    $('.annotation.has-translation').each((_, annEl) => {
+      const $ann = $(annEl);
+      const lang = $ann.attr('data-translated-lang');
+      if (!lang) return;
+
+      $ann.find('[id^="w"]').each((_, wordEl) => {
+        const word = $(wordEl).text().trim();
+        if (!word) return;
+        if (!wordsByLang[lang]) wordsByLang[lang] = new Set();
+        wordsByLang[lang].add(word);
+      });
+    });
+
+    if (Object.keys(wordsByLang).length === 0) return html;
+
+    const srcLang = book.language || 'en';
+    const translationMap = {}; // "word|lang" -> translated
+
+    for (const [lang, wordSet] of Object.entries(wordsByLang)) {
+      if (translation.isSameLanguage(srcLang, lang)) continue;
+
+      const words = [...wordSet].slice(0, 500);
+      try {
+        const results = await translation.translateParagraphs(
+          words, srcLang, lang, os.tmpdir()
+        );
+        words.forEach((word, i) => {
+          translationMap[`${word.toLowerCase()}|${lang}`] = results[i] || word;
+        });
+      } catch (err) {
+        console.warn(`NLLB word translation failed for ${lang}, trying web API:`, err.message);
+        for (const word of words) {
+          try {
+            const result = await translation.translateViaWebAPI(word, srcLang, lang);
+            translationMap[`${word.toLowerCase()}|${lang}`] = result;
+          } catch {
+            // skip — title attribute on annotation span is the fallback
+          }
+        }
+      }
+    }
+
+    if (Object.keys(translationMap).length === 0) return html;
+
+    // Set data-translation on each word span
+    $('.annotation.has-translation').each((_, annEl) => {
+      const $ann = $(annEl);
+      const lang = $ann.attr('data-translated-lang');
+      if (!lang) return;
+
+      $ann.find('[id^="w"]').each((_, wordEl) => {
+        const $word = $(wordEl);
+        const word = $word.text().trim();
+        if (!word) return;
+        const key = `${word.toLowerCase()}|${lang}`;
+        if (translationMap[key]) {
+          $word.attr('data-translation', translationMap[key]);
+        }
+      });
+    });
+
+    return $('#_ew').html();
   }
 
   _escXml(str) {
