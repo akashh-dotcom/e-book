@@ -24,6 +24,7 @@ export default function ChapterView({
   const contentRef = useRef(null);
   const wordTranslationCache = useRef({}); // cache: { "word|lang" -> translation }
   const wordHoverTimer = useRef(null);
+  const batchTranslatingAnnotations = useRef(new Set()); // track in-flight batch requests per annotation
 
   // Load annotations for this chapter
   useEffect(() => {
@@ -169,6 +170,47 @@ export default function ChapterView({
     }
   };
 
+  // Batch-translate all words in an annotation span and cache them
+  const batchTranslateAnnotation = useCallback(async (annotationSpan, lang) => {
+    const annId = annotationSpan.getAttribute('data-annotation-id');
+    if (batchTranslatingAnnotations.current.has(annId)) return; // already in-flight
+    batchTranslatingAnnotations.current.add(annId);
+
+    // Collect all unique words from this annotation span
+    const wordEls = annotationSpan.querySelectorAll('[id^="w"]');
+    const uniqueWords = [...new Set(
+      Array.from(wordEls)
+        .map(el => el.textContent.trim())
+        .filter(Boolean)
+    )];
+
+    if (uniqueWords.length === 0) return;
+
+    try {
+      const res = await api.post('/annotations/translate-batch', {
+        words: uniqueWords,
+        targetLang: lang,
+        bookId,
+      });
+      const translations = res.data.translations;
+      // Cache all word translations
+      Object.entries(translations).forEach(([word, trans]) => {
+        wordTranslationCache.current[`${word}|${lang}`] = trans;
+      });
+      // Update tooltip if user is still hovering on a word in this annotation
+      setWordTooltip(prev => {
+        if (!prev || prev.translation) return prev;
+        const cached = wordTranslationCache.current[`${prev.word.toLowerCase()}|${lang}`];
+        if (cached) return { ...prev, translation: cached };
+        return prev;
+      });
+    } catch {
+      // Silently fail
+    } finally {
+      batchTranslatingAnnotations.current.delete(annId);
+    }
+  }, [bookId]);
+
   // Word-level hover translation
   const handleWordHover = useCallback((e) => {
     const target = e.target;
@@ -204,37 +246,15 @@ export default function ChapterView({
       return;
     }
 
-    // Fetch translation in background — only show tooltip once result arrives
-    clearTimeout(wordHoverTimer.current);
-    wordHoverTimer.current = setTimeout(async () => {
-      try {
-        const res = await api.post('/annotations/translate-text', {
-          text: wordText,
-          targetLang: lang,
-          bookId,
-        });
-        const translated = res.data.translatedText;
-        wordTranslationCache.current[cacheKey] = translated;
-        // Only show if still hovering over this word
-        setWordTooltip(prev => {
-          // If tooltip was cleared (mouse left), don't show
-          // If user moved to a different word, don't show either
-          if (prev === null) return null;
-          if (prev && prev.word !== wordText) return prev;
-          return {
-            x: tooltipX, y: tooltipY,
-            word: wordText,
-            translation: translated,
-          };
-        });
-      } catch {
-        // Silently fail — no tooltip shown
-      }
-    }, 300);
-
-    // Set a placeholder state (no tooltip visible yet) so we can track which word is hovered
+    // Set placeholder so tooltip knows which word we're waiting for
     setWordTooltip({ x: tooltipX, y: tooltipY, word: wordText, translation: null });
-  }, [wordTooltip, bookId]);
+
+    // Batch-translate all words in this annotation (single model load instead of per-word)
+    clearTimeout(wordHoverTimer.current);
+    wordHoverTimer.current = setTimeout(() => {
+      batchTranslateAnnotation(annotationSpan, lang);
+    }, 100);
+  }, [wordTooltip, bookId, batchTranslateAnnotation]);
 
   const handleWordLeave = useCallback((e) => {
     const related = e.relatedTarget;
@@ -423,6 +443,18 @@ export default function ChapterView({
         translatedText,
         translatedLang: targetLang,
       });
+
+      // Pre-cache individual word translations in the background so hover is instant
+      const words = contextMenu.text.split(/\s+/).filter(w => w.trim());
+      if (words.length > 0) {
+        api.post('/annotations/translate-batch', { words, targetLang, bookId })
+          .then(batchRes => {
+            Object.entries(batchRes.data.translations).forEach(([word, trans]) => {
+              wordTranslationCache.current[`${word}|${targetLang}`] = trans;
+            });
+          })
+          .catch(() => {}); // silently fail, hover will still work as fallback
+      }
 
       closeContextMenu();
       window.getSelection()?.removeAllRanges();

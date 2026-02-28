@@ -81,6 +81,66 @@ exports.deleteAnnotation = async (req, res) => {
   }
 };
 
+// Batch translate multiple words in a single model load
+exports.translateBatch = async (req, res) => {
+  try {
+    const { words, targetLang, bookId } = req.body;
+
+    if (!words || !Array.isArray(words) || words.length === 0 || !targetLang) {
+      return res.status(400).json({ error: 'words (array) and targetLang are required' });
+    }
+
+    // Cap at 200 words to avoid abuse
+    const uniqueWords = [...new Set(words.map(w => w.trim()).filter(Boolean))].slice(0, 200);
+
+    const Book = require('../models/Book');
+    const translation = require('../services/translationService');
+
+    let srcLang = 'en';
+    if (bookId) {
+      const book = await Book.findById(bookId);
+      if (book?.language) srcLang = book.language;
+    }
+
+    if (translation.isSameLanguage(srcLang, targetLang)) {
+      const translations = {};
+      uniqueWords.forEach(w => { translations[w.toLowerCase()] = w; });
+      return res.json({ translations });
+    }
+
+    const os = require('os');
+    let translatedArr;
+
+    try {
+      translatedArr = await translation.translateParagraphs(
+        uniqueWords, srcLang, targetLang, os.tmpdir()
+      );
+    } catch (nllbErr) {
+      console.warn('NLLB batch failed, falling back to web API:', nllbErr.message);
+      // Fall back to web API one-by-one (still faster than N separate model loads)
+      translatedArr = [];
+      for (const word of uniqueWords) {
+        try {
+          const result = await translation.translateViaWebAPI(word, srcLang, targetLang);
+          translatedArr.push(result);
+        } catch {
+          translatedArr.push(word); // keep original on failure
+        }
+      }
+    }
+
+    const translations = {};
+    uniqueWords.forEach((word, i) => {
+      translations[word.toLowerCase()] = translatedArr[i] || word;
+    });
+
+    res.json({ translations });
+  } catch (err) {
+    console.error('Batch translation error:', err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
 // Translate a short text selection (with retry for Windows memory crashes)
 exports.translateText = async (req, res) => {
   try {

@@ -6,6 +6,7 @@ router.use(protect);
 
 router.post('/', ctrl.upsertAnnotation);
 router.post('/translate-text', ctrl.translateText);
+router.post('/translate-batch', ctrl.translateBatch);
 router.get('/:bookId/:chapterIndex', ctrl.getAnnotations);
 router.get('/:bookId', ctrl.getBookAnnotations);
 router.delete('/:id', ctrl.deleteAnnotation);
