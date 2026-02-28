@@ -50,10 +50,27 @@ class EpubExporter {
   border-radius: 2px;
   padding: 0 1px;
 }
-.annotation-translation {
-  font-size: 0.65em;
-  color: #2563eb;
-  margin-left: 2px;
+.annotation.has-translation {
+  position: relative;
+  border-bottom: 1px dashed #2563eb;
+  cursor: default;
+}
+.annotation.has-translation:hover::after,
+.annotation.has-translation:active::after {
+  content: attr(data-translation);
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1e293b;
+  color: #fff;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.85em;
+  white-space: nowrap;
+  z-index: 10;
+  pointer-events: none;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.18);
 }
 `);
 
@@ -412,7 +429,8 @@ ${items}
       let replacement;
       if (hasTranslation) {
         const et = this._escXml(ann.translatedText);
-        replacement = `<span class="annotation"${styleAttr} title="${et} (${ann.translatedLang || ''})">${matchedHtml}<sup class="annotation-translation" style="font-size:0.65em;color:#2563eb;margin-left:2px">[${et}]</sup></span>`;
+        const lang = ann.translatedLang ? ` (${this._escXml(ann.translatedLang)})` : '';
+        replacement = `<span class="annotation has-translation"${styleAttr} data-translation="${et}${lang}" title="${et}${lang}">${matchedHtml}</span>`;
       } else {
         replacement = `<span class="annotation"${styleAttr}>${matchedHtml}</span>`;
       }
