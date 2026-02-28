@@ -338,7 +338,7 @@ body {
 }
 
 /* Override any EPUB-embedded styles */
-.chapter-content *:not(.-epub-media-overlay-active):not(.mo-spoken) {
+.chapter-content *:not(.-epub-media-overlay-active):not(.mo-spoken):not(.annotation-span) {
   background-color: transparent !important;
 }
 
