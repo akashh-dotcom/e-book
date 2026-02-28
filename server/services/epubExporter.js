@@ -50,6 +50,7 @@ class EpubExporter {
 .annotation {
   border-radius: 2px;
   padding: 0 1px;
+  display: inline;
 }
 .annotation.has-translation {
   border-bottom: 1px dashed #2563eb;
@@ -355,28 +356,20 @@ ${items}
   }
 
   /**
-   * Build a mapping from text-content positions to HTML string positions.
-   * Skips characters inside HTML tags so we can search in "text only" and
-   * map back to the original HTML offsets for replacement.
-   */
-  _buildTextMap(html) {
-    const textToHtml = []; // textToHtml[textIdx] = htmlIdx
-    let inTag = false;
-    for (let i = 0; i < html.length; i++) {
-      if (html[i] === '<') { inTag = true; continue; }
-      if (inTag) { if (html[i] === '>') inTag = false; continue; }
-      textToHtml.push(i);
-    }
-    return textToHtml;
-  }
-
-  /**
-   * Apply annotations to chapter HTML by wrapping annotated text in styled spans.
-   * Uses a text-content mapping so matches work even when words are wrapped
-   * in individual <span> elements (word-wrapper for TTS sync).
+   * Apply annotations to chapter HTML by wrapping annotated word spans
+   * in individual styled annotation spans.
+   *
+   * Previous approach wrapped the entire matched HTML range in a single
+   * <span>, but the closing </span> tags from inner word-wrapper spans
+   * would prematurely close the annotation span — only the first word
+   * got styled.  This version wraps each word span individually so HTML
+   * nesting stays valid.
    */
   _applyAnnotations(html, annotations) {
-    // Sort by occurrence index descending so later occurrences are replaced
+    const $ = cheerio.load(`<div id="_aw">${html}</div>`, { xmlMode: false, decodeEntities: false });
+    const root = $('#_aw')[0];
+
+    // Sort by occurrence index descending so later occurrences are processed
     // first and earlier positions stay valid.
     const sorted = [...annotations].sort((a, b) => {
       if (a.selectedText === b.selectedText) {
@@ -391,30 +384,36 @@ ${items}
       const hasTranslation = ann.translatedText;
       if (!hasStyle && !hasTranslation) continue;
 
-      // Build text-to-HTML position map (recalculated each iteration
-      // because previous replacements change the HTML string).
-      const textToHtml = this._buildTextMap(html);
-      const textContent = textToHtml.map(pos => html[pos]).join('');
+      // Walk all text nodes to build full text content and position map
+      const textNodes = [];
+      let fullText = '';
+      const walkText = (node) => {
+        if (node.type === 'text') {
+          textNodes.push({ node, start: fullText.length, length: (node.data || '').length });
+          fullText += node.data || '';
+        } else if (node.children) {
+          for (const c of node.children) walkText(c);
+        }
+      };
+      walkText(root);
 
       const searchText = ann.selectedText;
       const target = ann.occurrenceIndex || 0;
-
       let matchStart = -1;
       let matchLength = searchText.length;
 
-      // 1) Exact match in text content
+      // 1) Exact match
       let count = 0;
       let sf = 0;
-      while (sf <= textContent.length - searchText.length) {
-        const idx = textContent.indexOf(searchText, sf);
+      while (sf <= fullText.length - searchText.length) {
+        const idx = fullText.indexOf(searchText, sf);
         if (idx === -1) break;
         if (count === target) { matchStart = idx; break; }
         count++;
         sf = idx + 1;
       }
 
-      // 2) Flexible whitespace match (handles newlines / extra spaces
-      //    from cross-paragraph selections)
+      // 2) Flexible whitespace match
       if (matchStart === -1) {
         const normalized = searchText.replace(/\s+/g, ' ').trim();
         const escaped = normalized.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
@@ -422,43 +421,73 @@ ${items}
         const regex = new RegExp(pattern, 'g');
         count = 0;
         let m;
-        while ((m = regex.exec(textContent)) !== null) {
-          if (count === target) {
-            matchStart = m.index;
-            matchLength = m[0].length;
-            break;
-          }
+        while ((m = regex.exec(fullText)) !== null) {
+          if (count === target) { matchStart = m.index; matchLength = m[0].length; break; }
           count++;
           regex.lastIndex = m.index + 1;
         }
       }
 
       if (matchStart === -1) continue;
-
-      // Map text positions back to HTML positions
-      const htmlStart = textToHtml[matchStart];
-      const htmlEnd = textToHtml[matchStart + matchLength - 1] + 1;
-
-      // The matched segment preserves internal HTML (word-wrapper spans etc.)
-      const matchedHtml = html.slice(htmlStart, htmlEnd);
+      const matchEnd = matchStart + matchLength;
 
       // Build inline style
       const styles = [];
       if (ann.backgroundColor) styles.push(`background-color:${ann.backgroundColor}`);
       if (ann.fontColor) styles.push(`color:${ann.fontColor}`);
-      const styleAttr = styles.length > 0 ? ` style="${styles.join(';')}"` : '';
+      const styleStr = styles.join(';');
 
-      let replacement;
-      if (hasTranslation) {
-        replacement = `<span class="annotation has-translation"${styleAttr} data-translated-lang="${this._escXml(ann.translatedLang || '')}">${matchedHtml}</span>`;
-      } else {
-        replacement = `<span class="annotation"${styleAttr}>${matchedHtml}</span>`;
+      // Build annotation class/attributes
+      const annClass = hasTranslation ? 'annotation has-translation' : 'annotation';
+      const annAttrs = { class: annClass };
+      if (hasTranslation) annAttrs['data-translated-lang'] = ann.translatedLang || '';
+      if (styleStr) annAttrs.style = styleStr;
+
+      // Find word spans and text nodes overlapping with the match range
+      const processedWordSpans = new Set();
+
+      for (const tn of textNodes) {
+        const tnEnd = tn.start + tn.length;
+        if (tn.start >= matchEnd || tnEnd <= matchStart) continue;
+
+        // Trace up to find parent word span
+        let wordSpanNode = null;
+        let p = tn.node.parent;
+        while (p && p !== root) {
+          if (p.type === 'tag' && p.attribs && p.attribs.id && /^w\d/.test(p.attribs.id)) {
+            wordSpanNode = p;
+            break;
+          }
+          p = p.parent;
+        }
+
+        if (wordSpanNode && !processedWordSpans.has(wordSpanNode)) {
+          processedWordSpans.add(wordSpanNode);
+          const $wordEl = $(wordSpanNode);
+          // Skip if already inside an annotation
+          if ($wordEl.closest('.annotation').length > 0) continue;
+          $wordEl.wrap($('<span></span>').attr({ ...annAttrs }));
+        } else if (!wordSpanNode) {
+          // Text not inside a word span — wrap the overlapping portion directly
+          const overlapStart = Math.max(0, matchStart - tn.start);
+          const overlapEnd = Math.min(tn.length, matchEnd - tn.start);
+          const text = tn.node.data || '';
+          const matched = text.substring(overlapStart, overlapEnd);
+          if (!matched.trim()) continue;
+
+          const before = text.substring(0, overlapStart);
+          const after = text.substring(overlapEnd);
+          const $annSpan = $('<span></span>').attr({ ...annAttrs }).text(matched);
+          let replacement = '';
+          if (before) replacement += before;
+          replacement += $.html($annSpan);
+          if (after) replacement += after;
+          $(tn.node).replaceWith(replacement);
+        }
       }
-
-      html = html.slice(0, htmlStart) + replacement + html.slice(htmlEnd);
     }
 
-    return html;
+    return $('#_aw').html();
   }
 
   /**
