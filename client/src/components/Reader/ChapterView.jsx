@@ -176,8 +176,22 @@ export default function ChapterView({
     if (batchTranslatingAnnotations.current.has(annId)) return; // already in-flight
     batchTranslatingAnnotations.current.add(annId);
 
-    // Collect all unique words from this annotation span
-    const wordEls = annotationSpan.querySelectorAll('[id^="w"]');
+    // Collect all unique words from this annotation.
+    // Annotation spans may be nested inside word spans (not wrapping them)
+    // when wrapTextWithAnnotation uses surroundContents on text nodes within
+    // word <span id="wXXXXX"> elements.  Handle both hierarchies.
+    let wordEls = annotationSpan.querySelectorAll('[id^="w"]');
+    if (wordEls.length === 0 && contentRef.current) {
+      const allAnnSpans = contentRef.current.querySelectorAll(
+        `[data-annotation-id="${annId}"]`
+      );
+      const parentWordEls = [];
+      allAnnSpans.forEach(span => {
+        const pw = span.closest('[id^="w"]');
+        if (pw) parentWordEls.push(pw);
+      });
+      wordEls = parentWordEls;
+    }
     const uniqueWords = [...new Set(
       Array.from(wordEls)
         .map(el => el.textContent.trim())
