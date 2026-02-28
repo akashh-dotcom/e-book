@@ -1016,33 +1016,32 @@ body {
   cursor: default;
 }
 
-/* Word-level translation tooltip (positioned via JS) */
+/* Word-level translation tooltip (rendered via portal to body) */
 .word-translation-tooltip {
   position: fixed;
-  z-index: 200;
+  z-index: 10000;
+  transform: translate(-50%, -100%);
   background: var(--chrome-bg, #020a06);
   color: var(--chrome-text, #d1fae5);
   border: 1px solid var(--chrome-border, rgba(16,185,129,0.12));
-  padding: 5px 10px;
+  padding: 4px 10px;
   border-radius: 6px;
   font-size: 0.8rem;
+  line-height: 1.3;
   white-space: nowrap;
   max-width: 300px;
+  width: fit-content;
   overflow: hidden;
   text-overflow: ellipsis;
   pointer-events: none;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-  animation: wordTipFadeIn 0.15s ease;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+  opacity: 0;
+  animation: wordTipIn 0.15s ease forwards;
 }
 
-.word-translation-tooltip.loading {
-  color: rgba(209,250,229,0.5);
-  font-style: italic;
-}
-
-@keyframes wordTipFadeIn {
-  from { opacity: 0; transform: translateY(4px); }
-  to   { opacity: 1; transform: translateY(0); }
+@keyframes wordTipIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
 
 /* Full translation display in context menu */

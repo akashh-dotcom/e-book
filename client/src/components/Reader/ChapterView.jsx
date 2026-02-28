@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import AnnotationContextMenu from './AnnotationContextMenu';
 import api from '../../services/api';
 
@@ -171,7 +172,6 @@ export default function ChapterView({
   // Word-level hover translation
   const handleWordHover = useCallback((e) => {
     const target = e.target;
-    // Check if we're hovering over a word span inside a has-translation annotation
     const annotationSpan = target.closest('.annotation-span.has-translation');
     if (!annotationSpan) {
       if (wordTooltip) setWordTooltip(null);
@@ -179,25 +179,20 @@ export default function ChapterView({
       return;
     }
 
-    // Get the word text - either from a word span (id starting with 'w') or the direct text
-    let wordText = '';
-    if (target.id && target.id.startsWith('w')) {
-      wordText = target.textContent.trim();
-    } else if (target.closest('[id^="w"]')) {
-      wordText = target.closest('[id^="w"]').textContent.trim();
-    } else {
-      return;
-    }
+    // Get the word span element (each word is wrapped in <span id="wXXXXX">)
+    const wordEl = target.id?.startsWith('w') ? target : target.closest('[id^="w"]');
+    if (!wordEl) return;
 
-    if (!wordText || wordText.length < 1) return;
+    const wordText = wordEl.textContent.trim();
+    if (!wordText) return;
 
     const lang = annotationSpan.getAttribute('data-translated-lang');
     if (!lang) return;
 
     const cacheKey = `${wordText.toLowerCase()}|${lang}`;
-    const rect = (target.id?.startsWith('w') ? target : target.closest('[id^="w"]')).getBoundingClientRect();
+    const rect = wordEl.getBoundingClientRect();
     const tooltipX = rect.left + rect.width / 2;
-    const tooltipY = rect.top - 8;
+    const tooltipY = rect.top - 6;
 
     // If cached, show immediately
     if (wordTranslationCache.current[cacheKey]) {
@@ -205,21 +200,13 @@ export default function ChapterView({
         x: tooltipX, y: tooltipY,
         word: wordText,
         translation: wordTranslationCache.current[cacheKey],
-        loading: false,
       });
       return;
     }
 
-    // Show loading tooltip after a small delay
+    // Fetch translation in background — only show tooltip once result arrives
     clearTimeout(wordHoverTimer.current);
     wordHoverTimer.current = setTimeout(async () => {
-      setWordTooltip({
-        x: tooltipX, y: tooltipY,
-        word: wordText,
-        translation: '',
-        loading: true,
-      });
-
       try {
         const res = await api.post('/annotations/translate-text', {
           text: wordText,
@@ -228,22 +215,29 @@ export default function ChapterView({
         });
         const translated = res.data.translatedText;
         wordTranslationCache.current[cacheKey] = translated;
-        setWordTooltip(prev => prev && prev.word === wordText
-          ? { ...prev, translation: translated, loading: false }
-          : prev
-        );
+        // Only show if still hovering over this word
+        setWordTooltip(prev => {
+          // If tooltip was cleared (mouse left), don't show
+          // If user moved to a different word, don't show either
+          if (prev === null) return null;
+          if (prev && prev.word !== wordText) return prev;
+          return {
+            x: tooltipX, y: tooltipY,
+            word: wordText,
+            translation: translated,
+          };
+        });
       } catch {
-        setWordTooltip(prev => prev && prev.word === wordText
-          ? { ...prev, translation: wordText, loading: false }
-          : prev
-        );
+        // Silently fail — no tooltip shown
       }
-    }, 200);
+    }, 300);
+
+    // Set a placeholder state (no tooltip visible yet) so we can track which word is hovered
+    setWordTooltip({ x: tooltipX, y: tooltipY, word: wordText, translation: null });
   }, [wordTooltip, bookId]);
 
   const handleWordLeave = useCallback((e) => {
     const related = e.relatedTarget;
-    // Don't hide if moving to another word inside the same annotation
     if (related && related.closest?.('.annotation-span.has-translation')) return;
     clearTimeout(wordHoverTimer.current);
     setWordTooltip(null);
@@ -493,18 +487,18 @@ export default function ChapterView({
         }}
       />
 
-      {/* Word-level translation tooltip */}
-      {wordTooltip && (
+      {/* Word-level translation tooltip — rendered via portal to body to avoid parent CSS interference */}
+      {wordTooltip && wordTooltip.translation && createPortal(
         <div
-          className={`word-translation-tooltip${wordTooltip.loading ? ' loading' : ''}`}
+          className="word-translation-tooltip"
           style={{
-            left: wordTooltip.x,
-            top: wordTooltip.y,
-            transform: 'translate(-50%, -100%)',
+            left: `${wordTooltip.x}px`,
+            top: `${wordTooltip.y}px`,
           }}
         >
-          {wordTooltip.loading ? 'Translating...' : wordTooltip.translation}
-        </div>
+          {wordTooltip.translation}
+        </div>,
+        document.body
       )}
 
       {highlightPopup && (
