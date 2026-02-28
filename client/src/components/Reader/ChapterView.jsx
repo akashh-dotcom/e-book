@@ -89,6 +89,7 @@ export default function ChapterView({
 
     // Find the nth occurrence in the concatenated text
     let matchStart = -1;
+    let matchLength = searchText.length;
     let occurrenceCount = 0;
     let searchFrom = 0;
     while (searchFrom <= fullText.length - searchText.length) {
@@ -102,8 +103,28 @@ export default function ChapterView({
       searchFrom = idx + 1;
     }
 
+    // If exact match fails, try flexible whitespace matching (handles
+    // newlines/extra spaces between block elements in cross-paragraph selections)
+    if (matchStart === -1) {
+      const normalized = searchText.replace(/\s+/g, ' ').trim();
+      const escaped = normalized.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
+      const pattern = escaped.replace(/ /g, '\\s+');
+      const regex = new RegExp(pattern, 'g');
+      occurrenceCount = 0;
+      let m;
+      while ((m = regex.exec(fullText)) !== null) {
+        if (occurrenceCount === occurrenceTarget) {
+          matchStart = m.index;
+          matchLength = m[0].length;
+          break;
+        }
+        occurrenceCount++;
+        regex.lastIndex = m.index + 1;
+      }
+    }
+
     if (matchStart === -1) return;
-    const matchEnd = matchStart + searchText.length;
+    const matchEnd = matchStart + matchLength;
 
     // Wrap each text node segment that overlaps with the match.
     // Because we wrap within individual text nodes, surroundContents
@@ -151,7 +172,7 @@ export default function ChapterView({
       return;
     }
 
-    const text = selection.toString().trim();
+    const text = selection.toString().replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ').trim();
     if (!text) {
       setHighlightPopup(null);
       return;
@@ -180,7 +201,7 @@ export default function ChapterView({
     const selection = window.getSelection();
     if (!selection || selection.isCollapsed) return;
 
-    const text = selection.toString().trim();
+    const text = selection.toString().replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ').trim();
     if (!text) return;
 
     e.preventDefault();

@@ -316,12 +316,29 @@ ${items}
   }
 
   /**
+   * Build a mapping from text-content positions to HTML string positions.
+   * Skips characters inside HTML tags so we can search in "text only" and
+   * map back to the original HTML offsets for replacement.
+   */
+  _buildTextMap(html) {
+    const textToHtml = []; // textToHtml[textIdx] = htmlIdx
+    let inTag = false;
+    for (let i = 0; i < html.length; i++) {
+      if (html[i] === '<') { inTag = true; continue; }
+      if (inTag) { if (html[i] === '>') inTag = false; continue; }
+      textToHtml.push(i);
+    }
+    return textToHtml;
+  }
+
+  /**
    * Apply annotations to chapter HTML by wrapping annotated text in styled spans.
-   * Uses inline styles so colors and translations persist in the exported EPUB.
+   * Uses a text-content mapping so matches work even when words are wrapped
+   * in individual <span> elements (word-wrapper for TTS sync).
    */
   _applyAnnotations(html, annotations) {
-    // Process each annotation: find the text and wrap it in a <span>
-    // Sort by occurrence index descending so replacements don't shift positions
+    // Sort by occurrence index descending so later occurrences are replaced
+    // first and earlier positions stay valid.
     const sorted = [...annotations].sort((a, b) => {
       if (a.selectedText === b.selectedText) {
         return (b.occurrenceIndex || 0) - (a.occurrenceIndex || 0);
@@ -335,56 +352,72 @@ ${items}
       const hasTranslation = ann.translatedText;
       if (!hasStyle && !hasTranslation) continue;
 
+      // Build text-to-HTML position map (recalculated each iteration
+      // because previous replacements change the HTML string).
+      const textToHtml = this._buildTextMap(html);
+      const textContent = textToHtml.map(pos => html[pos]).join('');
+
+      const searchText = ann.selectedText;
+      const target = ann.occurrenceIndex || 0;
+
+      let matchStart = -1;
+      let matchLength = searchText.length;
+
+      // 1) Exact match in text content
+      let count = 0;
+      let sf = 0;
+      while (sf <= textContent.length - searchText.length) {
+        const idx = textContent.indexOf(searchText, sf);
+        if (idx === -1) break;
+        if (count === target) { matchStart = idx; break; }
+        count++;
+        sf = idx + 1;
+      }
+
+      // 2) Flexible whitespace match (handles newlines / extra spaces
+      //    from cross-paragraph selections)
+      if (matchStart === -1) {
+        const normalized = searchText.replace(/\s+/g, ' ').trim();
+        const escaped = normalized.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
+        const pattern = escaped.replace(/ /g, '\\s+');
+        const regex = new RegExp(pattern, 'g');
+        count = 0;
+        let m;
+        while ((m = regex.exec(textContent)) !== null) {
+          if (count === target) {
+            matchStart = m.index;
+            matchLength = m[0].length;
+            break;
+          }
+          count++;
+          regex.lastIndex = m.index + 1;
+        }
+      }
+
+      if (matchStart === -1) continue;
+
+      // Map text positions back to HTML positions
+      const htmlStart = textToHtml[matchStart];
+      const htmlEnd = textToHtml[matchStart + matchLength - 1] + 1;
+
+      // The matched segment preserves internal HTML (word-wrapper spans etc.)
+      const matchedHtml = html.slice(htmlStart, htmlEnd);
+
       // Build inline style
       const styles = [];
       if (ann.backgroundColor) styles.push(`background-color:${ann.backgroundColor}`);
       if (ann.fontColor) styles.push(`color:${ann.fontColor}`);
       const styleAttr = styles.length > 0 ? ` style="${styles.join(';')}"` : '';
 
-      // Build the replacement span
-      const escapedText = this._escXml(ann.selectedText);
       let replacement;
       if (hasTranslation) {
-        // Include translation as a tooltip (title attribute) and as a visible ruby-like annotation
-        const escapedTranslation = this._escXml(ann.translatedText);
-        replacement = `<span class="annotation"${styleAttr} title="${escapedTranslation} (${ann.translatedLang || ''})">${ann.selectedText}<sup class="annotation-translation" style="font-size:0.65em;color:#2563eb;margin-left:2px">[${escapedTranslation}]</sup></span>`;
+        const et = this._escXml(ann.translatedText);
+        replacement = `<span class="annotation"${styleAttr} title="${et} (${ann.translatedLang || ''})">${matchedHtml}<sup class="annotation-translation" style="font-size:0.65em;color:#2563eb;margin-left:2px">[${et}]</sup></span>`;
       } else {
-        replacement = `<span class="annotation"${styleAttr}>${ann.selectedText}</span>`;
+        replacement = `<span class="annotation"${styleAttr}>${matchedHtml}</span>`;
       }
 
-      // Find and replace the nth occurrence
-      const target = ann.occurrenceIndex || 0;
-      let count = 0;
-      let result = '';
-      let searchFrom = 0;
-
-      // We need to search in text content only (not in HTML tags)
-      // Simple approach: find occurrence in full HTML string outside of tags
-      const text = ann.selectedText;
-      while (searchFrom < html.length) {
-        const idx = html.indexOf(text, searchFrom);
-        if (idx === -1) break;
-
-        // Check that this occurrence is not inside an HTML tag
-        const beforeSlice = html.slice(0, idx);
-        const lastOpenTag = beforeSlice.lastIndexOf('<');
-        const lastCloseTag = beforeSlice.lastIndexOf('>');
-        const insideTag = lastOpenTag > lastCloseTag;
-
-        if (insideTag) {
-          // Skip this occurrence — it's inside a tag
-          searchFrom = idx + 1;
-          continue;
-        }
-
-        if (count === target) {
-          result = html.slice(0, idx) + replacement + html.slice(idx + text.length);
-          html = result;
-          break;
-        }
-        count++;
-        searchFrom = idx + 1;
-      }
+      html = html.slice(0, htmlStart) + replacement + html.slice(htmlEnd);
     }
 
     return html;
